@@ -1,0 +1,34 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+out/
+
+# Rider / ReSharper
+.idea/
+*.sln.iml
+
+# VS / VS Code
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Test / coverage
+TestResults/
+*.coverage
+*.coveragexml
+coverage/
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
