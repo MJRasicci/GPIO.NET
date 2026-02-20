@@ -24,11 +24,26 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
             .ToArray() ?? Array.Empty<GpifTrack>();
 
         var masterBars = (root.Element("MasterBars")?.Elements("MasterBar") ?? Enumerable.Empty<XElement>())
-            .Select((mb, index) => new GpifMasterBar
+            .Select((mb, index) =>
             {
-                Index = index,
-                Time = mb.Element("Time")?.Value ?? string.Empty,
-                BarsReferenceList = mb.Element("Bars")?.Value ?? string.Empty
+                var repeat = mb.Element("Repeat");
+                var section = mb.Element("Section");
+                var directions = mb.Element("Directions");
+
+                return new GpifMasterBar
+                {
+                    Index = index,
+                    Time = mb.Element("Time")?.Value ?? string.Empty,
+                    BarsReferenceList = mb.Element("Bars")?.Value ?? string.Empty,
+                    AlternateEndings = mb.Element("AlternateEndings")?.Value ?? string.Empty,
+                    RepeatStart = ParseBool(repeat?.Attribute("start")?.Value),
+                    RepeatEnd = ParseBool(repeat?.Attribute("end")?.Value),
+                    RepeatCount = ParseInt(repeat?.Attribute("count")?.Value),
+                    SectionLetter = section?.Element("Letter")?.Value ?? string.Empty,
+                    SectionText = section?.Element("Text")?.Value ?? string.Empty,
+                    Jump = directions?.Element("Jump")?.Value ?? string.Empty,
+                    Target = directions?.Element("Target")?.Value ?? string.Empty
+                };
             })
             .ToArray();
 
@@ -93,6 +108,9 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
 
     private static int ParseInt(string? value)
         => int.TryParse(value, out var result) ? result : -1;
+
+    private static bool ParseBool(string? value)
+        => bool.TryParse(value, out var result) && result;
 
     private static int? ParseMidiPitch(XElement note)
     {

@@ -9,6 +9,11 @@ public sealed class GuitarProScore
     public string Album { get; init; } = string.Empty;
 
     public IReadOnlyList<TrackModel> Tracks { get; init; } = Array.Empty<TrackModel>();
+
+    /// <summary>
+    /// Ordered master-bar indices representing navigation-aware playback traversal.
+    /// </summary>
+    public IReadOnlyList<int> PlaybackMasterBarSequence { get; init; } = Array.Empty<int>();
 }
 
 public sealed class TrackModel
@@ -26,11 +31,31 @@ public sealed class MeasureModel
 
     public string TimeSignature { get; init; } = string.Empty;
 
+    public int SourceBarId { get; init; }
+
+    public bool RepeatStart { get; init; }
+
+    public bool RepeatEnd { get; init; }
+
+    public int RepeatCount { get; init; }
+
+    public string AlternateEndings { get; init; } = string.Empty;
+
+    public string SectionLetter { get; init; } = string.Empty;
+
+    public string SectionText { get; init; } = string.Empty;
+
+    public string Jump { get; init; } = string.Empty;
+
+    public string Target { get; init; } = string.Empty;
+
     public IReadOnlyList<BeatModel> Beats { get; init; } = Array.Empty<BeatModel>();
 }
 
 public sealed class BeatModel
 {
+    public int Id { get; init; }
+
     public decimal Offset { get; init; }
 
     public decimal Duration { get; init; }

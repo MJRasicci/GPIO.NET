@@ -45,6 +45,22 @@ public sealed class GpifMasterBar
     public string Time { get; init; } = string.Empty;
 
     public string BarsReferenceList { get; init; } = string.Empty;
+
+    public string AlternateEndings { get; init; } = string.Empty;
+
+    public bool RepeatStart { get; init; }
+
+    public bool RepeatEnd { get; init; }
+
+    public int RepeatCount { get; init; }
+
+    public string SectionLetter { get; init; } = string.Empty;
+
+    public string SectionText { get; init; } = string.Empty;
+
+    public string Jump { get; init; } = string.Empty;
+
+    public string Target { get; init; } = string.Empty;
 }
 
 public sealed class GpifBar

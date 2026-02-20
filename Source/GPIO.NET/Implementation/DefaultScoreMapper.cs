@@ -3,6 +3,7 @@ namespace GPIO.NET.Implementation;
 using GPIO.NET.Abstractions;
 using GPIO.NET.Models;
 using GPIO.NET.Models.Raw;
+using GPIO.NET.Utilities;
 
 public sealed class DefaultScoreMapper : IScoreMapper
 {
@@ -26,7 +27,8 @@ public sealed class DefaultScoreMapper : IScoreMapper
             Title = source.Score.Title,
             Artist = source.Score.Artist,
             Album = source.Score.Album,
-            Tracks = tracks
+            Tracks = tracks,
+            PlaybackMasterBarSequence = BuildPlaybackSequence(source)
         };
 
         return ValueTask.FromResult(score);
@@ -38,15 +40,17 @@ public sealed class DefaultScoreMapper : IScoreMapper
 
         foreach (var masterBar in source.MasterBars.OrderBy(m => m.Index))
         {
-            var barRefs = SplitRefs(masterBar.BarsReferenceList);
+            var barRefs = ReferenceListParser.SplitRefs(masterBar.BarsReferenceList);
             var beats = new List<BeatModel>();
+            var sourceBarId = -1;
 
             if (trackOrdinal < barRefs.Count && source.BarsById.TryGetValue(barRefs[trackOrdinal], out var bar))
             {
-                var voiceRefs = SplitRefs(bar.VoicesReferenceList);
+                sourceBarId = bar.Id;
+                var voiceRefs = ReferenceListParser.SplitRefs(bar.VoicesReferenceList);
                 if (voiceRefs.Count > 0 && source.VoicesById.TryGetValue(voiceRefs[0], out var voice))
                 {
-                    var beatRefs = SplitRefs(voice.BeatsReferenceList);
+                    var beatRefs = ReferenceListParser.SplitRefs(voice.BeatsReferenceList);
                     decimal offset = 0;
                     foreach (var beatId in beatRefs)
                     {
@@ -56,7 +60,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                         }
 
                         var duration = ResolveDuration(source, beat.RhythmRef);
-                        var midi = SplitRefs(beat.NotesReferenceList)
+                        var midi = ReferenceListParser.SplitRefs(beat.NotesReferenceList)
                             .Select(id => source.NotesById.TryGetValue(id, out var n) ? n.MidiPitch : null)
                             .Where(p => p.HasValue)
                             .Select(p => p!.Value)
@@ -64,6 +68,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
 
                         beats.Add(new BeatModel
                         {
+                            Id = beat.Id,
                             Offset = offset,
                             Duration = duration,
                             MidiPitches = midi
@@ -78,11 +83,124 @@ public sealed class DefaultScoreMapper : IScoreMapper
             {
                 Index = masterBar.Index,
                 TimeSignature = masterBar.Time,
+                SourceBarId = sourceBarId,
+                RepeatStart = masterBar.RepeatStart,
+                RepeatEnd = masterBar.RepeatEnd,
+                RepeatCount = masterBar.RepeatCount,
+                AlternateEndings = masterBar.AlternateEndings,
+                SectionLetter = masterBar.SectionLetter,
+                SectionText = masterBar.SectionText,
+                Jump = masterBar.Jump,
+                Target = masterBar.Target,
                 Beats = beats
             });
         }
 
         return measures;
+    }
+
+    private static IReadOnlyList<int> BuildPlaybackSequence(GpifDocument source)
+    {
+        var bars = source.MasterBars.OrderBy(m => m.Index).ToArray();
+        var result = new List<int>(bars.Length * 2);
+
+        var segnoIndex = bars.FirstOrDefault(b => string.Equals(b.Target, "Segno", StringComparison.OrdinalIgnoreCase))?.Index ?? 0;
+        var codaIndex = bars.FirstOrDefault(b => string.Equals(b.Target, "Coda", StringComparison.OrdinalIgnoreCase))?.Index ?? -1;
+
+        var repeatStack = new Stack<int>();
+        var repeatVisits = new Dictionary<int, int>();
+        var consumedJumps = new HashSet<int>();
+
+        var cursor = 0;
+        var guard = 0;
+        while (cursor >= 0 && cursor < bars.Length && guard++ < 10000)
+        {
+            var bar = bars[cursor];
+
+            if (bar.RepeatStart)
+            {
+                repeatStack.Push(cursor);
+            }
+
+            var endingVisit = repeatVisits.TryGetValue(cursor, out var visit) ? visit + 1 : 1;
+            if (!ShouldPlayAlternateEnding(bar.AlternateEndings, endingVisit))
+            {
+                cursor++;
+                continue;
+            }
+
+            result.Add(cursor);
+
+            if (!consumedJumps.Contains(cursor))
+            {
+                if (TryResolveJump(bar.Jump, segnoIndex, codaIndex, out var jumpIndex))
+                {
+                    consumedJumps.Add(cursor);
+                    cursor = jumpIndex;
+                    continue;
+                }
+            }
+
+            if (bar.RepeatEnd && repeatStack.Count > 0)
+            {
+                var start = repeatStack.Peek();
+                var count = repeatVisits.TryGetValue(cursor, out var done) ? done : 0;
+                var maxPasses = Math.Max(2, bar.RepeatCount <= 0 ? 2 : bar.RepeatCount);
+
+                if (count < maxPasses - 1)
+                {
+                    repeatVisits[cursor] = count + 1;
+                    cursor = start;
+                    continue;
+                }
+
+                repeatStack.Pop();
+            }
+
+            cursor++;
+        }
+
+        return result;
+    }
+
+    private static bool ShouldPlayAlternateEnding(string alternateEndings, int repeatVisit)
+    {
+        var endings = ReferenceListParser.SplitRefs(alternateEndings);
+        if (endings.Count == 0)
+        {
+            return true;
+        }
+
+        return endings.Contains(repeatVisit);
+    }
+
+    private static bool TryResolveJump(string jump, int segnoIndex, int codaIndex, out int index)
+    {
+        index = -1;
+        if (string.IsNullOrWhiteSpace(jump))
+        {
+            return false;
+        }
+
+        if (jump.StartsWith("DaCapo", StringComparison.OrdinalIgnoreCase))
+        {
+            index = 0;
+            return true;
+        }
+
+        if (jump.StartsWith("DaSegno", StringComparison.OrdinalIgnoreCase))
+        {
+            index = segnoIndex;
+            return true;
+        }
+
+        if (jump.StartsWith("DaCoda", StringComparison.OrdinalIgnoreCase) && codaIndex >= 0)
+        {
+            index = codaIndex;
+            return true;
+        }
+
+        return false;
     }
 
     private static decimal ResolveDuration(GpifDocument source, int rhythmRef)
@@ -104,11 +222,4 @@ public sealed class DefaultScoreMapper : IScoreMapper
             _ => 0m
         };
     }
-
-    private static List<int> SplitRefs(string refs)
-        => refs
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Select(value => int.TryParse(value, out var parsed) ? parsed : -1)
-            .Where(value => value >= 0)
-            .ToList();
 }
