@@ -91,6 +91,27 @@ public sealed class GpifNote
     public int Id { get; init; }
 
     public int? MidiPitch { get; init; }
+
+    public GpifNoteArticulation Articulation { get; init; } = new();
+}
+
+public sealed class GpifNoteArticulation
+{
+    public bool LetRing { get; init; }
+
+    public string Vibrato { get; init; } = string.Empty;
+
+    public bool TieOrigin { get; init; }
+
+    public bool TieDestination { get; init; }
+
+    public int? Trill { get; init; }
+
+    public int? Accent { get; init; }
+
+    public bool AntiAccent { get; init; }
+
+    public int? InstrumentArticulation { get; init; }
 }
 
 public sealed class GpifRhythm

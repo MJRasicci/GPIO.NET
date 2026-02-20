@@ -60,5 +60,35 @@ public sealed class BeatModel
 
     public decimal Duration { get; init; }
 
+    public IReadOnlyList<NoteModel> Notes { get; init; } = Array.Empty<NoteModel>();
+
     public IReadOnlyList<int> MidiPitches { get; init; } = Array.Empty<int>();
+}
+
+public sealed class NoteModel
+{
+    public int Id { get; init; }
+
+    public int? MidiPitch { get; init; }
+
+    public NoteArticulationModel Articulation { get; init; } = new();
+}
+
+public sealed class NoteArticulationModel
+{
+    public bool LetRing { get; init; }
+
+    public string Vibrato { get; init; } = string.Empty;
+
+    public bool TieOrigin { get; init; }
+
+    public bool TieDestination { get; init; }
+
+    public int? Trill { get; init; }
+
+    public int? Accent { get; init; }
+
+    public bool AntiAccent { get; init; }
+
+    public int? InstrumentArticulation { get; init; }
 }

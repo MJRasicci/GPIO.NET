@@ -60,10 +60,30 @@ public sealed class DefaultScoreMapper : IScoreMapper
                         }
 
                         var duration = ResolveDuration(source, beat.RhythmRef);
-                        var midi = ReferenceListParser.SplitRefs(beat.NotesReferenceList)
-                            .Select(id => source.NotesById.TryGetValue(id, out var n) ? n.MidiPitch : null)
-                            .Where(p => p.HasValue)
-                            .Select(p => p!.Value)
+                        var notes = ReferenceListParser.SplitRefs(beat.NotesReferenceList)
+                            .Where(source.NotesById.ContainsKey)
+                            .Select(id => source.NotesById[id])
+                            .Select(n => new NoteModel
+                            {
+                                Id = n.Id,
+                                MidiPitch = n.MidiPitch,
+                                Articulation = new NoteArticulationModel
+                                {
+                                    LetRing = n.Articulation.LetRing,
+                                    Vibrato = n.Articulation.Vibrato,
+                                    TieOrigin = n.Articulation.TieOrigin,
+                                    TieDestination = n.Articulation.TieDestination,
+                                    Trill = n.Articulation.Trill,
+                                    Accent = n.Articulation.Accent,
+                                    AntiAccent = n.Articulation.AntiAccent,
+                                    InstrumentArticulation = n.Articulation.InstrumentArticulation
+                                }
+                            })
+                            .ToArray();
+
+                        var midi = notes
+                            .Where(n => n.MidiPitch.HasValue)
+                            .Select(n => n.MidiPitch!.Value)
                             .ToArray();
 
                         beats.Add(new BeatModel
@@ -71,6 +91,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                             Id = beat.Id,
                             Offset = offset,
                             Duration = duration,
+                            Notes = notes,
                             MidiPitches = midi
                         });
 

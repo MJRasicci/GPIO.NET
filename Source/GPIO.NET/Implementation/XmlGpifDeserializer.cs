@@ -75,7 +75,8 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
             .Select(n => new GpifNote
             {
                 Id = ParseInt(n.Attribute("id")?.Value),
-                MidiPitch = ParseMidiPitch(n)
+                MidiPitch = ParseMidiPitch(n),
+                Articulation = ParseArticulation(n)
             })
             .ToDictionary(n => n.Id);
 
@@ -152,4 +153,23 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
 
         return (octave * 12) + baseValue + accidentalValue;
     }
+
+    private static GpifNoteArticulation ParseArticulation(XElement note)
+    {
+        var tie = note.Element("Tie");
+        return new GpifNoteArticulation
+        {
+            LetRing = note.Element("LetRing") is not null,
+            Vibrato = note.Element("Vibrato")?.Value ?? string.Empty,
+            TieOrigin = ParseBool(tie?.Attribute("origin")?.Value),
+            TieDestination = ParseBool(tie?.Attribute("destination")?.Value),
+            Trill = TryParseNullableInt(note.Element("Trill")?.Value),
+            Accent = TryParseNullableInt(note.Element("Accent")?.Value),
+            AntiAccent = note.Element("AntiAccent") is not null,
+            InstrumentArticulation = TryParseNullableInt(note.Element("InstrumentArticulation")?.Value)
+        };
+    }
+
+    private static int? TryParseNullableInt(string? value)
+        => int.TryParse(value, out var parsed) ? parsed : null;
 }
