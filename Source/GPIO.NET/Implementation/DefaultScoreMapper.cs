@@ -83,7 +83,14 @@ public sealed class DefaultScoreMapper : IScoreMapper
                                     Trill = n.Articulation.Trill,
                                     Accent = n.Articulation.Accent,
                                     AntiAccent = n.Articulation.AntiAccent,
-                                    InstrumentArticulation = n.Articulation.InstrumentArticulation
+                                    InstrumentArticulation = n.Articulation.InstrumentArticulation,
+                                    PalmMuted = n.Articulation.PalmMuted,
+                                    Muted = n.Articulation.Muted,
+                                    Tapped = n.Articulation.Tapped,
+                                    LeftHandTapped = n.Articulation.LeftHandTapped,
+                                    HopoOrigin = n.Articulation.HopoOrigin,
+                                    HopoDestination = n.Articulation.HopoDestination,
+                                    SlideFlags = n.Articulation.SlideFlags
                                 }
                             })
                             .ToArray();

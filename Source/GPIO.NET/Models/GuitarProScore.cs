@@ -95,4 +95,18 @@ public sealed class NoteArticulationModel
     public bool AntiAccent { get; init; }
 
     public int? InstrumentArticulation { get; init; }
+
+    public bool PalmMuted { get; init; }
+
+    public bool Muted { get; init; }
+
+    public bool Tapped { get; init; }
+
+    public bool LeftHandTapped { get; init; }
+
+    public bool HopoOrigin { get; init; }
+
+    public bool HopoDestination { get; init; }
+
+    public int? SlideFlags { get; init; }
 }

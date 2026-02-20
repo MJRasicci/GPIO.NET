@@ -39,9 +39,9 @@ Status legend:
 - ✅ Accent / anti-accent
 - ✅ Instrument articulation value
 - ⛔ Harmonics
-- ⛔ Slide types
-- ⛔ Hammer-on / pull-off semantics
-- ⛔ Palm mute / staccato / dead notes full semantics
+- 🟡 Slide mapping (raw slide flags captured; semantic decoding pending)
+- 🟡 Hammer-on / pull-off semantics (Hopo origin/destination captured)
+- 🟡 Palm mute / dead-note toggles (property flags captured; deeper semantics pending)
 - ⛔ Bend/whammy mapping to domain events
 - ⛔ Grace note detail
 - ⛔ Fingering detail

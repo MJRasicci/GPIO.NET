@@ -92,7 +92,26 @@ public sealed class GpifNote
 
     public int? MidiPitch { get; init; }
 
+    public IReadOnlyList<GpifNoteProperty> Properties { get; init; } = Array.Empty<GpifNoteProperty>();
+
     public GpifNoteArticulation Articulation { get; init; } = new();
+}
+
+public sealed class GpifNoteProperty
+{
+    public string Name { get; init; } = string.Empty;
+
+    public bool Enabled { get; init; }
+
+    public int? Flags { get; init; }
+
+    public int? Number { get; init; }
+
+    public int? Fret { get; init; }
+
+    public int? StringNumber { get; init; }
+
+    public decimal? Float { get; init; }
 }
 
 public sealed class GpifNoteArticulation
@@ -112,6 +131,20 @@ public sealed class GpifNoteArticulation
     public bool AntiAccent { get; init; }
 
     public int? InstrumentArticulation { get; init; }
+
+    public bool PalmMuted { get; init; }
+
+    public bool Muted { get; init; }
+
+    public bool Tapped { get; init; }
+
+    public bool LeftHandTapped { get; init; }
+
+    public bool HopoOrigin { get; init; }
+
+    public bool HopoDestination { get; init; }
+
+    public int? SlideFlags { get; init; }
 }
 
 public sealed class GpifRhythm

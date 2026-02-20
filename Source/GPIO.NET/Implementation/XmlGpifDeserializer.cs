@@ -81,11 +81,16 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
             .ToDictionary(r => r.Id);
 
         var notes = (root.Element("Notes")?.Elements("Note") ?? Enumerable.Empty<XElement>())
-            .Select(n => new GpifNote
+            .Select(n =>
             {
-                Id = ParseInt(n.Attribute("id")?.Value),
-                MidiPitch = ParseMidiPitch(n),
-                Articulation = ParseArticulation(n)
+                var properties = ParseNoteProperties(n);
+                return new GpifNote
+                {
+                    Id = ParseInt(n.Attribute("id")?.Value),
+                    MidiPitch = ParseMidiPitch(n),
+                    Properties = properties,
+                    Articulation = ParseArticulation(n, properties)
+                };
             })
             .ToDictionary(n => n.Id);
 
@@ -163,9 +168,29 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
         return (octave * 12) + baseValue + accidentalValue;
     }
 
-    private static GpifNoteArticulation ParseArticulation(XElement note)
+    private static IReadOnlyList<GpifNoteProperty> ParseNoteProperties(XElement note)
+        => (note.Element("Properties")?.Elements("Property") ?? Enumerable.Empty<XElement>())
+            .Select(p => new GpifNoteProperty
+            {
+                Name = p.Attribute("name")?.Value ?? string.Empty,
+                Enabled = p.Element("Enable") is not null,
+                Flags = TryParseNullableInt(p.Element("Flags")?.Value),
+                Number = TryParseNullableInt(p.Element("Number")?.Value),
+                Fret = TryParseNullableInt(p.Element("Fret")?.Value),
+                StringNumber = TryParseNullableInt(p.Element("String")?.Value),
+                Float = TryParseNullableDecimal(p.Element("Float")?.Value)
+            })
+            .ToArray();
+
+    private static GpifNoteArticulation ParseArticulation(XElement note, IReadOnlyList<GpifNoteProperty> properties)
     {
         var tie = note.Element("Tie");
+        bool HasEnabledProperty(string name)
+            => properties.Any(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase) && p.Enabled);
+
+        int? GetPropertyFlags(string name)
+            => properties.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))?.Flags;
+
         return new GpifNoteArticulation
         {
             LetRing = note.Element("LetRing") is not null,
@@ -175,12 +200,22 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
             Trill = TryParseNullableInt(note.Element("Trill")?.Value),
             Accent = TryParseNullableInt(note.Element("Accent")?.Value),
             AntiAccent = note.Element("AntiAccent") is not null,
-            InstrumentArticulation = TryParseNullableInt(note.Element("InstrumentArticulation")?.Value)
+            InstrumentArticulation = TryParseNullableInt(note.Element("InstrumentArticulation")?.Value),
+            PalmMuted = HasEnabledProperty("PalmMuted"),
+            Muted = HasEnabledProperty("Muted"),
+            Tapped = HasEnabledProperty("Tapped"),
+            LeftHandTapped = HasEnabledProperty("LeftHandTapped"),
+            HopoOrigin = HasEnabledProperty("HopoOrigin"),
+            HopoDestination = HasEnabledProperty("HopoDestination"),
+            SlideFlags = GetPropertyFlags("Slide")
         };
     }
 
     private static int? TryParseNullableInt(string? value)
         => int.TryParse(value, out var parsed) ? parsed : null;
+
+    private static decimal? TryParseNullableDecimal(string? value)
+        => decimal.TryParse(value, out var parsed) ? parsed : null;
 
     private static TupletRatio? ParseTuplet(XElement? tuplet)
     {
