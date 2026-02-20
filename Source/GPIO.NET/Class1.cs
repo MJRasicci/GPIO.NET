@@ -1,8 +1,6 @@
 namespace GPIO.NET;
 
 /// <summary>
-/// Entry point marker for the GPIO.NET core library.
+/// Marker type for the GPIO.NET assembly.
 /// </summary>
-public static class Library
-{
-}
+public static class AssemblyMarker;
