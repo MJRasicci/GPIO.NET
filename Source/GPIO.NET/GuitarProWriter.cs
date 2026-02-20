@@ -24,10 +24,11 @@ public sealed class GuitarProWriter : IGuitarProWriter
 
     public async ValueTask WriteAsync(GuitarProScore score, string filePath, CancellationToken cancellationToken = default)
     {
-        var raw = await unmapper.UnmapAsync(score, cancellationToken).ConfigureAwait(false);
+        var result = await unmapper.UnmapAsync(score, cancellationToken).ConfigureAwait(false);
         await using var buffer = new MemoryStream();
-        await serializer.SerializeAsync(raw, buffer, cancellationToken).ConfigureAwait(false);
+        await serializer.SerializeAsync(result.RawDocument, buffer, cancellationToken).ConfigureAwait(false);
         buffer.Position = 0;
         await archiveWriter.WriteArchiveAsync(buffer, filePath, cancellationToken).ConfigureAwait(false);
     }
 }
+

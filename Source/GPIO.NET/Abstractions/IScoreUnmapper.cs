@@ -1,9 +1,9 @@
 namespace GPIO.NET.Abstractions;
 
 using GPIO.NET.Models;
-using GPIO.NET.Models.Raw;
+using GPIO.NET.Models.Write;
 
 public interface IScoreUnmapper
 {
-    ValueTask<GpifDocument> UnmapAsync(GuitarProScore score, CancellationToken cancellationToken = default);
+    ValueTask<WriteResult> UnmapAsync(GuitarProScore score, CancellationToken cancellationToken = default);
 }

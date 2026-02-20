@@ -3,14 +3,18 @@ namespace GPIO.NET.Implementation;
 using GPIO.NET.Abstractions;
 using GPIO.NET.Models;
 using GPIO.NET.Models.Raw;
+using GPIO.NET.Models.Write;
 using GPIO.NET.Utilities;
+using System.Globalization;
 
 public sealed class DefaultScoreUnmapper : IScoreUnmapper
 {
-    public ValueTask<GpifDocument> UnmapAsync(GuitarProScore score, CancellationToken cancellationToken = default)
+    public ValueTask<WriteResult> UnmapAsync(GuitarProScore score, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(score);
         cancellationToken.ThrowIfCancellationRequested();
+
+        var diagnostics = new WriteDiagnostics();
 
         var tracks = score.Tracks
             .OrderBy(t => t.Id)
@@ -54,11 +58,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                     var currentRhythmId = rhythmId++;
                     var noteRefs = new List<int>();
 
-                    rhythms[currentRhythmId] = new GpifRhythm
-                    {
-                        Id = currentRhythmId,
-                        NoteValue = ToRawNoteValue(beat.Duration)
-                    };
+                    rhythms[currentRhythmId] = ToRhythm(beat.Duration, currentRhythmId, diagnostics);
 
                     if (beat.Notes.Count > 0)
                     {
@@ -122,7 +122,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 bars[currentBarId] = new GpifBar
                 {
                     Id = currentBarId,
-                    VoicesReferenceList = currentVoiceId.ToString()
+                    VoicesReferenceList = currentVoiceId.ToString(CultureInfo.InvariantCulture)
                 };
 
                 measureBarIds.Add(currentBarId);
@@ -177,17 +177,66 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             RhythmsById = rhythms
         };
 
-        return ValueTask.FromResult(doc);
+        return ValueTask.FromResult(new WriteResult
+        {
+            RawDocument = doc,
+            Diagnostics = diagnostics
+        });
     }
 
-    private static string ToRawNoteValue(decimal duration)
+    private static GpifRhythm ToRhythm(decimal duration, int id, WriteDiagnostics diagnostics)
     {
-        if (duration >= 1m) return "Whole";
-        if (duration >= 0.5m) return "Half";
-        if (duration >= 0.25m) return "Quarter";
-        if (duration >= 0.125m) return "Eighth";
-        if (duration >= 0.0625m) return "16th";
-        if (duration >= 0.03125m) return "32nd";
-        return "64th";
+        var candidates = new[]
+        {
+            new { Name = "Whole", Base = 1m },
+            new { Name = "Half", Base = 1m / 2m },
+            new { Name = "Quarter", Base = 1m / 4m },
+            new { Name = "Eighth", Base = 1m / 8m },
+            new { Name = "16th", Base = 1m / 16m },
+            new { Name = "32nd", Base = 1m / 32m },
+            new { Name = "64th", Base = 1m / 64m }
+        };
+
+        foreach (var c in candidates)
+        {
+            for (var dots = 0; dots <= 2; dots++)
+            {
+                var dotFactor = 1m;
+                var add = 1m;
+                for (var i = 0; i < dots; i++)
+                {
+                    add /= 2m;
+                    dotFactor += add;
+                }
+
+                var plain = c.Base * dotFactor;
+                if (NearlyEqual(plain, duration))
+                {
+                    return new GpifRhythm { Id = id, NoteValue = c.Name, AugmentationDots = dots };
+                }
+
+                // common tuplet ratios
+                foreach (var tr in new[] { (3, 2), (5, 4), (6, 4), (7, 4), (9, 8) })
+                {
+                    var tupled = plain * ((decimal)tr.Item2 / tr.Item1);
+                    if (NearlyEqual(tupled, duration))
+                    {
+                        return new GpifRhythm
+                        {
+                            Id = id,
+                            NoteValue = c.Name,
+                            AugmentationDots = dots,
+                            PrimaryTuplet = new TupletRatio { Numerator = tr.Item1, Denominator = tr.Item2 }
+                        };
+                    }
+                }
+            }
+        }
+
+        diagnostics.Warn($"Duration {duration} was approximated to quarter note in writer.");
+        return new GpifRhythm { Id = id, NoteValue = "Quarter" };
     }
+
+    private static bool NearlyEqual(decimal a, decimal b)
+        => Math.Abs(a - b) <= 0.00001m;
 }
