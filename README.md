@@ -51,7 +51,14 @@ Common options:
 - `--json-ignore-null[=true|false]`
 - `--json-ignore-default[=true|false]`
 
-Writer mode (mapped JSON -> .gp):
-- `--from-json --format json`
-- `--diagnostics-out <path>` to capture writer diagnostics
+Writer modes (mapped JSON -> .gp):
+- Full write: `--from-json --format json`
+- Patch existing GP (preferred while coverage matures):
+  - `--from-json --patch-from-json --source-gp <existing.gp> --format json`
+- `--diagnostics-out <path>` to capture diagnostics
 - `--diagnostics-json` to write diagnostics as JSON
+
+Example edit workflow:
+1. Export: `dotnet run --project Source/GPIO.NET.Tool -- input.gp score.json --format json`
+2. Edit `score.json`
+3. Patch original GP: `dotnet run --project Source/GPIO.NET.Tool -- score.json output.gp --from-json --patch-from-json --source-gp input.gp --format json`

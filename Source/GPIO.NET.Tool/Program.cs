@@ -21,17 +21,54 @@ try
     {
         if (options.Format != OutputFormat.Json)
         {
-            throw new InvalidOperationException("--from-json currently supports --format json only (mapped json -> .gp).");
+            throw new InvalidOperationException("--from-json currently supports --format json only.");
         }
 
         var json = await File.ReadAllTextAsync(options.InputPath).ConfigureAwait(false);
-        var score = JsonSerializer.Deserialize<GuitarProScore>(json, new JsonSerializerOptions
+        var editedScore = JsonSerializer.Deserialize<GuitarProScore>(json, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         }) ?? throw new InvalidDataException("Unable to deserialize mapped score JSON.");
 
+        if (options.PatchFromJson)
+        {
+            if (string.IsNullOrWhiteSpace(options.SourceGpPath) || !File.Exists(options.SourceGpPath))
+            {
+                throw new InvalidOperationException("--patch-from-json requires --source-gp <path-to-existing.gp>");
+            }
+
+            var reader = new GuitarProReader();
+            var sourceScore = await reader.ReadAsync(options.SourceGpPath).ConfigureAwait(false);
+            var patchDoc = JsonPatchPlanner.BuildPatch(sourceScore, editedScore);
+
+            var patcher = new GuitarProPatcher();
+            var patchResult = await patcher.PatchAsync(options.SourceGpPath, outputPath, patchDoc).ConfigureAwait(false);
+
+            Console.WriteLine($"Patched GP archive written: {outputPath}");
+            Console.WriteLine($"Patch operations logged: {patchResult.Diagnostics.Entries.Count}");
+
+            if (!string.IsNullOrWhiteSpace(options.DiagnosticsOutPath))
+            {
+                EnsureOutputDirectory(options.DiagnosticsOutPath);
+                if (options.DiagnosticsAsJson)
+                {
+                    var jsonDiagnostics = JsonSerializer.Serialize(patchResult.Diagnostics.Entries, new JsonSerializerOptions { WriteIndented = true });
+                    await File.WriteAllTextAsync(options.DiagnosticsOutPath, jsonDiagnostics).ConfigureAwait(false);
+                }
+                else
+                {
+                    var lines = patchResult.Diagnostics.Entries.Select(d => $"[{d.Operation}] {d.Message}").ToArray();
+                    await File.WriteAllLinesAsync(options.DiagnosticsOutPath, lines).ConfigureAwait(false);
+                }
+
+                Console.WriteLine($"Diagnostics written: {options.DiagnosticsOutPath}");
+            }
+
+            return 0;
+        }
+
         var unmapper = new DefaultScoreUnmapper();
-        var unmapResult = await unmapper.UnmapAsync(score).ConfigureAwait(false);
+        var unmapResult = await unmapper.UnmapAsync(editedScore).ConfigureAwait(false);
 
         await using var gpifBuffer = new MemoryStream();
         var serializer = new XmlGpifSerializer();
@@ -169,10 +206,11 @@ static void PrintHelp()
     Console.WriteLine("  --format gpif              extracted Content/score.gpif XML from .gp input");
     Console.WriteLine("  --format midi              planned; currently not implemented");
     Console.WriteLine();
-    Console.WriteLine("Write mode:");
-    Console.WriteLine("  --from-json                input is mapped JSON and output is .gp archive");
+    Console.WriteLine("Write modes:");
+    Console.WriteLine("  --from-json                input is mapped JSON and output is .gp archive (full write)");
+    Console.WriteLine("  --from-json --patch-from-json --source-gp <file.gp>   patch existing GP using edited mapped JSON");
     Console.WriteLine("  (use --format json with --from-json)");
-    Console.WriteLine("  --diagnostics-out <path>   optional diagnostics output file for write mode");
+    Console.WriteLine("  --diagnostics-out <path>   optional diagnostics output file for write/patch mode");
     Console.WriteLine("  --diagnostics-json         writes diagnostics output as JSON");
     Console.WriteLine();
     Console.WriteLine("Output:");

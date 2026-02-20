@@ -8,6 +8,8 @@ public sealed class GpPatchDocument
 
     public IReadOnlyList<UpdateNoteArticulationPatch> UpdateNoteArticulations { get; init; } = Array.Empty<UpdateNoteArticulationPatch>();
 
+    public IReadOnlyList<UpdateNotePitchPatch> UpdateNotePitches { get; init; } = Array.Empty<UpdateNotePitchPatch>();
+
     public IReadOnlyList<AppendBarPatch> AppendBars { get; init; } = Array.Empty<AppendBarPatch>();
 
     public IReadOnlyList<AppendVoicePatch> AppendVoices { get; init; } = Array.Empty<AppendVoicePatch>();
@@ -68,6 +70,13 @@ public sealed class UpdateNoteArticulationPatch
     public bool? HopoDestination { get; init; }
 
     public int? SlideFlags { get; init; }
+}
+
+public sealed class UpdateNotePitchPatch
+{
+    public int NoteId { get; init; }
+
+    public int MidiPitch { get; init; }
 }
 
 public sealed class AppendBarPatch

@@ -16,6 +16,8 @@ public static class CliParser
         var jsonIgnoreNull = false;
         var jsonIgnoreDefaults = false;
         var fromJson = false;
+        var patchFromJson = false;
+        string? sourceGpPath = null;
         string? diagnosticsOutPath = null;
         var diagnosticsAsJson = false;
 
@@ -71,6 +73,19 @@ public static class CliParser
                     fromJson = ParseBoolOption(value, true);
                     break;
 
+                case "--patch-from-json":
+                    patchFromJson = ParseBoolOption(value, true);
+                    break;
+
+                case "--source-gp":
+                    if (string.IsNullOrWhiteSpace(value) && i + 1 < args.Length)
+                    {
+                        value = args[++i];
+                    }
+
+                    sourceGpPath = value;
+                    break;
+
                 case "--diagnostics-out":
                     if (string.IsNullOrWhiteSpace(value) && i + 1 < args.Length)
                     {
@@ -102,6 +117,8 @@ public static class CliParser
             JsonIgnoreNull = jsonIgnoreNull,
             JsonIgnoreDefaults = jsonIgnoreDefaults,
             FromJson = fromJson,
+            PatchFromJson = patchFromJson,
+            SourceGpPath = string.IsNullOrWhiteSpace(sourceGpPath) ? null : Path.GetFullPath(sourceGpPath),
             DiagnosticsOutPath = string.IsNullOrWhiteSpace(diagnosticsOutPath) ? null : Path.GetFullPath(diagnosticsOutPath),
             DiagnosticsAsJson = diagnosticsAsJson
         };

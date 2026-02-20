@@ -181,6 +181,14 @@ public sealed class GuitarProPatcher : IGuitarProPatcher
 
             diagnostics.Add("update-note-articulation", $"Updated Note {op.NoteId}");
         }
+
+        foreach (var op in patch.UpdateNotePitches)
+        {
+            var noteEl = notesEl.Elements("Note").FirstOrDefault(n => ParseInt(n.Attribute("id")?.Value) == op.NoteId)
+                         ?? throw new InvalidOperationException($"Note id {op.NoteId} not found.");
+            UpsertPitchProperty(noteEl, op.MidiPitch);
+            diagnostics.Add("update-note-pitch", $"Updated Note {op.NoteId} pitch to {op.MidiPitch}");
+        }
     }
 
     private static XElement ResolveBarElement(
@@ -356,6 +364,24 @@ public sealed class GuitarProPatcher : IGuitarProPatcher
         }
 
         prop.SetElementValue("Flags", flags);
+    }
+
+    private static void UpsertPitchProperty(XElement noteEl, int midi)
+    {
+        var (step, accidental, octave) = FromMidi(midi);
+        var props = GetOrCreateProperties(noteEl);
+        var prop = props.Elements("Property").FirstOrDefault(p => string.Equals((string?)p.Attribute("name"), "Pitch", StringComparison.OrdinalIgnoreCase));
+        if (prop is null)
+        {
+            prop = new XElement("Property", new XAttribute("name", "Pitch"));
+            props.Add(prop);
+        }
+
+        prop.SetElementValue("Pitch", null);
+        prop.Add(new XElement("Pitch",
+            new XElement("Step", step),
+            new XElement("Accidental", accidental),
+            new XElement("Octave", octave)));
     }
 
     private static XElement GetOrCreateProperties(XElement noteEl)
