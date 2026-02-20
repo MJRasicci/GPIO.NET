@@ -32,3 +32,11 @@ A clean, production-focused .NET library for reading Guitar Pro files (`.gp`), e
 ## Current Direction
 
 This repo is the new canonical home for the finalized library. Historical experiments and reference implementations are documented in `AGENTS.md` for migration guidance.
+
+## Tooling
+
+A small companion CLI exists for quick local validation and JSON output:
+
+- Project: `Source/GPIO.NET.Tool`
+- Usage: `dotnet run --project Source/GPIO.NET.Tool -- <input.gp> [output.json]`
+- Default output path (if omitted): `<input>.mapped.json`
