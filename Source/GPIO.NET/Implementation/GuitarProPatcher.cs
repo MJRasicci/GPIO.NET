@@ -189,6 +189,55 @@ public sealed class GuitarProPatcher : IGuitarProPatcher
             UpsertPitchProperty(noteEl, op.MidiPitch);
             diagnostics.Add("update-note-pitch", $"Updated Note {op.NoteId} pitch to {op.MidiPitch}");
         }
+
+        foreach (var op in patch.DeleteNotes)
+        {
+            var noteEl = notesEl.Elements("Note").FirstOrDefault(n => ParseInt(n.Attribute("id")?.Value) == op.NoteId)
+                         ?? throw new InvalidOperationException($"Note id {op.NoteId} not found.");
+
+            foreach (var beat in beatsEl.Elements("Beat"))
+            {
+                var refs = SplitRefs(beat.Element("Notes")?.Value);
+                if (refs.Remove(op.NoteId))
+                {
+                    beat.SetElementValue("Notes", JoinRefs(refs));
+                }
+            }
+
+            noteEl.Remove();
+            diagnostics.Add("delete-note", $"Deleted Note {op.NoteId}");
+        }
+
+        foreach (var op in patch.DeleteBeats)
+        {
+            var beatEl = beatsEl.Elements("Beat").FirstOrDefault(b => ParseInt(b.Attribute("id")?.Value) == op.BeatId)
+                         ?? throw new InvalidOperationException($"Beat id {op.BeatId} not found.");
+
+            var noteRefs = SplitRefs(beatEl.Element("Notes")?.Value);
+            foreach (var noteId in noteRefs)
+            {
+                var stillReferenced = beatsEl.Elements("Beat")
+                    .Where(b => ParseInt(b.Attribute("id")?.Value) != op.BeatId)
+                    .SelectMany(b => SplitRefs(b.Element("Notes")?.Value))
+                    .Any(id => id == noteId);
+                if (!stillReferenced)
+                {
+                    notesEl.Elements("Note").FirstOrDefault(n => ParseInt(n.Attribute("id")?.Value) == noteId)?.Remove();
+                }
+            }
+
+            foreach (var voice in voicesEl.Elements("Voice"))
+            {
+                var beatRefs = SplitRefs(voice.Element("Beats")?.Value);
+                if (beatRefs.Remove(op.BeatId))
+                {
+                    voice.SetElementValue("Beats", JoinRefs(beatRefs));
+                }
+            }
+
+            beatEl.Remove();
+            diagnostics.Add("delete-beat", $"Deleted Beat {op.BeatId}");
+        }
     }
 
     private static XElement ResolveBarElement(

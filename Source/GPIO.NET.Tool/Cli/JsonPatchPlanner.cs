@@ -11,6 +11,8 @@ internal static class JsonPatchPlanner
         var insertBeats = new List<InsertBeatPatch>();
         var updateArticulations = new List<UpdateNoteArticulationPatch>();
         var updatePitches = new List<UpdateNotePitchPatch>();
+        var deleteNotes = new List<DeleteNotePatch>();
+        var deleteBeats = new List<DeleteBeatPatch>();
         var unsupported = new List<string>();
 
         foreach (var editedTrack in edited.Tracks)
@@ -29,6 +31,26 @@ internal static class JsonPatchPlanner
                 var edMeasure = editedTrack.Measures[mi];
 
                 var srcById = srcMeasure.Beats.Where(b => b.Id > 0).GroupBy(b => b.Id).ToDictionary(g => g.Key, g => g.First());
+                var editedBeatIds = edMeasure.Beats.Where(b => b.Id > 0).Select(b => b.Id).ToHashSet();
+
+                foreach (var srcBeat in srcMeasure.Beats.Where(b => b.Id > 0))
+                {
+                    if (!editedBeatIds.Contains(srcBeat.Id))
+                    {
+                        deleteBeats.Add(new DeleteBeatPatch { BeatId = srcBeat.Id });
+                        continue;
+                    }
+
+                    var editedBeat = edMeasure.Beats.First(b => b.Id == srcBeat.Id);
+                    var editedNoteIds = editedBeat.Notes.Where(n => n.Id > 0).Select(n => n.Id).ToHashSet();
+                    foreach (var srcNote in srcBeat.Notes.Where(n => n.Id > 0))
+                    {
+                        if (!editedNoteIds.Contains(srcNote.Id))
+                        {
+                            deleteNotes.Add(new DeleteNotePatch { NoteId = srcNote.Id });
+                        }
+                    }
+                }
 
                 for (var bi = 0; bi < edMeasure.Beats.Count; bi++)
                 {
@@ -95,10 +117,7 @@ internal static class JsonPatchPlanner
                     }
                 }
 
-                if (edMeasure.Beats.Count < srcMeasure.Beats.Count)
-                {
-                    unsupported.Add($"Track {editedTrack.Id} measure {mi}: beat deletions are not auto-planned yet.");
-                }
+                // beat deletions are auto-planned via DeleteBeatPatch
             }
 
             if (editedTrack.Measures.Count > sourceTrack.Measures.Count)
@@ -114,7 +133,9 @@ internal static class JsonPatchPlanner
                 AppendNotes = appendNotes,
                 InsertBeats = insertBeats,
                 UpdateNoteArticulations = updateArticulations,
-                UpdateNotePitches = updatePitches
+                UpdateNotePitches = updatePitches,
+                DeleteNotes = deleteNotes,
+                DeleteBeats = deleteBeats
             },
             UnsupportedChanges = unsupported
         };
