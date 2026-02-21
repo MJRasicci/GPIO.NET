@@ -42,6 +42,27 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 StavesXml = t.Metadata.StavesXml,
                 SoundsXml = t.Metadata.SoundsXml,
                 RseXml = t.Metadata.RseXml,
+                InstrumentSet = new GpifInstrumentSet
+                {
+                    Name = t.Metadata.InstrumentSet.Name,
+                    Type = t.Metadata.InstrumentSet.Type,
+                    LineCount = t.Metadata.InstrumentSet.LineCount
+                },
+                Sounds = t.Metadata.Sounds.Select(s => new GpifSound
+                {
+                    Name = s.Name,
+                    Label = s.Label,
+                    Path = s.Path,
+                    Role = s.Role,
+                    MidiLsb = s.MidiLsb,
+                    MidiMsb = s.MidiMsb,
+                    MidiProgram = s.MidiProgram
+                }).ToArray(),
+                ChannelRse = new GpifRse
+                {
+                    ChannelStripVersion = t.Metadata.Rse.ChannelStripVersion,
+                    ChannelStripParameters = t.Metadata.Rse.ChannelStripParameters
+                },
                 PlaybackStateXml = t.Metadata.PlaybackStateXml,
                 AudioEngineStateXml = t.Metadata.AudioEngineStateXml,
                 MidiConnectionXml = t.Metadata.MidiConnectionXml,

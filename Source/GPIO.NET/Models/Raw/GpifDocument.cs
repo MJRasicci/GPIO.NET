@@ -111,6 +111,12 @@ public sealed class GpifTrack
 
     public string RseXml { get; init; } = string.Empty;
 
+    public GpifInstrumentSet InstrumentSet { get; init; } = new();
+
+    public IReadOnlyList<GpifSound> Sounds { get; init; } = Array.Empty<GpifSound>();
+
+    public GpifRse ChannelRse { get; init; } = new();
+
     public string PlaybackStateXml { get; init; } = string.Empty;
 
     public string AudioEngineStateXml { get; init; } = string.Empty;

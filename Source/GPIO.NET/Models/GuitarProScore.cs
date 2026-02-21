@@ -108,6 +108,12 @@ public sealed class TrackMetadata
 
     public string RseXml { get; init; } = string.Empty;
 
+    public InstrumentSetMetadata InstrumentSet { get; init; } = new();
+
+    public IReadOnlyList<SoundMetadata> Sounds { get; init; } = Array.Empty<SoundMetadata>();
+
+    public RseMetadata Rse { get; init; } = new();
+
     public string PlaybackStateXml { get; init; } = string.Empty;
 
     public string AudioEngineStateXml { get; init; } = string.Empty;
@@ -136,6 +142,39 @@ public sealed class StaffMetadata
     public IReadOnlyDictionary<string, string> Properties { get; init; } = new Dictionary<string, string>();
 
     public string Xml { get; init; } = string.Empty;
+}
+
+public sealed class InstrumentSetMetadata
+{
+    public string Name { get; init; } = string.Empty;
+
+    public string Type { get; init; } = string.Empty;
+
+    public int? LineCount { get; init; }
+}
+
+public sealed class SoundMetadata
+{
+    public string Name { get; init; } = string.Empty;
+
+    public string Label { get; init; } = string.Empty;
+
+    public string Path { get; init; } = string.Empty;
+
+    public string Role { get; init; } = string.Empty;
+
+    public int? MidiLsb { get; init; }
+
+    public int? MidiMsb { get; init; }
+
+    public int? MidiProgram { get; init; }
+}
+
+public sealed class RseMetadata
+{
+    public string ChannelStripVersion { get; init; } = string.Empty;
+
+    public string ChannelStripParameters { get; init; } = string.Empty;
 }
 
 public sealed class MeasureModel

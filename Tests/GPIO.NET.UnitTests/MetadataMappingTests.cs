@@ -22,6 +22,8 @@ public class MetadataMappingTests
         score.Tracks.Any(t => !string.IsNullOrWhiteSpace(t.Metadata.Color)).Should().BeTrue();
         score.Tracks.Any(t => t.Metadata.TuningPitches.Length > 0).Should().BeTrue();
         score.Tracks.Any(t => t.Metadata.Staffs.Count > 0).Should().BeTrue();
+        score.Tracks.Any(t => !string.IsNullOrWhiteSpace(t.Metadata.InstrumentSet.Name)).Should().BeTrue();
+        score.Tracks.Any(t => t.Metadata.Sounds.Count > 0).Should().BeTrue();
     }
 
     [Fact]
@@ -74,7 +76,31 @@ public class MetadataMappingTests
                                 CapoFret = 2,
                                 Properties = new Dictionary<string,string> { ["CapoFret"] = "2" }
                             }
-                        ]
+                        ],
+                        InstrumentSet = new InstrumentSetMetadata
+                        {
+                            Name = "Steel Guitar",
+                            Type = "steelGuitar",
+                            LineCount = 6
+                        },
+                        Sounds =
+                        [
+                            new SoundMetadata
+                            {
+                                Name = "Steel Mart",
+                                Label = "Steel Mart",
+                                Path = "Stringed/Acoustic Guitars/Steel Guitar",
+                                Role = "Factory",
+                                MidiLsb = 0,
+                                MidiMsb = 0,
+                                MidiProgram = 25
+                            }
+                        ],
+                        Rse = new RseMetadata
+                        {
+                            ChannelStripVersion = "E56",
+                            ChannelStripParameters = "0.5 0.5"
+                        }
                     },
                     Measures =
                     [
@@ -123,6 +149,12 @@ public class MetadataMappingTests
             track.Metadata.TuningLabelVisible.Should().BeTrue();
             track.Metadata.Staffs.Should().NotBeEmpty();
             track.Metadata.Staffs[0].CapoFret.Should().Be(2);
+            track.Metadata.InstrumentSet.Name.Should().Be("Steel Guitar");
+            track.Metadata.InstrumentSet.Type.Should().Be("steelGuitar");
+            track.Metadata.InstrumentSet.LineCount.Should().Be(6);
+            track.Metadata.Sounds.Should().ContainSingle();
+            track.Metadata.Sounds[0].MidiProgram.Should().Be(25);
+            track.Metadata.Rse.ChannelStripVersion.Should().Be("E56");
         }
         finally
         {

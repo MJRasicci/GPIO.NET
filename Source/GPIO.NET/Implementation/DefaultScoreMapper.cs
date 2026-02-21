@@ -57,6 +57,27 @@ public sealed class DefaultScoreMapper : IScoreMapper
                         StavesXml = track.StavesXml,
                         SoundsXml = track.SoundsXml,
                         RseXml = track.RseXml,
+                        InstrumentSet = new InstrumentSetMetadata
+                        {
+                            Name = track.InstrumentSet.Name,
+                            Type = track.InstrumentSet.Type,
+                            LineCount = track.InstrumentSet.LineCount
+                        },
+                        Sounds = track.Sounds.Select(s => new SoundMetadata
+                        {
+                            Name = s.Name,
+                            Label = s.Label,
+                            Path = s.Path,
+                            Role = s.Role,
+                            MidiLsb = s.MidiLsb,
+                            MidiMsb = s.MidiMsb,
+                            MidiProgram = s.MidiProgram
+                        }).ToArray(),
+                        Rse = new RseMetadata
+                        {
+                            ChannelStripVersion = track.ChannelRse.ChannelStripVersion,
+                            ChannelStripParameters = track.ChannelRse.ChannelStripParameters
+                        },
                         PlaybackStateXml = track.PlaybackStateXml,
                         AudioEngineStateXml = track.AudioEngineStateXml,
                         MidiConnectionXml = track.MidiConnectionXml,

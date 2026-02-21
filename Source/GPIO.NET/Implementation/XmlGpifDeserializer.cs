@@ -55,6 +55,9 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     StavesXml = t.Element("Staves")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                     SoundsXml = t.Element("Sounds")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                     RseXml = t.Element("RSE")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
+                    InstrumentSet = ParseInstrumentSet(t.Element("InstrumentSet")),
+                    Sounds = ParseSounds(t.Element("Sounds")),
+                    ChannelRse = ParseRse(t.Element("RSE")),
                     PlaybackStateXml = t.Element("PlaybackState")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                     AudioEngineStateXml = t.Element("AudioEngineState")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                     MidiConnectionXml = t.Element("MidiConnection")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
@@ -317,6 +320,35 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                 .Select(v => int.TryParse(v, out var i) ? i : int.MinValue)
                 .Where(i => i != int.MinValue)
                 .ToArray();
+
+    private static GpifInstrumentSet ParseInstrumentSet(XElement? instrumentSet)
+        => new()
+        {
+            Name = instrumentSet?.Element("Name")?.Value ?? string.Empty,
+            Type = instrumentSet?.Element("Type")?.Value ?? string.Empty,
+            LineCount = TryParseNullableInt(instrumentSet?.Element("LineCount")?.Value)
+        };
+
+    private static GpifSound[] ParseSounds(XElement? sounds)
+        => (sounds?.Elements("Sound") ?? Enumerable.Empty<XElement>())
+            .Select(s => new GpifSound
+            {
+                Name = s.Element("Name")?.Value ?? string.Empty,
+                Label = s.Element("Label")?.Value ?? string.Empty,
+                Path = s.Element("Path")?.Value ?? string.Empty,
+                Role = s.Element("Role")?.Value ?? string.Empty,
+                MidiLsb = TryParseNullableInt(s.Element("MIDI")?.Element("LSB")?.Value),
+                MidiMsb = TryParseNullableInt(s.Element("MIDI")?.Element("MSB")?.Value),
+                MidiProgram = TryParseNullableInt(s.Element("MIDI")?.Element("Program")?.Value)
+            })
+            .ToArray();
+
+    private static GpifRse ParseRse(XElement? rse)
+        => new()
+        {
+            ChannelStripVersion = rse?.Element("ChannelStrip")?.Attribute("version")?.Value ?? string.Empty,
+            ChannelStripParameters = rse?.Element("ChannelStrip")?.Element("Parameters")?.Value ?? string.Empty
+        };
 
     private static GpifStaff[] ParseStaffs(XElement? staves)
     {

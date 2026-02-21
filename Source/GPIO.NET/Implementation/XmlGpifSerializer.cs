@@ -88,7 +88,15 @@ public sealed class XmlGpifSerializer : IGpifSerializer
             el.Add(props);
         }
 
-        AddRawElementXml(el, t.InstrumentSetXml);
+        if (!string.IsNullOrWhiteSpace(t.InstrumentSetXml))
+        {
+            AddRawElementXml(el, t.InstrumentSetXml);
+        }
+        else if (!string.IsNullOrWhiteSpace(t.InstrumentSet.Name) || !string.IsNullOrWhiteSpace(t.InstrumentSet.Type) || t.InstrumentSet.LineCount.HasValue)
+        {
+            el.Add(BuildInstrumentSet(t.InstrumentSet));
+        }
+
         if (!string.IsNullOrWhiteSpace(t.StavesXml))
         {
             AddRawElementXml(el, t.StavesXml);
@@ -97,8 +105,24 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         {
             el.Add(BuildStaves(t.Staffs));
         }
-        AddRawElementXml(el, t.SoundsXml);
-        AddRawElementXml(el, t.RseXml);
+
+        if (!string.IsNullOrWhiteSpace(t.SoundsXml))
+        {
+            AddRawElementXml(el, t.SoundsXml);
+        }
+        else if (t.Sounds.Count > 0)
+        {
+            el.Add(BuildSounds(t.Sounds));
+        }
+
+        if (!string.IsNullOrWhiteSpace(t.RseXml))
+        {
+            AddRawElementXml(el, t.RseXml);
+        }
+        else if (!string.IsNullOrWhiteSpace(t.ChannelRse.ChannelStripVersion) || !string.IsNullOrWhiteSpace(t.ChannelRse.ChannelStripParameters))
+        {
+            el.Add(BuildRse(t.ChannelRse));
+        }
         AddRawElementXml(el, t.PlaybackStateXml);
         AddRawElementXml(el, t.AudioEngineStateXml);
         AddRawElementXml(el, t.MidiConnectionXml);
@@ -139,6 +163,51 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         }
 
         return el;
+    }
+
+    private static XElement BuildInstrumentSet(GpifInstrumentSet set)
+    {
+        var el = new XElement("InstrumentSet");
+        AddTextElement(el, "Name", set.Name);
+        AddTextElement(el, "Type", set.Type);
+        if (set.LineCount.HasValue)
+        {
+            el.Add(new XElement("LineCount", set.LineCount.Value));
+        }
+
+        return el;
+    }
+
+    private static XElement BuildSounds(IReadOnlyList<GpifSound> sounds)
+    {
+        var root = new XElement("Sounds");
+        foreach (var s in sounds)
+        {
+            var sound = new XElement("Sound");
+            AddTextElement(sound, "Name", s.Name);
+            AddTextElement(sound, "Label", s.Label);
+            AddTextElement(sound, "Path", s.Path);
+            AddTextElement(sound, "Role", s.Role);
+            if (s.MidiLsb.HasValue || s.MidiMsb.HasValue || s.MidiProgram.HasValue)
+            {
+                sound.Add(new XElement("MIDI",
+                    s.MidiLsb.HasValue ? new XElement("LSB", s.MidiLsb.Value) : null,
+                    s.MidiMsb.HasValue ? new XElement("MSB", s.MidiMsb.Value) : null,
+                    s.MidiProgram.HasValue ? new XElement("Program", s.MidiProgram.Value) : null));
+            }
+
+            root.Add(sound);
+        }
+
+        return root;
+    }
+
+    private static XElement BuildRse(GpifRse rse)
+    {
+        var strip = new XElement("ChannelStrip",
+            !string.IsNullOrWhiteSpace(rse.ChannelStripVersion) ? new XAttribute("version", rse.ChannelStripVersion) : null,
+            !string.IsNullOrWhiteSpace(rse.ChannelStripParameters) ? new XElement("Parameters", rse.ChannelStripParameters) : null);
+        return new XElement("RSE", strip);
     }
 
     private static XElement BuildStaves(IReadOnlyList<GpifStaff> staffs)
