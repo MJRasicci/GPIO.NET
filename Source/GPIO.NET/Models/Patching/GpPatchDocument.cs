@@ -16,6 +16,8 @@ public sealed class GpPatchDocument
 
     public IReadOnlyList<AddNotesToBeatPatch> AddNotesToBeats { get; init; } = Array.Empty<AddNotesToBeatPatch>();
 
+    public IReadOnlyList<ReorderBeatNotesPatch> ReorderBeatNotes { get; init; } = Array.Empty<ReorderBeatNotesPatch>();
+
     public IReadOnlyList<AppendBarPatch> AppendBars { get; init; } = Array.Empty<AppendBarPatch>();
 
     public IReadOnlyList<AppendVoicePatch> AppendVoices { get; init; } = Array.Empty<AppendVoicePatch>();
@@ -100,6 +102,13 @@ public sealed class AddNotesToBeatPatch
     public int BeatId { get; init; }
 
     public IReadOnlyList<int> MidiPitches { get; init; } = Array.Empty<int>();
+}
+
+public sealed class ReorderBeatNotesPatch
+{
+    public int BeatId { get; init; }
+
+    public IReadOnlyList<int> NoteIds { get; init; } = Array.Empty<int>();
 }
 
 public sealed class AppendBarPatch

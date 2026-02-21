@@ -14,6 +14,7 @@ internal static class JsonPatchPlanner
         var deleteNotes = new List<DeleteNotePatch>();
         var deleteBeats = new List<DeleteBeatPatch>();
         var addNotesToBeats = new List<AddNotesToBeatPatch>();
+        var reorderBeatNotes = new List<ReorderBeatNotesPatch>();
         var unsupported = new List<string>();
 
         foreach (var editedTrack in edited.Tracks)
@@ -98,6 +99,17 @@ internal static class JsonPatchPlanner
                             });
                         }
 
+                        var srcOrder = srcBeat.Notes.Where(n => n.Id > 0).Select(n => n.Id).ToArray();
+                        var editedOrder = edBeat.Notes.Where(n => n.Id > 0).Select(n => n.Id).Where(id => srcOrder.Contains(id)).ToArray();
+                        if (editedOrder.Length == srcOrder.Length && !srcOrder.SequenceEqual(editedOrder))
+                        {
+                            reorderBeatNotes.Add(new ReorderBeatNotesPatch
+                            {
+                                BeatId = edBeat.Id,
+                                NoteIds = editedOrder
+                            });
+                        }
+
                         continue;
                     }
 
@@ -151,7 +163,8 @@ internal static class JsonPatchPlanner
                 UpdateNotePitches = updatePitches,
                 DeleteNotes = deleteNotes,
                 DeleteBeats = deleteBeats,
-                AddNotesToBeats = addNotesToBeats
+                AddNotesToBeats = addNotesToBeats,
+                ReorderBeatNotes = reorderBeatNotes
             },
             UnsupportedChanges = unsupported
         };
