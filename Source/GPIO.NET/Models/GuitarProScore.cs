@@ -10,6 +10,8 @@ public sealed class GuitarProScore
 
     public ScoreMetadata Metadata { get; init; } = new();
 
+    public MasterTrackMetadata MasterTrack { get; init; } = new();
+
     public IReadOnlyList<TrackModel> Tracks { get; init; } = Array.Empty<TrackModel>();
 
     /// <summary>
@@ -199,6 +201,28 @@ public sealed class AutomationMetadata
     public bool? Visible { get; init; }
 
     public string Value { get; init; } = string.Empty;
+}
+
+public sealed class MasterTrackMetadata
+{
+    public int[] TrackIds { get; init; } = Array.Empty<int>();
+
+    public IReadOnlyList<AutomationMetadata> Automations { get; init; } = Array.Empty<AutomationMetadata>();
+
+    public string RseXml { get; init; } = string.Empty;
+
+    public IReadOnlyList<TempoEventMetadata> TempoMap { get; init; } = Array.Empty<TempoEventMetadata>();
+}
+
+public sealed class TempoEventMetadata
+{
+    public int? Bar { get; init; }
+
+    public int? Position { get; init; }
+
+    public decimal? Bpm { get; init; }
+
+    public int? DenominatorHint { get; init; }
 }
 
 public sealed class MeasureModel

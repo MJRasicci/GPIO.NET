@@ -15,6 +15,7 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         var x = new XDocument(
             new XElement("GPIF",
                 BuildScore(document.Score),
+                BuildMasterTrack(document.MasterTrack),
                 new XElement("Tracks", document.Tracks.OrderBy(t => t.Id).Select(BuildTrack)),
                 new XElement("MasterBars", document.MasterBars.OrderBy(m => m.Index).Select(BuildMasterBar)),
                 new XElement("Bars", document.BarsById.OrderBy(kv => kv.Key).Select(kv => BuildBar(kv.Value))),
@@ -54,6 +55,24 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         AddTextElement(el, "ScoreZoomPolicy", s.ScoreZoomPolicy);
         AddTextElement(el, "ScoreZoom", s.ScoreZoom);
         AddTextElement(el, "MultiVoice", s.MultiVoice);
+
+        return el;
+    }
+
+    private static XElement BuildMasterTrack(GpifMasterTrack master)
+    {
+        var el = new XElement("MasterTrack",
+            new XElement("Tracks", string.Join(' ', master.TrackIds)));
+
+        if (!string.IsNullOrWhiteSpace(master.RseXml))
+        {
+            AddRawElementXml(el, master.RseXml);
+        }
+
+        if (master.Automations.Count > 0)
+        {
+            el.Add(BuildAutomations(master.Automations));
+        }
 
         return el;
     }

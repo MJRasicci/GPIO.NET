@@ -114,6 +114,24 @@ public sealed class DefaultScoreMapper : IScoreMapper
             Title = source.Score.Title,
             Artist = source.Score.Artist,
             Album = source.Score.Album,
+            MasterTrack = new MasterTrackMetadata
+            {
+                TrackIds = source.MasterTrack.TrackIds,
+                Automations = source.MasterTrack.Automations.Select(a => new AutomationMetadata
+                {
+                    Type = a.Type,
+                    Linear = a.Linear,
+                    Bar = a.Bar,
+                    Position = a.Position,
+                    Visible = a.Visible,
+                    Value = a.Value
+                }).ToArray(),
+                RseXml = source.MasterTrack.RseXml,
+                TempoMap = source.MasterTrack.Automations
+                    .Where(a => string.Equals(a.Type, "Tempo", StringComparison.OrdinalIgnoreCase))
+                    .Select(a => ParseTempo(a))
+                    .ToArray()
+            },
             Metadata = new ScoreMetadata
             {
                 SubTitle = source.Score.SubTitle,
@@ -284,6 +302,21 @@ public sealed class DefaultScoreMapper : IScoreMapper
         }
 
         return ((decimal)tuplet.Denominator) / tuplet.Numerator;
+    }
+
+    private static TempoEventMetadata ParseTempo(GpifAutomation a)
+    {
+        var parts = (a.Value ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        decimal? bpm = parts.Length > 0 && decimal.TryParse(parts[0], out var b) ? b : null;
+        int? den = parts.Length > 1 && int.TryParse(parts[1], out var d) ? d : null;
+
+        return new TempoEventMetadata
+        {
+            Bar = a.Bar,
+            Position = a.Position,
+            Bpm = bpm,
+            DenominatorHint = den
+        };
     }
 
     private static void ApplyTieDurationStitching(List<MeasureModel> measures)

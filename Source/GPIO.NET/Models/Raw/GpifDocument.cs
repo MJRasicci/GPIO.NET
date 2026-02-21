@@ -7,6 +7,8 @@ public sealed class GpifDocument
 {
     public ScoreInfo Score { get; init; } = new();
 
+    public GpifMasterTrack MasterTrack { get; init; } = new();
+
     public IReadOnlyList<GpifTrack> Tracks { get; init; } = Array.Empty<GpifTrack>();
 
     public IReadOnlyList<GpifMasterBar> MasterBars { get; init; } = Array.Empty<GpifMasterBar>();

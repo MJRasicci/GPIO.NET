@@ -260,6 +260,20 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 ScoreZoom = score.Metadata.ScoreZoom,
                 MultiVoice = score.Metadata.MultiVoice
             },
+            MasterTrack = new GpifMasterTrack
+            {
+                TrackIds = score.MasterTrack.TrackIds,
+                Automations = score.MasterTrack.Automations.Select(a => new GpifAutomation
+                {
+                    Type = a.Type,
+                    Linear = a.Linear,
+                    Bar = a.Bar,
+                    Position = a.Position,
+                    Visible = a.Visible,
+                    Value = a.Value
+                }).ToArray(),
+                RseXml = score.MasterTrack.RseXml
+            },
             Tracks = tracks,
             MasterBars = masterBars,
             BarsById = bars,

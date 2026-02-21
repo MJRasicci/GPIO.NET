@@ -14,6 +14,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
         var root = doc.Root ?? throw new InvalidDataException("GPIF root element missing.");
 
         var score = root.Element("Score");
+        var masterTrack = root.Element("MasterTrack");
 
         var tracksContainer = root.Elements("Tracks").FirstOrDefault(t => t.Elements("Track").Any());
         var tracks = tracksContainer?.Elements("Track")
@@ -175,6 +176,12 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                 ScoreZoomPolicy = score?.Element("ScoreZoomPolicy")?.Value ?? string.Empty,
                 ScoreZoom = score?.Element("ScoreZoom")?.Value ?? string.Empty,
                 MultiVoice = score?.Element("MultiVoice")?.Value ?? string.Empty
+            },
+            MasterTrack = new GpifMasterTrack
+            {
+                TrackIds = SplitInts(masterTrack?.Element("Tracks")?.Value),
+                Automations = ParseAutomations(masterTrack?.Element("Automations")),
+                RseXml = masterTrack?.Element("RSE")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty
             },
             Tracks = tracks,
             MasterBars = masterBars,

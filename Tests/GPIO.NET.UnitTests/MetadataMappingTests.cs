@@ -26,6 +26,8 @@ public class MetadataMappingTests
         score.Tracks.Any(t => t.Metadata.Sounds.Count > 0).Should().BeTrue();
         score.Tracks.Any(t => !string.IsNullOrWhiteSpace(t.Metadata.PlaybackState.Value)).Should().BeTrue();
         score.Tracks.Any(t => t.Metadata.Automations.Count > 0).Should().BeTrue();
+        score.MasterTrack.TrackIds.Should().NotBeEmpty();
+        score.MasterTrack.Automations.Should().NotBeEmpty();
     }
 
     [Fact]
@@ -44,6 +46,23 @@ public class MetadataMappingTests
                 Instructions = "instructions",
                 ScoreZoomPolicy = "Value",
                 ScoreZoom = "1.5"
+            },
+            MasterTrack = new MasterTrackMetadata
+            {
+                TrackIds = [0],
+                RseXml = "<RSE><ChannelStrip version=\"E56\"><Parameters>0.8 0.1</Parameters></ChannelStrip></RSE>",
+                Automations =
+                [
+                    new AutomationMetadata
+                    {
+                        Type = "Tempo",
+                        Linear = false,
+                        Bar = 0,
+                        Position = 0,
+                        Visible = true,
+                        Value = "120 2"
+                    }
+                ]
             },
             Tracks =
             [
@@ -176,6 +195,12 @@ public class MetadataMappingTests
             track.Metadata.PlaybackState.Value.Should().Be("Default");
             track.Metadata.Automations.Should().ContainSingle();
             track.Metadata.Automations[0].Type.Should().Be("Sound");
+
+            readBack.MasterTrack.TrackIds.Should().Contain(0);
+            readBack.MasterTrack.Automations.Should().ContainSingle();
+            readBack.MasterTrack.Automations[0].Type.Should().Be("Tempo");
+            readBack.MasterTrack.TempoMap.Should().NotBeEmpty();
+            readBack.MasterTrack.TempoMap[0].Bpm.Should().Be(120m);
         }
         finally
         {
