@@ -159,6 +159,24 @@ public sealed class GuitarProPatcher : IGuitarProPatcher
             diagnostics.Add("insert-beat", $"Track {op.TrackId}, MasterBar {op.MasterBarIndex}, VoiceIndex {op.VoiceIndex}: inserted Beat {built.BeatId} at {index}");
         }
 
+        foreach (var op in patch.AddNotesToBeats)
+        {
+            var beatEl = beatsEl.Elements("Beat").FirstOrDefault(b => ParseInt(b.Attribute("id")?.Value) == op.BeatId)
+                         ?? throw new InvalidOperationException($"Beat id {op.BeatId} not found.");
+
+            var refs = SplitRefs(beatEl.Element("Notes")?.Value);
+            var nextNoteId = NextId(notesEl, "Note");
+            foreach (var midi in op.MidiPitches)
+            {
+                notesEl.Add(BuildNote(nextNoteId, midi));
+                refs.Add(nextNoteId);
+                nextNoteId++;
+            }
+
+            beatEl.SetElementValue("Notes", JoinRefs(refs));
+            diagnostics.Add("add-notes-to-beat", $"Added {op.MidiPitches.Count} notes to Beat {op.BeatId}");
+        }
+
         foreach (var op in patch.UpdateNoteArticulations)
         {
             var noteEl = notesEl.Elements("Note").FirstOrDefault(n => ParseInt(n.Attribute("id")?.Value) == op.NoteId)

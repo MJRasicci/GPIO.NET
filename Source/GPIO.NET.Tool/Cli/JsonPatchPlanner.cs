@@ -13,6 +13,7 @@ internal static class JsonPatchPlanner
         var updatePitches = new List<UpdateNotePitchPatch>();
         var deleteNotes = new List<DeleteNotePatch>();
         var deleteBeats = new List<DeleteBeatPatch>();
+        var addNotesToBeats = new List<AddNotesToBeatPatch>();
         var unsupported = new List<string>();
 
         foreach (var editedTrack in edited.Tracks)
@@ -58,12 +59,17 @@ internal static class JsonPatchPlanner
 
                     if (edBeat.Id > 0 && srcById.TryGetValue(edBeat.Id, out var srcBeat))
                     {
+                        var notesToAdd = new List<int>();
                         foreach (var edNote in edBeat.Notes)
                         {
                             var srcNote = srcBeat.Notes.FirstOrDefault(n => n.Id == edNote.Id);
                             if (srcNote is null)
                             {
-                                unsupported.Add($"Track {editedTrack.Id} measure {mi} beat {edBeat.Id}: note insertion inside existing beat is not auto-planned yet.");
+                                if (edNote.MidiPitch.HasValue)
+                                {
+                                    notesToAdd.Add(edNote.MidiPitch.Value);
+                                }
+
                                 continue;
                             }
 
@@ -81,6 +87,15 @@ internal static class JsonPatchPlanner
                             {
                                 updateArticulations.Add(patch);
                             }
+                        }
+
+                        if (notesToAdd.Count > 0)
+                        {
+                            addNotesToBeats.Add(new AddNotesToBeatPatch
+                            {
+                                BeatId = edBeat.Id,
+                                MidiPitches = notesToAdd
+                            });
                         }
 
                         continue;
@@ -135,7 +150,8 @@ internal static class JsonPatchPlanner
                 UpdateNoteArticulations = updateArticulations,
                 UpdateNotePitches = updatePitches,
                 DeleteNotes = deleteNotes,
-                DeleteBeats = deleteBeats
+                DeleteBeats = deleteBeats,
+                AddNotesToBeats = addNotesToBeats
             },
             UnsupportedChanges = unsupported
         };
