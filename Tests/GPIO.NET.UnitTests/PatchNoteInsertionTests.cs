@@ -9,7 +9,7 @@ public class PatchNoteInsertionTests
     [Fact]
     public async Task Patcher_can_add_note_to_existing_beat()
     {
-        var sourceFile = Path.Combine(AppContext.BaseDirectory, "Fixtures", "sample.gp");
+        var sourceFile = Path.Combine(AppContext.BaseDirectory, "Fixtures", "test.gp");
         var reader = new GPIO.NET.GuitarProReader();
         var before = await reader.ReadAsync(sourceFile, cancellationToken: TestContext.Current.CancellationToken);
 

@@ -7,7 +7,7 @@ public class EndToEndReaderTests
     [Fact]
     public async Task Reader_can_open_gp_file_and_map_basic_score_structure()
     {
-        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "sample.gp");
+        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "test.gp");
         File.Exists(fixturePath).Should().BeTrue();
 
         var reader = new GPIO.NET.GuitarProReader();
@@ -23,7 +23,7 @@ public class EndToEndReaderTests
         firstTrack.Measures.SelectMany(m => m.Beats).Count().Should().BeGreaterThan(0);
 
         var json = score.ToJson();
-        json.Should().Contain("\"tracks\"");
-        json.Should().Contain("\"playbackMasterBarSequence\"");
+        json.Should().Contain("\"Tracks\"");
+        json.Should().Contain("\"PlaybackMasterBarSequence\"");
     }
 }

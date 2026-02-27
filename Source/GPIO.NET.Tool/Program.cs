@@ -226,6 +226,9 @@ try
             break;
         }
 
+        case OutputFormat.MusicXml:
+            throw new NotImplementedException("MusicXML output is planned but not implemented yet.");
+
         case OutputFormat.Midi:
             throw new NotImplementedException("MIDI output is planned but not implemented yet.");
 
@@ -259,6 +262,7 @@ static string BuildDefaultOutputPath(string inputPath, OutputFormat format, bool
     {
         OutputFormat.Json => ".mapped.json",
         OutputFormat.Gpif => ".score.gpif",
+        OutputFormat.MusicXml => ".mxl",
         OutputFormat.Midi => ".mid",
         _ => ".out"
     };
@@ -279,36 +283,91 @@ static void EnsureOutputDirectory(string outputPath)
 
 static void PrintHelp()
 {
-    Console.WriteLine("Usage:");
-    Console.WriteLine("  dotnet run --project Source/GPIO.NET.Tool -- <input> [output-path] [options]");
-    Console.WriteLine();
-    Console.WriteLine("Read/convert modes (default):");
-    Console.WriteLine("  --format json   (default) mapped domain model JSON from .gp input");
-    Console.WriteLine("  --format gpif              extracted Content/score.gpif XML from .gp input");
-    Console.WriteLine("  --format midi              planned; currently not implemented");
-    Console.WriteLine();
-    Console.WriteLine("Write modes:");
-    Console.WriteLine("  --from-json                input is mapped JSON and output is .gp archive (full write)");
-    Console.WriteLine("  --from-json --patch-from-json --source-gp <file.gp>   patch existing GP using edited mapped JSON");
-    Console.WriteLine("  --plan-only                generate patch plan JSON without applying patch");
-    Console.WriteLine("  --strict                   fail if planner detects unsupported edits");
-    Console.WriteLine("  (use --format json with --from-json)");
-    Console.WriteLine("  --diagnostics-out <path>   optional diagnostics output file for write/patch mode");
-    Console.WriteLine("  --diagnostics-json         writes diagnostics output as JSON");
-    Console.WriteLine();
-    Console.WriteLine("Batch export mode:");
-    Console.WriteLine("  --batch-input-dir <dir> --batch-output-dir <dir> --format json");
-    Console.WriteLine("  --continue-on-error[=true|false]   default true");
-    Console.WriteLine("  --failure-log <path>");
-    Console.WriteLine();
-    Console.WriteLine("Output:");
-    Console.WriteLine("  --out <path>               explicit output file path");
-    Console.WriteLine();
-    Console.WriteLine("JSON options:");
-    Console.WriteLine("  --json-indent[=true|false]         default true");
-    Console.WriteLine("  --json-ignore-null[=true|false]    default false");
-    Console.WriteLine("  --json-ignore-default[=true|false] default false");
-    Console.WriteLine();
-    Console.WriteLine("Other:");
-    Console.WriteLine("  --help");
+    var helpText = """
+GPIO.NET — Guitar Pro file parser and writer
+
+USAGE
+  gpio <input> [output] [options]
+  gpio --batch-input-dir <dir> --batch-output-dir <dir> [options]
+  gpio --help
+
+READ MODES  (default: --format json)
+  gpio song.gp
+    Read a .gp file and export a mapped domain model JSON.
+    Output: song.mapped.json
+
+  gpio song.gp --format gpif
+    Extract the raw GPIF XML embedded in the .gp archive.
+    Output: song.score.gpif
+
+  gpio song.gp --out out.json --format json
+
+  --format musicxml  (planned, not yet implemented)
+  --format midi      (planned, not yet implemented)
+
+WRITE MODES  (--from-json)
+  gpio song.mapped.json --from-json
+    Round-trip: read mapped JSON and write a new .gp archive.
+    Output: song.gp
+
+  gpio song.mapped.json --from-json --patch-from-json --source-gp original.gp
+    Patch mode: diff the edited mapped JSON against an existing .gp file and
+    apply only the supported changes.
+    Output: song.gp
+
+  gpio song.mapped.json --from-json --patch-from-json --source-gp original.gp --plan-only
+    Generate a patch plan JSON without applying it.
+    Output: song.patch-plan.json
+
+  --strict
+    Fail if the planner detects any unsupported changes (default: off).
+
+  --diagnostics-out <path>
+    Write write/patch diagnostics to a file.
+
+  --diagnostics-json
+    Write the diagnostics file as JSON instead of plain text.
+
+BATCH EXPORT
+  gpio --batch-input-dir ./songs --batch-output-dir ./json
+    Export every .gp file found under ./songs to mapped JSON under ./json,
+    mirroring the source directory structure.
+
+  gpio --batch-input-dir ./songs --batch-output-dir ./json --continue-on-error=false
+  gpio --batch-input-dir ./songs --batch-output-dir ./json --failure-log ./failures.jsonl
+
+  --continue-on-error[=true|false]
+    Skip files that fail to parse and continue the batch (default: true).
+
+  --failure-log <path>
+    Path for the JSONL batch failure log
+    (default: <batch-output-dir>/batch-failures.jsonl).
+
+OPTIONS
+  --format <json|gpif|musicxml|midi>   Output format (default: json; musicxml and midi are planned)
+  --out <path>                   Explicit output file path
+  --from-json                    Input is mapped JSON; output is a .gp archive
+  --patch-from-json              Enable patch mode (requires --from-json and --source-gp)
+  --source-gp <path>             Source .gp file for patch mode
+  --plan-only                    Write patch plan JSON without patching
+  --strict                       Fail on unsupported changes in patch mode
+  --batch-input-dir <dir>        Source directory for batch export
+  --batch-output-dir <dir>       Destination directory for batch export
+  --continue-on-error[=bool]     Skip failed files in batch mode (default: true)
+  --failure-log <path>           Batch failure log path
+  --diagnostics-out <path>       Write diagnostics to a file (write/patch modes)
+  --diagnostics-json             Emit diagnostics as JSON
+  --json-indent[=bool]           Indent JSON output (default: true)
+  --json-ignore-null[=bool]      Omit null fields from JSON (default: false)
+  --json-ignore-default[=bool]   Omit default-value fields from JSON (default: false)
+  --help, -h                     Show this help
+
+EXIT CODES
+  0    Success
+  1    Error
+  2    Input file not found
+  10   Batch completed with one or more failures
+""";
+
+    Console.WriteLine(helpText);
 }

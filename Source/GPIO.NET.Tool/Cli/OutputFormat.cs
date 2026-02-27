@@ -1,8 +1,9 @@
 namespace GPIO.NET.Tool.Cli;
 
-public enum OutputFormat
+internal enum OutputFormat
 {
     Json,
     Gpif,
+    MusicXml,
     Midi
 }

@@ -8,7 +8,7 @@ public class PatchDeletionTests
     [Fact]
     public async Task Patcher_delete_note_and_beat_apply_successfully()
     {
-        var sourceFile = Path.Combine(AppContext.BaseDirectory, "Fixtures", "sample.gp");
+        var sourceFile = Path.Combine(AppContext.BaseDirectory, "Fixtures", "test.gp");
         var reader = new GPIO.NET.GuitarProReader();
         var before = await reader.ReadAsync(sourceFile, cancellationToken: TestContext.Current.CancellationToken);
 

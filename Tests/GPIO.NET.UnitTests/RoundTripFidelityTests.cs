@@ -7,7 +7,7 @@ using System.Text.Json;
 public class RoundTripFidelityTests
 {
     [Theory]
-    [InlineData("sample.gp")]
+    [InlineData("test.gp")]
     [InlineData("schema-reference.gp")]
     public async Task Round_trip_preserves_core_structural_invariants(string fixtureName)
     {

@@ -1,6 +1,6 @@
 namespace GPIO.NET.Tool.Cli;
 
-public sealed class CliOptions
+internal sealed class CliOptions
 {
     public string InputPath { get; init; } = string.Empty;
 

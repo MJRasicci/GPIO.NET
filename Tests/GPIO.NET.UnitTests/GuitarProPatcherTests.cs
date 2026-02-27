@@ -9,7 +9,7 @@ public class GuitarProPatcherTests
     [Fact]
     public async Task Patcher_appends_note_to_existing_voice_without_full_rewrite_model_loss()
     {
-        var source = Path.Combine(AppContext.BaseDirectory, "Fixtures", "sample.gp");
+        var source = Path.Combine(AppContext.BaseDirectory, "Fixtures", "test.gp");
         File.Exists(source).Should().BeTrue();
 
         var output = Path.Combine(Path.GetTempPath(), $"gpio-patched-{Guid.NewGuid():N}.gp");
@@ -63,7 +63,7 @@ public class GuitarProPatcherTests
     [Fact]
     public async Task Patcher_can_insert_beat_at_start_of_voice_sequence()
     {
-        var source = Path.Combine(AppContext.BaseDirectory, "Fixtures", "sample.gp");
+        var source = Path.Combine(AppContext.BaseDirectory, "Fixtures", "test.gp");
         var output = Path.Combine(Path.GetTempPath(), $"gpio-patched-insert-{Guid.NewGuid():N}.gp");
 
         try
@@ -109,7 +109,7 @@ public class GuitarProPatcherTests
     [Fact]
     public async Task Patcher_can_update_existing_note_articulation_by_note_id()
     {
-        var source = Path.Combine(AppContext.BaseDirectory, "Fixtures", "sample.gp");
+        var source = Path.Combine(AppContext.BaseDirectory, "Fixtures", "test.gp");
         var output = Path.Combine(Path.GetTempPath(), $"gpio-patched-artic-{Guid.NewGuid():N}.gp");
 
         try
@@ -153,7 +153,7 @@ public class GuitarProPatcherTests
     [Fact]
     public async Task Patcher_can_append_new_voice_to_existing_bar()
     {
-        var source = Path.Combine(AppContext.BaseDirectory, "Fixtures", "sample.gp");
+        var source = Path.Combine(AppContext.BaseDirectory, "Fixtures", "test.gp");
         var output = Path.Combine(Path.GetTempPath(), $"gpio-patched-voice-{Guid.NewGuid():N}.gp");
 
         try
@@ -208,7 +208,7 @@ public class GuitarProPatcherTests
     [Fact]
     public async Task Patcher_can_append_bar_slot_for_track_in_master_bar()
     {
-        var source = Path.Combine(AppContext.BaseDirectory, "Fixtures", "sample.gp");
+        var source = Path.Combine(AppContext.BaseDirectory, "Fixtures", "test.gp");
         var output = Path.Combine(Path.GetTempPath(), $"gpio-patched-bar-{Guid.NewGuid():N}.gp");
 
         try

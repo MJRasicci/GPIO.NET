@@ -1,15 +1,18 @@
 namespace GPIO.NET.Tool.Cli;
 
-public static class CliParser
+internal static class CliParser
 {
     public static CliOptions Parse(string[] args)
     {
-        if (args.Length == 0)
+        if (args.Length == 0 || args[0] is "--help" or "-h")
         {
-            throw new ArgumentException("Missing input path.");
+            throw new OperationCanceledException("help");
         }
 
-        var inputPath = args[0];
+        // If the first arg looks like a flag, it is not the input path (e.g. batch mode with no input file).
+        string? inputPath = args[0].StartsWith("--", StringComparison.Ordinal) ? null : args[0];
+        var startIndex = inputPath is null ? 0 : 1;
+
         string? outputPath = null;
         var format = OutputFormat.Json;
         var jsonIndented = true;
@@ -27,12 +30,15 @@ public static class CliParser
         var continueOnError = true;
         string? failureLogPath = null;
 
-        for (var i = 1; i < args.Length; i++)
+        for (var i = startIndex; i < args.Length; i++)
         {
             var arg = args[i];
             if (!arg.StartsWith("--", StringComparison.Ordinal))
             {
-                outputPath ??= arg;
+                if (inputPath is null)
+                    inputPath = arg;
+                else
+                    outputPath ??= arg;
                 continue;
             }
 
@@ -49,6 +55,7 @@ public static class CliParser
                     {
                         "json" => OutputFormat.Json,
                         "gpif" => OutputFormat.Gpif,
+                        "musicxml" => OutputFormat.MusicXml,
                         "midi" => OutputFormat.Midi,
                         _ => throw new ArgumentException($"Unknown format '{value}'.")
                     };
@@ -153,9 +160,14 @@ public static class CliParser
             }
         }
 
+        if (inputPath is null && batchInputDir is null)
+        {
+            throw new ArgumentException("Missing input path. Pass a .gp or mapped JSON file, or use --batch-input-dir for batch mode.");
+        }
+
         return new CliOptions
         {
-            InputPath = Path.GetFullPath(inputPath),
+            InputPath = inputPath is null ? string.Empty : Path.GetFullPath(inputPath),
             OutputPath = string.IsNullOrWhiteSpace(outputPath) ? null : Path.GetFullPath(outputPath),
             Format = format,
             JsonIndented = jsonIndented,

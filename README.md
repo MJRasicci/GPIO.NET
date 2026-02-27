@@ -1,64 +1,208 @@
 # GPIO.NET
 
-A clean, production-focused .NET library for reading Guitar Pro files (`.gp`), extracting/translating GPIF score data, and exposing a clear object model for musical traversal.
+**Guitar Pro I/O for .NET — precise parsing, deterministic mapping, and a clean domain model.**
 
-## Project Goals
+GPIO.NET is a production-grade .NET library for reading and transforming Guitar Pro (`.gp`) files.  
+It extracts and interprets GPIF (`score.gpif`) data and exposes a strongly-typed, traversal-friendly object model for working with musical structures.
 
-1. **Accurate parsing**
-   - Open `.gp` archives safely.
-   - Extract and deserialize `Content/score.gpif`.
-   - Preserve score semantics (tracks, bars, voices, beats, notes, rhythms, properties, articulations, etc.).
+A companion CLI tool is included for inspection, conversion, and round-trip workflows.
 
-2. **Clean domain model**
-   - Move from GPIF's reference-heavy XML shape (cross-indexed IDs and space-delimited references) to an ergonomic OOP model.
-   - Make iteration intuitive:
-     - Score → Tracks → Measures/Bars → Voices → Beats → Notes
-   - Keep links back to source metadata where useful.
+---
 
-3. **Deterministic mapping layer**
-   - Maintain a robust intermediate mapping/index stage for resolving GPIF references.
-   - Handle edge cases (missing refs, optional sections, malformed/partial data) safely.
+## Purpose
 
-4. **Production readiness**
-   - Test-driven fixtures across real-world GP files.
-   - Stable API surface, clear versioning, and strong documentation.
-   - No app/runtime concerns in core library (no web host/db pipeline coupling).
+Guitar Pro files are ZIP archives containing a GPIF XML document with a heavily reference-based structure.  
+While flexible, this format is difficult to consume and modify directly.
 
-## Non-Goals (for core package)
+GPIO.NET provides:
 
-- UI, web app, or database persistence concerns.
-- Hardcoded machine-specific paths.
+- **Deterministic parsing** of `.gp` archives and GPIF data
+- **Reference resolution** into a usable in-memory graph
+- **A clean, hierarchical domain model** for musical traversal
+- **Safe handling of malformed or partial data**
+- **A CLI tool** for rapid inspection and conversion workflows
 
-## Current Direction
+---
 
-This repo is the new canonical home for the finalized library. Historical experiments and reference implementations are documented in `AGENTS.md` for migration guidance.
+## Core Concepts
 
-## Tooling
+### 1. Accurate Parsing
 
-A small companion CLI exists for quick local conversion/output:
+- Safely opens `.gp` archives
+- Extracts and deserializes `Content/score.gpif`
+- Preserves full musical semantics:
+  - Tracks
+  - Measures (Bars)
+  - Voices
+  - Beats
+  - Notes
+  - Rhythms, articulations, and properties
 
-- Project: `Source/GPIO.NET.Tool`
-- Usage: `dotnet run --project Source/GPIO.NET.Tool -- <input.gp> [output-path] [options]`
-- Default output path (if omitted) depends on format:
-  - `json` -> `<input>.mapped.json`
-  - `gpif` -> `<input>.score.gpif`
-  - `midi` -> `<input>.mid` (planned, not yet implemented)
+### 2. Clean Domain Model
 
-Common options:
+GPIF uses cross-referenced IDs and indirect relationships.
+
+GPIO.NET transforms this into a natural object graph:
+
+```
+Score → Tracks → Measures → Voices → Beats → Notes
+```
+
+- Eliminates manual reference resolution
+- Enables intuitive iteration and traversal
+- Retains links to original metadata where needed
+
+### 3. Deterministic Mapping Layer
+
+An intermediate mapping/index stage:
+
+- Resolves all GPIF references
+- Ensures consistent object identity
+- Handles:
+  - Missing references
+  - Optional sections
+  - Partially malformed files
+
+This layer is the backbone of correctness.
+
+### 4. Production-Ready Design
+
+- Test-driven against real-world `.gp` files
+- Stable, versioned API surface
+- Clear separation of concerns:
+  - **Core library uses no dependencies except .NET 10**
+- Designed for embedding in:
+  - Analysis tools
+  - Converters
+  - DAWs or notation systems
+
+---
+
+## CLI Tool
+
+A companion CLI is provided for file conversion and inspection.
+
+**Project:**
+
+```
+Source/GPIO.NET.Tool
+```
+
+**Run:**
+
+```
+dotnet run --project Source/GPIO.NET.Tool -- <input> [output] [options]
+```
+
+---
+
+## Supported Workflows
+
+### Convert `.gp` → JSON
+
+```
+dotnet run --project Source/GPIO.NET.Tool -- input.gp score.json --format json
+```
+
+### Extract raw GPIF
+
+```
+dotnet run --project Source/GPIO.NET.Tool -- input.gp score.gpif --format gpif
+```
+
+### Edit JSON → Patch existing `.gp` (recommended)
+
+```
+dotnet run --project Source/GPIO.NET.Tool -- score.json output.gp 
+--from-json 
+--patch-from-json 
+--source-gp input.gp 
+--format json
+```
+
+---
+
+## Output Formats
+
+| Format | Description | Status |
+|------|--------|--------|
+| `json` | Mapped domain model | ✅ |
+| `gpif` | Raw GPIF XML | ✅ |
+| `midi` | MIDI export | 🚧 Planned |
+
+---
+
+## CLI Options
+
+### General
+
 - `--format json|gpif|midi`
 - `--out <path>`
+
+### JSON Options
+
 - `--json-indent[=true|false]`
 - `--json-ignore-null[=true|false]`
 - `--json-ignore-default[=true|false]`
 
-Writer modes (mapped JSON -> .gp):
-- Full write: `--from-json --format json`
-- Patch existing GP (preferred while coverage matures):
-  - `--from-json --patch-from-json --source-gp <existing.gp> --format json`
-- `--diagnostics-out <path>` to capture diagnostics
-- `--diagnostics-json` to write diagnostics as JSON
+### Write Modes
 
-Example edit workflow:
-1. Export: `dotnet run --project Source/GPIO.NET.Tool -- input.gp score.json --format json`
-2. Edit `score.json`
-3. Patch original GP: `dotnet run --project Source/GPIO.NET.Tool -- score.json output.gp --from-json --patch-from-json --source-gp input.gp --format json`
+- `--from-json` — treat input as mapped JSON
+- `--patch-from-json` — patch an existing `.gp` file (preferred)
+- `--source-gp <path>` — original file for patching
+
+### Diagnostics
+
+- `--diagnostics-out <path>`
+- `--diagnostics-json`
+
+---
+
+## Design Principles
+
+- **Correctness over convenience** — musical semantics must be preserved
+- **Determinism** — identical input produces identical object graphs
+- **Separation of concerns** — parsing, mapping, and output are distinct layers
+- **Ergonomics** — consumers should never deal with GPIF reference mechanics
+
+---
+
+## Non-Goals
+
+The core library intentionally does **not** include:
+
+- UI or web application layers
+- Database or persistence concerns
+- Hardcoded environment-specific paths
+
+---
+
+## Repository Structure
+
+- `Source/GPIO.NET` — Core library
+- `Source/GPIO.NET.Tool` — CLI tool
+
+---
+
+## Project Status
+
+This repository represents the **canonical, production-ready implementation**.
+
+Earlier experiments and migration notes are documented in `AGENTS.md`.
+
+---
+
+## Roadmap
+
+- MIDI export support
+- Improved write/round-trip fidelity
+- Expanded test corpus
+- Performance tuning for large scores
+
+---
+
+## License
+
+(Insert license here)
+
+```
