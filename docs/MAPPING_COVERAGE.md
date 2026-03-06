@@ -22,8 +22,8 @@ Status legend:
 - ✅ Repeat start/end metadata
 - ✅ Alternate ending metadata
 - ✅ Jump/target metadata (Da Capo / Da Segno / Coda fields captured)
-- 🟡 Playback sequence generation (basic handling implemented)
-- ⛔ Full notation-engine semantics (all DS/DC/Fine edge cases)
+- 🟡 Playback sequence generation (expanded handling for `DaCapo*`, `DaSegno*`, `DaSegnoSegno*`, `DaCoda`, `DaDoubleCoda`, `Fine`; still not full notation-engine parity)
+- ⛔ Full notation-engine semantics (remaining DS/DC/Fine edge cases)
 
 ## Rhythm model
 - ✅ Base note values (whole/half/quarter/eighth/16/32/64)

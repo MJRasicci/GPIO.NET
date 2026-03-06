@@ -91,7 +91,7 @@ Legend:
 
 1. ⛔ Deep normalization of audio engine / MIDI connection / lyrics structures (currently passthrough-heavy)
 2. ⛔ Broader semantic decoding for all articulation variants beyond current typed subset
-3. ⛔ DS/DC/Coda/Fine full notation-engine semantics in navigation resolver
+3. 🟡 DS/DC/Coda/Fine semantics are now expanded for core GP7 direction tokens (`DaCapo*`, `DaSegno*`, `DaSegnoSegno*`, `DaCoda`, `DaDoubleCoda`) but still not full notation-engine parity for all edge cases
 4. ⛔ Complete schema-driven element-by-element coverage auditing vs `GPIF.xsd`
 5. ⛔ Patch planner support for larger structural edits (new tracks/measures, advanced voice topology)
 

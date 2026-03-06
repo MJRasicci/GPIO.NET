@@ -6,6 +6,19 @@ using GPIO.NET.Utilities;
 
 public sealed class DefaultNavigationResolver : INavigationResolver
 {
+    private const string MarkerSegno = "Segno";
+    private const string MarkerSegnoSegno = "SegnoSegno";
+    private const string MarkerCoda = "Coda";
+    private const string MarkerDoubleCoda = "DoubleCoda";
+    private const string MarkerFine = "Fine";
+
+    private enum PendingCodaRoute
+    {
+        None,
+        Coda,
+        DoubleCoda
+    }
+
     public IReadOnlyList<int> BuildPlaybackSequence(IReadOnlyList<GpifMasterBar> masterBars)
     {
         var bars = masterBars.OrderBy(m => m.Index).ToArray();
@@ -16,12 +29,13 @@ public sealed class DefaultNavigationResolver : INavigationResolver
 
         var result = new List<int>(bars.Length * 2);
 
-        var segnoIndex = bars.FirstOrDefault(b => string.Equals(b.Target, "Segno", StringComparison.OrdinalIgnoreCase))?.Index ?? 0;
-        var codaIndex = bars.FirstOrDefault(b => string.Equals(b.Target, "Coda", StringComparison.OrdinalIgnoreCase))?.Index ?? -1;
+        var markers = DirectionMarkers.FromBars(bars);
 
         var repeatStack = new Stack<int>();
         var repeatVisits = new Dictionary<int, int>();
         var consumedJumps = new HashSet<int>();
+        var pendingCodaRoute = PendingCodaRoute.None;
+        var stopAtFine = false;
 
         var cursor = 0;
         var guard = 0;
@@ -45,7 +59,18 @@ public sealed class DefaultNavigationResolver : INavigationResolver
 
             result.Add(cursor);
 
-            if (!consumedJumps.Contains(cursor) && TryResolveJump(bar.Jump, segnoIndex, codaIndex, out var jumpIndex))
+            if (stopAtFine && IsDirectionToken(bar, MarkerFine))
+            {
+                break;
+            }
+
+            if (!consumedJumps.Contains(cursor) &&
+                TryResolveJump(
+                    ResolveJumpToken(bar),
+                    markers,
+                    ref pendingCodaRoute,
+                    ref stopAtFine,
+                    out var jumpIndex))
             {
                 consumedJumps.Add(cursor);
                 cursor = jumpIndex;
@@ -85,32 +110,215 @@ public sealed class DefaultNavigationResolver : INavigationResolver
         return endings.Contains(repeatVisit);
     }
 
-    private static bool TryResolveJump(string jump, int segnoIndex, int codaIndex, out int index)
+    private static string ResolveJumpToken(GpifMasterBar bar)
+    {
+        if (!string.IsNullOrWhiteSpace(bar.Jump))
+        {
+            return bar.Jump;
+        }
+
+        if (bar.DirectionProperties.TryGetValue("Jump", out var jump) && !string.IsNullOrWhiteSpace(jump))
+        {
+            return jump;
+        }
+
+        foreach (var candidate in KnownJumpTokens)
+        {
+            if (IsDirectionToken(bar, candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static bool TryResolveJump(
+        string jump,
+        DirectionMarkers markers,
+        ref PendingCodaRoute pendingCodaRoute,
+        ref bool stopAtFine,
+        out int index)
     {
         index = -1;
-        if (string.IsNullOrWhiteSpace(jump))
+        var token = NormalizeToken(jump);
+        if (string.IsNullOrWhiteSpace(token))
         {
             return false;
         }
 
-        if (jump.StartsWith("DaCapo", StringComparison.OrdinalIgnoreCase))
+        switch (token)
         {
-            index = 0;
+            case "DaCapoAlCoda":
+                pendingCodaRoute = PendingCodaRoute.Coda;
+                stopAtFine = false;
+                index = 0;
+                return true;
+            case "DaCapoAlDoubleCoda":
+                pendingCodaRoute = PendingCodaRoute.DoubleCoda;
+                stopAtFine = false;
+                index = 0;
+                return true;
+            case "DaCapoAlFine":
+                pendingCodaRoute = PendingCodaRoute.None;
+                stopAtFine = true;
+                index = 0;
+                return true;
+            case "DaCapo":
+                pendingCodaRoute = PendingCodaRoute.None;
+                stopAtFine = false;
+                index = 0;
+                return true;
+            case "DaSegnoAlCoda":
+                pendingCodaRoute = PendingCodaRoute.Coda;
+                stopAtFine = false;
+                index = markers.Segno;
+                return true;
+            case "DaSegnoAlDoubleCoda":
+                pendingCodaRoute = PendingCodaRoute.DoubleCoda;
+                stopAtFine = false;
+                index = markers.Segno;
+                return true;
+            case "DaSegnoAlFine":
+                pendingCodaRoute = PendingCodaRoute.None;
+                stopAtFine = true;
+                index = markers.Segno;
+                return true;
+            case "DaSegnoSegnoAlCoda":
+                pendingCodaRoute = PendingCodaRoute.Coda;
+                stopAtFine = false;
+                index = markers.SegnoSegno;
+                return true;
+            case "DaSegnoSegnoAlDoubleCoda":
+                pendingCodaRoute = PendingCodaRoute.DoubleCoda;
+                stopAtFine = false;
+                index = markers.SegnoSegno;
+                return true;
+            case "DaSegnoSegnoAlFine":
+                pendingCodaRoute = PendingCodaRoute.None;
+                stopAtFine = true;
+                index = markers.SegnoSegno;
+                return true;
+            case "DaSegnoSegno":
+                pendingCodaRoute = PendingCodaRoute.None;
+                stopAtFine = false;
+                index = markers.SegnoSegno;
+                return true;
+            case "DaSegno":
+                pendingCodaRoute = PendingCodaRoute.None;
+                stopAtFine = false;
+                index = markers.Segno;
+                return true;
+            case "DaCoda":
+                if (pendingCodaRoute == PendingCodaRoute.Coda && markers.Coda >= 0)
+                {
+                    pendingCodaRoute = PendingCodaRoute.None;
+                    index = markers.Coda;
+                    return true;
+                }
+
+                return false;
+            case "DaDoubleCoda":
+                if (pendingCodaRoute == PendingCodaRoute.DoubleCoda && markers.DoubleCoda >= 0)
+                {
+                    pendingCodaRoute = PendingCodaRoute.None;
+                    index = markers.DoubleCoda;
+                    return true;
+                }
+
+                return false;
+            default:
+                return false;
+        }
+    }
+
+    private static bool IsDirectionToken(GpifMasterBar bar, string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return false;
+        }
+
+        if (TokenEquals(bar.Target, token) || TokenEquals(bar.Jump, token))
+        {
             return true;
         }
 
-        if (jump.StartsWith("DaSegno", StringComparison.OrdinalIgnoreCase))
+        if (bar.DirectionProperties.TryGetValue("Target", out var targetValue) && TokenEquals(targetValue, token))
         {
-            index = segnoIndex;
             return true;
         }
 
-        if (jump.StartsWith("DaCoda", StringComparison.OrdinalIgnoreCase) && codaIndex >= 0)
+        if (bar.DirectionProperties.TryGetValue("Jump", out var jumpValue) && TokenEquals(jumpValue, token))
         {
-            index = codaIndex;
             return true;
+        }
+
+        foreach (var kvp in bar.DirectionProperties)
+        {
+            if (TokenEquals(kvp.Key, token) || TokenEquals(kvp.Value, token))
+            {
+                return true;
+            }
         }
 
         return false;
+    }
+
+    private static bool TokenEquals(string? value, string token)
+        => string.Equals(NormalizeToken(value), NormalizeToken(token), StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeToken(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var chars = value.Where(char.IsLetterOrDigit).ToArray();
+        return chars.Length == 0 ? string.Empty : new string(chars);
+    }
+
+    private static int FindMarkerIndex(IReadOnlyList<GpifMasterBar> bars, string token, int fallback)
+    {
+        for (var i = 0; i < bars.Count; i++)
+        {
+            if (IsDirectionToken(bars[i], token))
+            {
+                return i;
+            }
+        }
+
+        return fallback;
+    }
+
+    private static readonly string[] KnownJumpTokens =
+    {
+        "DaCapo",
+        "DaCapoAlCoda",
+        "DaCapoAlDoubleCoda",
+        "DaCapoAlFine",
+        "DaSegno",
+        "DaSegnoAlCoda",
+        "DaSegnoAlDoubleCoda",
+        "DaSegnoAlFine",
+        "DaSegnoSegno",
+        "DaSegnoSegnoAlCoda",
+        "DaSegnoSegnoAlDoubleCoda",
+        "DaSegnoSegnoAlFine",
+        "DaCoda",
+        "DaDoubleCoda"
+    };
+
+    private readonly record struct DirectionMarkers(int Segno, int SegnoSegno, int Coda, int DoubleCoda)
+    {
+        public static DirectionMarkers FromBars(IReadOnlyList<GpifMasterBar> bars)
+        {
+            var segno = FindMarkerIndex(bars, MarkerSegno, 0);
+            var segnoSegno = FindMarkerIndex(bars, MarkerSegnoSegno, segno);
+            var coda = FindMarkerIndex(bars, MarkerCoda, -1);
+            var doubleCoda = FindMarkerIndex(bars, MarkerDoubleCoda, -1);
+            return new DirectionMarkers(segno, segnoSegno, coda, doubleCoda);
+        }
     }
 }
