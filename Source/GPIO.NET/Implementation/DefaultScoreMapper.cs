@@ -218,6 +218,12 @@ public sealed class DefaultScoreMapper : IScoreMapper
             },
             Metadata = new ScoreMetadata
             {
+                GpVersion = source.GpVersion,
+                GpRevisionRequired = source.GpRevision.Required,
+                GpRevisionRecommended = source.GpRevision.Recommended,
+                GpRevisionValue = source.GpRevision.Value,
+                EncodingDescription = source.EncodingDescription,
+                ScoreViewsXml = source.ScoreViewsXml,
                 SubTitle = source.Score.SubTitle,
                 Words = source.Score.Words,
                 Music = source.Score.Music,

@@ -33,6 +33,18 @@ public sealed class TrackModel
 
 public sealed class ScoreMetadata
 {
+    public string GpVersion { get; init; } = string.Empty;
+
+    public string GpRevisionRequired { get; init; } = string.Empty;
+
+    public string GpRevisionRecommended { get; init; } = string.Empty;
+
+    public string GpRevisionValue { get; init; } = string.Empty;
+
+    public string EncodingDescription { get; init; } = string.Empty;
+
+    public string ScoreViewsXml { get; init; } = string.Empty;
+
     public string SubTitle { get; init; } = string.Empty;
 
     public string Words { get; init; } = string.Empty;

@@ -2,34 +2,64 @@ namespace GPIO.NET.Implementation;
 
 using GPIO.NET.Abstractions;
 using GPIO.NET.Models.Raw;
+using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 
 public sealed class XmlGpifSerializer : IGpifSerializer
 {
+    private const string DefaultGpVersion = "8.1.0";
+    private const string DefaultGpRevisionRequired = "12024";
+    private const string DefaultGpRevisionRecommended = "13000";
+    private const string DefaultGpRevisionValue = "13006";
+    private const string DefaultEncodingDescription = "GP8";
+
     public async ValueTask SerializeAsync(GpifDocument document, Stream output, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(document);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var x = new XDocument(
-            new XElement("GPIF",
-                BuildScore(document.Score),
-                BuildMasterTrack(document.MasterTrack),
-                new XElement("Tracks", document.Tracks.OrderBy(t => t.Id).Select(BuildTrack)),
-                new XElement("MasterBars", document.MasterBars.OrderBy(m => m.Index).Select(BuildMasterBar)),
-                new XElement("Bars", document.BarsById.OrderBy(kv => kv.Key).Select(kv => BuildBar(kv.Value))),
-                new XElement("Voices", document.VoicesById.OrderBy(kv => kv.Key).Select(kv => BuildVoice(kv.Value))),
-                new XElement("Rhythms", document.RhythmsById.OrderBy(kv => kv.Key).Select(kv => BuildRhythm(kv.Value))),
-                new XElement("Beats", document.BeatsById.OrderBy(kv => kv.Key).Select(kv => BuildBeat(kv.Value))),
-                new XElement("Notes", document.NotesById.OrderBy(kv => kv.Key).Select(kv => BuildNote(kv.Value)))
-            ));
+        var root = new XElement("GPIF",
+            new XElement("GPVersion", ResolveOrDefault(document.GpVersion, DefaultGpVersion)),
+            BuildGpRevision(document.GpRevision),
+            new XElement("Encoding", new XElement("EncodingDescription", ResolveOrDefault(document.EncodingDescription, DefaultEncodingDescription))),
+            BuildScore(document.Score),
+            BuildMasterTrack(document.MasterTrack),
+            new XElement("Tracks", document.Tracks.OrderBy(t => t.Id).Select(BuildTrack)),
+            new XElement("MasterBars", document.MasterBars.OrderBy(m => m.Index).Select(BuildMasterBar)),
+            new XElement("Bars", document.BarsById.OrderBy(kv => kv.Key).Select(kv => BuildBar(kv.Value))),
+            new XElement("Voices", document.VoicesById.OrderBy(kv => kv.Key).Select(kv => BuildVoice(kv.Value))),
+            new XElement("Beats", document.BeatsById.OrderBy(kv => kv.Key).Select(kv => BuildBeat(kv.Value))),
+            new XElement("Notes", document.NotesById.OrderBy(kv => kv.Key).Select(kv => BuildNote(kv.Value))),
+            new XElement("Rhythms", document.RhythmsById.OrderBy(kv => kv.Key).Select(kv => BuildRhythm(kv.Value))));
 
-        var settings = new XmlWriterSettings { Async = true, Indent = true, OmitXmlDeclaration = true };
+        AddRawElementXml(root, document.ScoreViewsXml);
+
+        var x = new XDocument(
+            new XDeclaration("1.0", "utf-8", null),
+            root);
+
+        var settings = new XmlWriterSettings
+        {
+            Async = true,
+            Indent = true,
+            OmitXmlDeclaration = false,
+            Encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)
+        };
         using var writer = XmlWriter.Create(output, settings);
         x.WriteTo(writer);
         await writer.FlushAsync();
     }
+
+    private static XElement BuildGpRevision(GpifRevisionInfo revision)
+        => new(
+            "GPRevision",
+            new XAttribute("required", ResolveOrDefault(revision.Required, DefaultGpRevisionRequired)),
+            new XAttribute("recommended", ResolveOrDefault(revision.Recommended, DefaultGpRevisionRecommended)),
+            ResolveOrDefault(revision.Value, DefaultGpRevisionValue));
+
+    private static string ResolveOrDefault(string value, string fallback)
+        => string.IsNullOrWhiteSpace(value) ? fallback : value;
 
     private static XElement BuildScore(ScoreInfo s)
     {
@@ -664,10 +694,29 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         if (!string.IsNullOrWhiteSpace(n.Articulation.Vibrato)) el.Add(new XElement("Vibrato", n.Articulation.Vibrato));
 
         var props = new XElement("Properties");
+        var propertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         if (n.MidiPitch.HasValue)
         {
-            var (step, accidental, octave) = FromMidi(n.MidiPitch.Value);
-            props.Add(new XElement("Property", new XAttribute("name", "Pitch"), new XElement("Pitch", new XElement("Step", step), new XElement("Accidental", accidental), new XElement("Octave", octave))));
+            AddPitchProperty(props, propertyNames, "ConcertPitch", n.MidiPitch.Value);
+        }
+
+        foreach (var property in n.Properties)
+        {
+            AddNoteProperty(props, propertyNames, property);
+        }
+
+        if (n.MidiPitch.HasValue && !propertyNames.Contains("Midi"))
+        {
+            props.Add(new XElement("Property",
+                new XAttribute("name", "Midi"),
+                new XElement("Number", n.MidiPitch.Value)));
+            propertyNames.Add("Midi");
+        }
+
+        if (n.TransposedMidiPitch.HasValue)
+        {
+            AddPitchProperty(props, propertyNames, "TransposedPitch", n.TransposedMidiPitch.Value);
         }
 
         AddBoolProperty(props, "PalmMuted", n.Articulation.PalmMuted);
@@ -719,6 +768,79 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         }
 
         return el;
+    }
+
+    private static void AddPitchProperty(XElement parent, HashSet<string> propertyNames, string propertyName, int midi)
+    {
+        if (propertyNames.Contains(propertyName))
+        {
+            return;
+        }
+
+        var (step, accidental, octave) = FromMidi(midi);
+        parent.Add(new XElement(
+            "Property",
+            new XAttribute("name", propertyName),
+            new XElement(
+                "Pitch",
+                new XElement("Step", step),
+                new XElement("Accidental", accidental),
+                new XElement("Octave", octave))));
+
+        propertyNames.Add(propertyName);
+    }
+
+    private static void AddNoteProperty(XElement parent, HashSet<string> propertyNames, GpifNoteProperty property)
+    {
+        if (string.IsNullOrWhiteSpace(property.Name) || propertyNames.Contains(property.Name))
+        {
+            return;
+        }
+
+        XElement? payload = null;
+        if (property.Flags.HasValue)
+        {
+            payload = new XElement("Flags", property.Flags.Value);
+        }
+        else if (property.Number.HasValue)
+        {
+            payload = new XElement("Number", property.Number.Value);
+        }
+        else if (property.Fret.HasValue)
+        {
+            payload = new XElement("Fret", property.Fret.Value);
+        }
+        else if (property.StringNumber.HasValue)
+        {
+            payload = new XElement("String", property.StringNumber.Value);
+        }
+        else if (!string.IsNullOrWhiteSpace(property.HType))
+        {
+            payload = new XElement("HType", property.HType);
+        }
+        else if (property.HFret.HasValue)
+        {
+            payload = new XElement("HFret", property.HFret.Value);
+        }
+        else if (property.Float.HasValue)
+        {
+            payload = new XElement("Float", property.Float.Value);
+        }
+        else if (property.Enabled)
+        {
+            payload = new XElement("Enable");
+        }
+
+        if (payload is null)
+        {
+            return;
+        }
+
+        parent.Add(new XElement(
+            "Property",
+            new XAttribute("name", property.Name),
+            payload));
+        propertyNames.Add(property.Name);
     }
 
     private static void AddTextElement(XElement parent, string name, string value)

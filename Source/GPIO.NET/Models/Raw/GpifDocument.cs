@@ -5,6 +5,12 @@ namespace GPIO.NET.Models.Raw;
 /// </summary>
 public sealed class GpifDocument
 {
+    public string GpVersion { get; init; } = string.Empty;
+
+    public GpifRevisionInfo GpRevision { get; init; } = new();
+
+    public string EncodingDescription { get; init; } = string.Empty;
+
     public ScoreInfo Score { get; init; } = new();
 
     public GpifMasterTrack MasterTrack { get; init; } = new();
@@ -22,6 +28,17 @@ public sealed class GpifDocument
     public IReadOnlyDictionary<int, GpifNote> NotesById { get; init; } = new Dictionary<int, GpifNote>();
 
     public IReadOnlyDictionary<int, GpifRhythm> RhythmsById { get; init; } = new Dictionary<int, GpifRhythm>();
+
+    public string ScoreViewsXml { get; init; } = string.Empty;
+}
+
+public sealed class GpifRevisionInfo
+{
+    public string Required { get; init; } = string.Empty;
+
+    public string Recommended { get; init; } = string.Empty;
+
+    public string Value { get; init; } = string.Empty;
 }
 
 public sealed class ScoreInfo
@@ -297,6 +314,8 @@ public sealed class GpifNote
     public int Id { get; init; }
 
     public int? MidiPitch { get; init; }
+
+    public int? TransposedMidiPitch { get; init; }
 
     public IReadOnlyList<GpifNoteProperty> Properties { get; init; } = Array.Empty<GpifNoteProperty>();
 

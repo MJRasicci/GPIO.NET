@@ -224,6 +224,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                 {
                     Id = ParseInt(n.Attribute("id")?.Value),
                     MidiPitch = ParseMidiPitch(n),
+                    TransposedMidiPitch = ParseNamedMidiPitch(n, "TransposedPitch"),
                     Properties = properties,
                     Articulation = ParseArticulation(n, properties),
                     XProperties = noteXprops
@@ -316,6 +317,14 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
 
         return ValueTask.FromResult(new GpifDocument
         {
+            GpVersion = root.Element("GPVersion")?.Value ?? string.Empty,
+            GpRevision = new GpifRevisionInfo
+            {
+                Required = root.Element("GPRevision")?.Attribute("required")?.Value ?? string.Empty,
+                Recommended = root.Element("GPRevision")?.Attribute("recommended")?.Value ?? string.Empty,
+                Value = root.Element("GPRevision")?.Value ?? string.Empty
+            },
+            EncodingDescription = root.Element("Encoding")?.Element("EncodingDescription")?.Value ?? string.Empty,
             Score = new ScoreInfo
             {
                 Title = score?.Element("Title")?.Value ?? string.Empty,
@@ -353,7 +362,8 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
             VoicesById = voices,
             BeatsById = beats,
             NotesById = notes,
-            RhythmsById = rhythms
+            RhythmsById = rhythms,
+            ScoreViewsXml = root.Element("ScoreViews")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty
         });
     }
 
@@ -371,6 +381,26 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
             return null;
         }
 
+        return ParsePitchElementToMidi(pitch);
+    }
+
+    private static int? ParseNamedMidiPitch(XElement note, string propertyName)
+    {
+        var pitch = note.Element("Properties")?
+            .Elements("Property")
+            .FirstOrDefault(p => string.Equals(p.Attribute("name")?.Value, propertyName, StringComparison.OrdinalIgnoreCase))
+            ?.Element("Pitch");
+
+        if (pitch is null)
+        {
+            return null;
+        }
+
+        return ParsePitchElementToMidi(pitch);
+    }
+
+    private static int? ParsePitchElementToMidi(XElement pitch)
+    {
         var step = pitch.Element("Step")?.Value;
         var accidental = pitch.Element("Accidental")?.Value;
         var octaveRaw = pitch.Element("Octave")?.Value;

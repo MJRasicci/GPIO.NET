@@ -157,11 +157,11 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             })
             .ToArray();
 
-        var barId = 1;
-        var voiceId = 1;
-        var beatId = 1;
-        var noteId = 1;
-        var rhythmId = 1;
+        var barId = 0;
+        var voiceId = 0;
+        var beatId = 0;
+        var noteId = 0;
+        var rhythmId = 0;
 
         var bars = new Dictionary<int, GpifBar>();
         var voices = new Dictionary<int, GpifVoice>();
@@ -209,6 +209,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                             {
                                 var bend = ArticulationDecoders.EncodeBend(note.Articulation.Bend);
                                 var harmonic = ArticulationDecoders.EncodeHarmonic(note.Articulation.Harmonic);
+                                var (resolvedStringNumber, resolvedFret) = ResolveStringAndFret(note, track);
                                 var noteXProperties = new Dictionary<string, int>();
                                 var encodedTrillSpeed = ArticulationDecoders.EncodeTrillSpeed(note.Articulation.TrillSpeed);
                                 if (encodedTrillSpeed.HasValue)
@@ -222,6 +223,8 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 {
                                     Id = currentNoteId,
                                     MidiPitch = note.MidiPitch,
+                                    TransposedMidiPitch = ResolveTransposedMidiPitch(note, track),
+                                    Properties = BuildCoreNoteProperties(note.MidiPitch, resolvedStringNumber, resolvedFret),
                                     XProperties = noteXProperties,
                                     Articulation = new GpifNoteArticulation
                                     {
@@ -314,10 +317,16 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                     measureVoiceIds.Add(currentVoiceId);
                 }
 
+                var voiceSlots = measureVoiceIds.Take(4).ToList();
+                while (voiceSlots.Count < 4)
+                {
+                    voiceSlots.Add(-1);
+                }
+
                 bars[currentBarId] = new GpifBar
                 {
                     Id = currentBarId,
-                    VoicesReferenceList = ReferenceListFormatter.JoinRefs(measureVoiceIds),
+                    VoicesReferenceList = ReferenceListFormatter.JoinRefs(voiceSlots),
                     Clef = measure.Clef,
                     Properties = measure.BarProperties,
                     XProperties = measure.XProperties
@@ -382,6 +391,14 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
 
         var doc = new GpifDocument
         {
+            GpVersion = score.Metadata.GpVersion,
+            GpRevision = new GpifRevisionInfo
+            {
+                Required = score.Metadata.GpRevisionRequired,
+                Recommended = score.Metadata.GpRevisionRecommended,
+                Value = score.Metadata.GpRevisionValue
+            },
+            EncodingDescription = score.Metadata.EncodingDescription,
             Score = new ScoreInfo
             {
                 Title = score.Title,
@@ -435,7 +452,8 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             VoicesById = voices,
             BeatsById = beats,
             NotesById = notes,
-            RhythmsById = rhythms
+            RhythmsById = rhythms,
+            ScoreViewsXml = score.Metadata.ScoreViewsXml
         };
 
         return ValueTask.FromResult(new WriteResult
@@ -443,6 +461,100 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             RawDocument = doc,
             Diagnostics = diagnostics
         });
+    }
+
+    private static IReadOnlyList<GpifNoteProperty> BuildCoreNoteProperties(int? midiPitch, int? stringNumber, int? fret)
+    {
+        var properties = new List<GpifNoteProperty>(3);
+
+        if (fret.HasValue)
+        {
+            properties.Add(new GpifNoteProperty
+            {
+                Name = "Fret",
+                Fret = fret.Value
+            });
+        }
+
+        if (midiPitch.HasValue)
+        {
+            properties.Add(new GpifNoteProperty
+            {
+                Name = "Midi",
+                Number = midiPitch.Value
+            });
+        }
+
+        if (stringNumber.HasValue)
+        {
+            properties.Add(new GpifNoteProperty
+            {
+                Name = "String",
+                StringNumber = stringNumber.Value
+            });
+        }
+
+        return properties;
+    }
+
+    private static (int? StringNumber, int? Fret) ResolveStringAndFret(NoteModel note, TrackModel track)
+    {
+        if (!note.MidiPitch.HasValue)
+        {
+            return (note.StringNumber, null);
+        }
+
+        var tuning = track.Metadata.TuningPitches;
+        if (tuning.Length == 0)
+        {
+            return (note.StringNumber, null);
+        }
+
+        var midi = note.MidiPitch.Value;
+
+        if (note.StringNumber is >= 0 and < int.MaxValue)
+        {
+            var candidateString = note.StringNumber.Value;
+            if (candidateString < tuning.Length)
+            {
+                var candidateFret = midi - tuning[candidateString];
+                if (candidateFret >= 0)
+                {
+                    return (candidateString, candidateFret);
+                }
+            }
+        }
+
+        int? bestString = null;
+        int? bestFret = null;
+        for (var i = 0; i < tuning.Length; i++)
+        {
+            var candidateFret = midi - tuning[i];
+            if (candidateFret < 0)
+            {
+                continue;
+            }
+
+            if (!bestFret.HasValue || candidateFret < bestFret.Value)
+            {
+                bestFret = candidateFret;
+                bestString = i;
+            }
+        }
+
+        return (bestString ?? note.StringNumber, bestFret);
+    }
+
+    private static int? ResolveTransposedMidiPitch(NoteModel note, TrackModel track)
+    {
+        if (!note.MidiPitch.HasValue)
+        {
+            return null;
+        }
+
+        var chromatic = track.Metadata.Transpose.Chromatic ?? 0;
+        var octave = track.Metadata.Transpose.Octave ?? 0;
+        return note.MidiPitch.Value - (octave * 12) + chromatic;
     }
 
     private static string ResolveDirectionValue(
