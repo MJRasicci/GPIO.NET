@@ -333,6 +333,8 @@ public sealed class NoteModel
 
     public int? MidiPitch { get; init; }
 
+    public int? StringNumber { get; init; }
+
     public decimal Duration { get; set; }
 
     public bool TieExtendedFromPrevious { get; set; }
@@ -375,6 +377,12 @@ public sealed class NoteArticulationModel
     public bool HopoOrigin { get; init; }
 
     public bool HopoDestination { get; init; }
+
+    public HopoTypeKind HopoType { get; init; } = HopoTypeKind.None;
+
+    public int? HopoOriginNoteId { get; init; }
+
+    public int? HopoDestinationNoteId { get; init; }
 
     public int? SlideFlags { get; init; }
 
@@ -422,6 +430,14 @@ public enum BendTypeKind
     BendAndRelease = 6,
     PrebendAndBend = 7,
     PrebendAndRelease = 8
+}
+
+public enum HopoTypeKind
+{
+    None = 0,
+    HammerOn = 1,
+    PullOff = 2,
+    Legato = 3
 }
 
 public sealed class HarmonicModel

@@ -19,6 +19,7 @@ Legend:
 - ✅ Master-track anacrusis flag (`Anacrusis`) with read/map/write parity
 - ✅ Master-track automations (typed list)
 - ✅ Tempo map projection from tempo automations (`TempoEventMetadata`)
+- 🟡 Unified automation timeline synthesis beyond tempo projection
 - 🟡 Master-track RSE (typed minimal + raw XML passthrough)
 
 ## 3) Track metadata
@@ -66,12 +67,19 @@ Legend:
 
 - ✅ Let ring / vibrato / tie / trill / accent / anti-accent
 - ✅ Palm mute / muted / tapped / left-hand-tapped / HOPO flags
+- ✅ HOPO semantic linkage (origin/destination note IDs + hammer-on/pull-off inference)
 - ✅ Slide flags + decoded slide enums (validated against schema reference slide cases)
 - ✅ Harmonic typed fields (`HType` text + semantic harmonic-kind mapping + fret)
 - ✅ Bend typed curve fields (normalized values/offsets + inferred bend-type semantics)
 - ✅ Fingering fields (`LeftFingering`, `RightFingering`) and ornament text
 - ✅ Grace-note and beat-effect metadata (`GraceNotes`, `PickStroke`, `VibratoWTremBar`, `Brush`, `Slapped`, `Popped`)
 - ✅ Palm-mute beat effect projection from note properties
+- 🟡 Beat whammy/tremolo-bar curve normalization is still pending (`<Whammy ... />` and `WhammyBar*` property-family)
+- 🟡 Rasgueado pattern decoding is still pending (`Property name="Rasgueado"`)
+- 🟡 Dead-slapped beat semantics are still pending (`<DeadSlapped />`)
+- 🟡 Arpeggio/brush semantic split and brush-duration normalization are still pending (`<Arpeggio>`, `Brush`, XProperties `687935489`/`687931393`)
+- 🟡 Trill-speed decoding from note XProperty is still pending (`XProperty id="688062467"`)
+- 🟡 Additional beat-effect behavior currently represented only as generic tags is still pending (`<Tremolo>`, `<Chord>`, `<FreeText>` interactions)
 
 ## 8) Write path status
 
@@ -94,7 +102,7 @@ Legend:
 ## 10) Remaining highest-priority gaps
 
 1. ⛔ Deep normalization of audio engine / MIDI connection / lyrics structures (currently passthrough-heavy)
-2. ⛔ Broader semantic decoding for all articulation variants beyond current typed subset
+2. ⛔ Broader semantic decoding for remaining articulation/effect variants beyond the current typed subset (see section 7 remaining-item bullets)
 3. ⛔ Complete schema-driven element-by-element coverage auditing vs `GPIF.xsd`
 4. ⛔ Patch planner support for larger structural edits (new tracks/measures, advanced voice topology)
 

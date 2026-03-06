@@ -16,7 +16,7 @@ Status legend:
 - ✅ Master bars / measures
 - ✅ Voices (all voice references per bar mapped; primary-voice compatibility path retained)
 - ✅ Beats
-- 🟡 Notes (pitch + subset of articulations)
+- ✅ Notes (pitch + articulation/effect coverage tracked below)
 
 ## Navigation / playback flow
 - ✅ Repeat start/end metadata
@@ -45,12 +45,20 @@ Status legend:
 - ✅ Beat effect fields (`PickStroke`, `VibratoWTremBar`, `Brush`, `Slapped`, `Popped`)
 - ✅ Harmonics (typed semantic kind + `HType`/`HFret` GPIF parity)
 - ✅ Slide mapping (semantic enum projection validated against schema fixture cases)
-- 🟡 Hammer-on / pull-off semantics (Hopo origin/destination captured)
+- ✅ Hammer-on / pull-off semantics (adjacent-note linkage + inferred HO/PO type)
 - ✅ Palm mute semantics (note property + beat-level effect projection)
 - ✅ Bend mapping (normalized curve units + inferred bend-type semantics)
+- 🟡 Beat whammy/tremolo-bar curve semantics (`<Whammy ... />` and `WhammyBar*` property-family normalization)
+- 🟡 Rasgueado pattern semantics (`Property name="Rasgueado"` pattern mapping)
+- 🟡 Dead-slapped beat semantics (`<DeadSlapped />` behavior + playback/model impact)
+- 🟡 Arpeggio/brush differentiation and timing (`<Arpeggio>` vs `Brush` plus brush-duration XProperties `687935489`/`687931393`)
+- 🟡 Trill speed semantics (`XProperty id="688062467"` tempo bucket decoding)
+- 🟡 Additional beat-effect semantics currently read as generic tags only (`<Tremolo>`, `<Chord>`, `<FreeText>` effect interactions)
 
 ## Tempo / automation / dynamics
-- ⛔ Tempo map + automation timeline
+- ✅ Track/master automation capture + round-trip
+- ✅ Tempo map projection from tempo automations
+- 🟡 Unified automation timeline synthesis beyond current tempo projection
 - ⛔ Dynamic map integration
 
 ## Validation and quality
@@ -59,7 +67,8 @@ Status legend:
 - ✅ Playback-sequence edge-case tests for repeat/jump behavior (DS/DC/Coda/Fine, alternate endings, anacrusis, legacy direction aliases)
 
 ## Immediate next targets
-1. Integrate tempo/automation timeline mapping
-2. Integrate dynamic map
-3. Add explicit schema coverage report generation
-4. Expand fixture corpus for advanced patch planner structural diffs
+1. Complete remaining articulation/effect variants listed above (whammy/rasgueado/dead-slapped/arpeggio-duration/trill-speed/beat-effect interactions)
+2. Expand automation timeline synthesis beyond current tempo projection
+3. Integrate dynamic map
+4. Add explicit schema coverage report generation
+5. Expand fixture corpus for advanced patch planner structural diffs

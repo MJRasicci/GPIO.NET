@@ -28,7 +28,8 @@ public sealed class DefaultScoreMapper : IScoreMapper
             .OrderBy(t => t.Id)
             .Select((track, trackOrdinal) =>
             {
-                var measures = MapMeasures(source, trackOrdinal);
+                var isStringedTrack = IsStringedTrack(track);
+                var measures = MapMeasures(source, trackOrdinal, isStringedTrack);
                 ApplyTieDurationStitching(measures);
 
                 return new TrackModel
@@ -160,7 +161,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
         return ValueTask.FromResult(score);
     }
 
-    private static List<MeasureModel> MapMeasures(GpifDocument source, int trackOrdinal)
+    private static List<MeasureModel> MapMeasures(GpifDocument source, int trackOrdinal, bool isStringedTrack)
     {
         var measures = new List<MeasureModel>(source.MasterBars.Count);
 
@@ -187,7 +188,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                         continue;
                     }
 
-                    var mappedBeats = MapVoiceBeats(source, voice);
+                    var mappedBeats = MapVoiceBeats(source, voice, isStringedTrack);
                     voices.Add(new MeasureVoiceModel
                     {
                         VoiceIndex = voiceIndex,
@@ -237,7 +238,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
         return measures;
     }
 
-    private static IReadOnlyList<BeatModel> MapVoiceBeats(GpifDocument source, GpifVoice voice)
+    private static IReadOnlyList<BeatModel> MapVoiceBeats(GpifDocument source, GpifVoice voice, bool isStringedTrack)
     {
         var beatRefs = ReferenceListParser.SplitRefs(voice.BeatsReferenceList);
         var voiceProps = voice.Properties.ToDictionary(kv => kv.Key, kv => kv.Value);
@@ -245,46 +246,69 @@ public sealed class DefaultScoreMapper : IScoreMapper
         var beats = new List<BeatModel>(beatRefs.Count);
 
         decimal offset = 0;
-        foreach (var beatId in beatRefs)
+        for (var beatIndex = 0; beatIndex < beatRefs.Count; beatIndex++)
         {
+            var beatId = beatRefs[beatIndex];
             if (!source.BeatsById.TryGetValue(beatId, out var beat))
             {
                 continue;
             }
 
             var duration = ResolveDuration(source, beat.RhythmRef);
+            var previousBeat = beatIndex > 0 && source.BeatsById.TryGetValue(beatRefs[beatIndex - 1], out var prev)
+                ? prev
+                : null;
+            var nextBeat = beatIndex + 1 < beatRefs.Count && source.BeatsById.TryGetValue(beatRefs[beatIndex + 1], out var next)
+                ? next
+                : null;
+
             var notes = ReferenceListParser.SplitRefs(beat.NotesReferenceList)
                 .Where(source.NotesById.ContainsKey)
-                .Select(id => source.NotesById[id])
-                .Select(n => new NoteModel
+                .Select(noteRef => source.NotesById[noteRef])
+                .Select(n =>
                 {
-                    Id = n.Id,
-                    MidiPitch = n.MidiPitch,
-                    Duration = duration,
-                    Articulation = new NoteArticulationModel
+                    var stringNumber = GetStringNumber(n);
+                    var hopoOriginNoteId = n.Articulation.HopoDestination
+                        ? ResolveHopoCounterpartNoteId(source, previousBeat, stringNumber, isStringedTrack, expectOrigin: true)
+                        : null;
+                    var hopoDestinationNoteId = n.Articulation.HopoOrigin
+                        ? ResolveHopoCounterpartNoteId(source, nextBeat, stringNumber, isStringedTrack, expectOrigin: false)
+                        : null;
+
+                    return new NoteModel
                     {
-                        LeftFingering = n.Articulation.LeftFingering,
-                        RightFingering = n.Articulation.RightFingering,
-                        Ornament = n.Articulation.Ornament,
-                        LetRing = n.Articulation.LetRing,
-                        Vibrato = n.Articulation.Vibrato,
-                        TieOrigin = n.Articulation.TieOrigin,
-                        TieDestination = n.Articulation.TieDestination,
-                        Trill = n.Articulation.Trill,
-                        Accent = n.Articulation.Accent,
-                        AntiAccent = n.Articulation.AntiAccent,
-                        InstrumentArticulation = n.Articulation.InstrumentArticulation,
-                        PalmMuted = n.Articulation.PalmMuted,
-                        Muted = n.Articulation.Muted,
-                        Tapped = n.Articulation.Tapped,
-                        LeftHandTapped = n.Articulation.LeftHandTapped,
-                        HopoOrigin = n.Articulation.HopoOrigin,
-                        HopoDestination = n.Articulation.HopoDestination,
-                        SlideFlags = n.Articulation.SlideFlags,
-                        Slides = ArticulationDecoders.DecodeSlides(n.Articulation.SlideFlags),
-                        Bend = ArticulationDecoders.DecodeBend(n.Articulation, n.Articulation.TieDestination),
-                        Harmonic = ArticulationDecoders.DecodeHarmonic(n.Articulation)
-                    }
+                        Id = n.Id,
+                        MidiPitch = n.MidiPitch,
+                        StringNumber = stringNumber,
+                        Duration = duration,
+                        Articulation = new NoteArticulationModel
+                        {
+                            LeftFingering = n.Articulation.LeftFingering,
+                            RightFingering = n.Articulation.RightFingering,
+                            Ornament = n.Articulation.Ornament,
+                            LetRing = n.Articulation.LetRing,
+                            Vibrato = n.Articulation.Vibrato,
+                            TieOrigin = n.Articulation.TieOrigin,
+                            TieDestination = n.Articulation.TieDestination,
+                            Trill = n.Articulation.Trill,
+                            Accent = n.Articulation.Accent,
+                            AntiAccent = n.Articulation.AntiAccent,
+                            InstrumentArticulation = n.Articulation.InstrumentArticulation,
+                            PalmMuted = n.Articulation.PalmMuted,
+                            Muted = n.Articulation.Muted,
+                            Tapped = n.Articulation.Tapped,
+                            LeftHandTapped = n.Articulation.LeftHandTapped,
+                            HopoOrigin = n.Articulation.HopoOrigin,
+                            HopoDestination = n.Articulation.HopoDestination,
+                            HopoType = InferHopoType(source, n, hopoOriginNoteId, hopoDestinationNoteId),
+                            HopoOriginNoteId = hopoOriginNoteId,
+                            HopoDestinationNoteId = hopoDestinationNoteId,
+                            SlideFlags = n.Articulation.SlideFlags,
+                            Slides = ArticulationDecoders.DecodeSlides(n.Articulation.SlideFlags),
+                            Bend = ArticulationDecoders.DecodeBend(n.Articulation, n.Articulation.TieDestination),
+                            Harmonic = ArticulationDecoders.DecodeHarmonic(n.Articulation)
+                        }
+                    };
                 })
                 .ToArray();
 
@@ -316,6 +340,106 @@ public sealed class DefaultScoreMapper : IScoreMapper
         }
 
         return beats;
+    }
+
+    private static bool IsStringedTrack(GpifTrack track)
+        => track.TuningPitches.Length > 0 || track.Staffs.Any(s => s.TuningPitches.Length > 0);
+
+    private static int? GetStringNumber(GpifNote note)
+    {
+        var stringProperty = note.Properties.FirstOrDefault(p => string.Equals(p.Name, "String", StringComparison.OrdinalIgnoreCase));
+        if (stringProperty is null)
+        {
+            return null;
+        }
+
+        if (stringProperty.StringNumber.HasValue)
+        {
+            return stringProperty.StringNumber;
+        }
+
+        return stringProperty.Number;
+    }
+
+    private static int? ResolveHopoCounterpartNoteId(
+        GpifDocument source,
+        GpifBeat? adjacentBeat,
+        int? stringNumber,
+        bool isStringedTrack,
+        bool expectOrigin)
+    {
+        if (adjacentBeat is null)
+        {
+            return null;
+        }
+
+        var adjacentNotes = ReferenceListParser.SplitRefs(adjacentBeat.NotesReferenceList)
+            .Where(source.NotesById.ContainsKey)
+            .Select(noteRef => source.NotesById[noteRef])
+            .ToArray();
+
+        if (adjacentNotes.Length == 0)
+        {
+            return null;
+        }
+
+        if (isStringedTrack && stringNumber.HasValue)
+        {
+            return adjacentNotes
+                .FirstOrDefault(n => GetStringNumber(n) == stringNumber)
+                ?.Id;
+        }
+
+        return adjacentNotes
+            .FirstOrDefault(n => expectOrigin ? n.Articulation.HopoOrigin : n.Articulation.HopoDestination)
+            ?.Id;
+    }
+
+    private static HopoTypeKind InferHopoType(
+        GpifDocument source,
+        GpifNote note,
+        int? hopoOriginNoteId,
+        int? hopoDestinationNoteId)
+    {
+        if (!note.Articulation.HopoOrigin && !note.Articulation.HopoDestination)
+        {
+            return HopoTypeKind.None;
+        }
+
+        int? originPitch = null;
+        int? destinationPitch = null;
+
+        if (note.Articulation.HopoOrigin)
+        {
+            originPitch = note.MidiPitch;
+            destinationPitch = hopoDestinationNoteId.HasValue && source.NotesById.TryGetValue(hopoDestinationNoteId.Value, out var next)
+                ? next.MidiPitch
+                : null;
+        }
+        else if (note.Articulation.HopoDestination)
+        {
+            originPitch = hopoOriginNoteId.HasValue && source.NotesById.TryGetValue(hopoOriginNoteId.Value, out var previous)
+                ? previous.MidiPitch
+                : null;
+            destinationPitch = note.MidiPitch;
+        }
+
+        if (!originPitch.HasValue || !destinationPitch.HasValue)
+        {
+            return HopoTypeKind.Legato;
+        }
+
+        if (destinationPitch.Value > originPitch.Value)
+        {
+            return HopoTypeKind.HammerOn;
+        }
+
+        if (destinationPitch.Value < originPitch.Value)
+        {
+            return HopoTypeKind.PullOff;
+        }
+
+        return HopoTypeKind.Legato;
     }
 
     private static decimal ResolveDuration(GpifDocument source, int rhythmRef)
