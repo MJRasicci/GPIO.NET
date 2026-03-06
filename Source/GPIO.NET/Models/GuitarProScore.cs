@@ -209,6 +209,8 @@ public sealed class MasterTrackMetadata
 
     public IReadOnlyList<AutomationMetadata> Automations { get; init; } = Array.Empty<AutomationMetadata>();
 
+    public bool Anacrusis { get; init; }
+
     public string RseXml { get; init; } = string.Empty;
 
     public IReadOnlyList<TempoEventMetadata> TempoMap { get; init; } = Array.Empty<TempoEventMetadata>();

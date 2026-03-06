@@ -22,8 +22,9 @@ Status legend:
 - ✅ Repeat start/end metadata
 - ✅ Alternate ending metadata
 - ✅ Jump/target metadata (Da Capo / Da Segno / Coda fields captured)
-- 🟡 Playback sequence generation (expanded handling for `DaCapo*`, `DaSegno*`, `DaSegnoSegno*`, `DaCoda`, `DaDoubleCoda`, `Fine`; still not full notation-engine parity)
-- ⛔ Full notation-engine semantics (remaining DS/DC/Fine edge cases)
+- ✅ Playback sequence generation with Android-parity handling for `DaCapo*`, `DaSegno*`, `DaSegnoSegno*`, `DaCoda`, `DaDoubleCoda`, and `Fine`
+- ✅ Direction-gating and loop semantics parity (extended alternate endings, ignore-once jumps, and conditional Coda/DoubleCoda activation)
+- ✅ Anacrusis-aware repeat anchoring
 
 ## Rhythm model
 - ✅ Base note values (whole/half/quarter/eighth/16/32/64)
@@ -53,10 +54,10 @@ Status legend:
 ## Validation and quality
 - 🟡 Fixture-based tests (started)
 - ⛔ Schema coverage matrix (XSD element-by-element)
-- ⛔ Golden playback-sequence tests for repeat/jump edge cases
+- ✅ Playback-sequence edge-case tests for repeat/jump behavior (DS/DC/Coda/Fine, alternate endings, anacrusis, legacy direction aliases)
 
 ## Immediate next targets
-1. Complete rhythm (tuplets + augmentation dots + tie handling)
-2. Expand articulations (harmonics, slides, grace, palm mute, bends)
-3. Add navigation edge-case test corpus (DS/DC/Coda/Fine)
-4. Add explicit schema coverage report generation
+1. Expand articulations (harmonics, slides, grace, palm mute, bends)
+2. Integrate tempo/automation timeline mapping
+3. Add explicit schema coverage report generation
+4. Expand fixture corpus for multi-voice mapping and write-path fidelity

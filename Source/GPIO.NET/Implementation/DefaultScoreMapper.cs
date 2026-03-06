@@ -126,6 +126,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                     Visible = a.Visible,
                     Value = a.Value
                 }).ToArray(),
+                Anacrusis = source.MasterTrack.Anacrusis,
                 RseXml = source.MasterTrack.RseXml,
                 TempoMap = source.MasterTrack.Automations
                     .Where(a => string.Equals(a.Type, "Tempo", StringComparison.OrdinalIgnoreCase))
@@ -153,7 +154,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                 MultiVoice = source.Score.MultiVoice
             },
             Tracks = tracks,
-            PlaybackMasterBarSequence = navigationResolver.BuildPlaybackSequence(source.MasterBars)
+            PlaybackMasterBarSequence = navigationResolver.BuildPlaybackSequence(source.MasterBars, source.MasterTrack.Anacrusis)
         };
 
         return ValueTask.FromResult(score);

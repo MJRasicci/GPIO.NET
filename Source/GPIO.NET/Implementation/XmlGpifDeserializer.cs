@@ -239,6 +239,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
             {
                 TrackIds = SplitInts(masterTrack?.Element("Tracks")?.Value),
                 Automations = ParseAutomations(masterTrack?.Element("Automations")),
+                Anacrusis = masterTrack?.Element("Anacrusis") is not null,
                 RseXml = masterTrack?.Element("RSE")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty
             },
             Tracks = tracks,

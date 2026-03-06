@@ -16,6 +16,7 @@ Legend:
 ## 2) Master track / global context
 
 - ✅ `MasterTrack.Tracks` references
+- ✅ Master-track anacrusis flag (`Anacrusis`) with read/map/write parity
 - ✅ Master-track automations (typed list)
 - ✅ Tempo map projection from tempo automations (`TempoEventMetadata`)
 - 🟡 Master-track RSE (typed minimal + raw XML passthrough)
@@ -91,12 +92,11 @@ Legend:
 
 1. ⛔ Deep normalization of audio engine / MIDI connection / lyrics structures (currently passthrough-heavy)
 2. ⛔ Broader semantic decoding for all articulation variants beyond current typed subset
-3. 🟡 DS/DC/Coda/Fine semantics are now expanded for core GP7 direction tokens (`DaCapo*`, `DaSegno*`, `DaSegnoSegno*`, `DaCoda`, `DaDoubleCoda`) but still not full notation-engine parity for all edge cases
-4. ⛔ Complete schema-driven element-by-element coverage auditing vs `GPIF.xsd`
-5. ⛔ Patch planner support for larger structural edits (new tracks/measures, advanced voice topology)
+3. ⛔ Complete schema-driven element-by-element coverage auditing vs `GPIF.xsd`
+4. ⛔ Patch planner support for larger structural edits (new tracks/measures, advanced voice topology)
 
 ## Suggested next milestones
 
 - **Milestone A:** Schema coverage audit tool (typed/hybrid/missing per XSD node)
-- **Milestone B:** Navigation semantics hardening for DS/DC/Fine/Coda edge cases
-- **Milestone C:** Advanced patch planner for measure/track creation and structural diffs
+- **Milestone B:** Advanced patch planner for measure/track creation and structural diffs
+- **Milestone C:** Deeper normalization of audio engine / MIDI / lyrics blocks

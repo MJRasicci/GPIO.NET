@@ -69,6 +69,11 @@ public sealed class XmlGpifSerializer : IGpifSerializer
             AddRawElementXml(el, master.RseXml);
         }
 
+        if (master.Anacrusis)
+        {
+            el.Add(new XElement("Anacrusis"));
+        }
+
         if (master.Automations.Count > 0)
         {
             el.Add(BuildAutomations(master.Automations));

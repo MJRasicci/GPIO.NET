@@ -6,5 +6,7 @@ public sealed class GpifMasterTrack
 
     public IReadOnlyList<GpifAutomation> Automations { get; init; } = Array.Empty<GpifAutomation>();
 
+    public bool Anacrusis { get; init; }
+
     public string RseXml { get; init; } = string.Empty;
 }

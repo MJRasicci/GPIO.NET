@@ -296,6 +296,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                     Visible = a.Visible,
                     Value = a.Value
                 }).ToArray(),
+                Anacrusis = score.MasterTrack.Anacrusis,
                 RseXml = score.MasterTrack.RseXml
             },
             Tracks = tracks,
