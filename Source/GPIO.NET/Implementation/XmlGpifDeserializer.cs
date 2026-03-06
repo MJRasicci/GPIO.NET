@@ -20,17 +20,46 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
         var tracks = tracksContainer?.Elements("Track")
             .Select(t =>
             {
-                var properties = (t.Element("Properties")?.Elements("Property") ?? Enumerable.Empty<XElement>())
-                    .Where(p => p.Attribute("name") is not null)
-                    .ToDictionary(
-                        p => p.Attribute("name")!.Value,
-                        p => p.Value?.Trim() ?? string.Empty,
-                        StringComparer.OrdinalIgnoreCase);
+                var trackProperties = ParsePropertyDictionary(t.Element("Properties"));
+                var stavesElement = t.Element("Staves");
+                var staves = ParseStaffs(stavesElement);
 
-                properties.TryGetValue("Tuning", out var tuningPitchesRaw);
-                properties.TryGetValue("Instrument", out var tuningInstrument);
-                properties.TryGetValue("Label", out var tuningLabel);
-                properties.TryGetValue("LabelVisible", out var tuningLabelVisibleRaw);
+                var tuningProperty = FindLastProperty(t.Element("Properties"), "Tuning");
+                trackProperties.TryGetValue("Tuning", out var trackTuningRaw);
+
+                var tuningPitches = SplitInts(tuningProperty?.Element("Pitches")?.Value);
+                if (tuningPitches.Length == 0)
+                {
+                    tuningPitches = SplitInts(trackTuningRaw);
+                }
+
+                var tuningInstrument = tuningProperty?.Element("Instrument")?.Value?.Trim() ?? string.Empty;
+                var tuningLabel = tuningProperty?.Element("Label")?.Value?.Trim() ?? string.Empty;
+                var tuningLabelVisible = TryParseNullableBool(tuningProperty?.Element("LabelVisible")?.Value);
+
+                if (tuningPitches.Length == 0)
+                {
+                    tuningPitches = staves.FirstOrDefault(s => s.TuningPitches.Length > 0)?.TuningPitches ?? Array.Empty<int>();
+                }
+
+                var staffTuningProperty = FindLastProperty(
+                    stavesElement?.Elements("Staff").FirstOrDefault()?.Element("Properties"),
+                    "Tuning");
+
+                if (string.IsNullOrWhiteSpace(tuningInstrument))
+                {
+                    tuningInstrument = staffTuningProperty?.Element("Instrument")?.Value?.Trim() ?? string.Empty;
+                }
+
+                if (string.IsNullOrWhiteSpace(tuningLabel))
+                {
+                    tuningLabel = staffTuningProperty?.Element("Label")?.Value?.Trim() ?? string.Empty;
+                }
+
+                if (!tuningLabelVisible.HasValue)
+                {
+                    tuningLabelVisible = TryParseNullableBool(staffTuningProperty?.Element("LabelVisible")?.Value);
+                }
 
                 return new GpifTrack
                 {
@@ -47,13 +76,13 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     UseOneChannelPerString = t.Element("UseOneChannelPerString") is not null,
                     IconId = TryParseNullableInt(t.Element("IconId")?.Value),
                     ForcedSound = TryParseNullableInt(t.Element("ForcedSound")?.Value),
-                    TuningPitches = SplitInts(tuningPitchesRaw),
-                    TuningInstrument = tuningInstrument ?? string.Empty,
-                    TuningLabel = tuningLabel ?? string.Empty,
-                    TuningLabelVisible = TryParseNullableBool(tuningLabelVisibleRaw),
-                    Properties = properties,
+                    TuningPitches = tuningPitches,
+                    TuningInstrument = tuningInstrument,
+                    TuningLabel = tuningLabel,
+                    TuningLabelVisible = tuningLabelVisible,
+                    Properties = trackProperties,
                     InstrumentSetXml = t.Element("InstrumentSet")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
-                    StavesXml = t.Element("Staves")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
+                    StavesXml = stavesElement?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                     SoundsXml = t.Element("Sounds")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                     RseXml = t.Element("RSE")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                     InstrumentSet = ParseInstrumentSet(t.Element("InstrumentSet")),
@@ -67,7 +96,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     AutomationsXml = t.Element("Automations")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                     Automations = ParseAutomations(t.Element("Automations")),
                     TransposeXml = t.Element("Transpose")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
-                    Staffs = ParseStaffs(t.Element("Staves"))
+                    Staffs = staves
                 };
             })
             .ToArray() ?? Array.Empty<GpifTrack>();
@@ -124,12 +153,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
         var bars = (root.Element("Bars")?.Elements("Bar") ?? Enumerable.Empty<XElement>())
             .Select(b =>
             {
-                var props = (b.Element("Properties")?.Elements("Property") ?? Enumerable.Empty<XElement>())
-                    .Where(p => p.Attribute("name") is not null)
-                    .ToDictionary(
-                        p => p.Attribute("name")!.Value,
-                        p => p.Element("Value")?.Value?.Trim() ?? p.Value?.Trim() ?? string.Empty,
-                        StringComparer.OrdinalIgnoreCase);
+                var props = ParsePropertyDictionary(b.Element("Properties"));
                 var xprops = (b.Element("XProperties")?.Elements("XProperty") ?? Enumerable.Empty<XElement>())
                     .Where(x => x.Attribute("id") is not null)
                     .Select(x => new { Id = x.Attribute("id")!.Value, Int = ParseInt(x.Element("Int")?.Value) })
@@ -150,12 +174,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
         var voices = (root.Element("Voices")?.Elements("Voice") ?? Enumerable.Empty<XElement>())
             .Select(v =>
             {
-                var props = (v.Element("Properties")?.Elements("Property") ?? Enumerable.Empty<XElement>())
-                    .Where(p => p.Attribute("name") is not null)
-                    .ToDictionary(
-                        p => p.Attribute("name")!.Value,
-                        p => p.Element("Value")?.Value?.Trim() ?? p.Value?.Trim() ?? string.Empty,
-                        StringComparer.OrdinalIgnoreCase);
+                var props = ParsePropertyDictionary(v.Element("Properties"));
                 var dirTags = (v.Element("Directions")?.Elements() ?? Enumerable.Empty<XElement>())
                     .Select(e => e.Name.LocalName)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -447,12 +466,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
         return staves.Elements("Staff")
             .Select(staff =>
             {
-                var props = (staff.Element("Properties")?.Elements("Property") ?? Enumerable.Empty<XElement>())
-                    .Where(p => p.Attribute("name") is not null)
-                    .ToDictionary(
-                        p => p.Attribute("name")!.Value,
-                        p => p.Element("Value")?.Value?.Trim() ?? p.Value?.Trim() ?? string.Empty,
-                        StringComparer.OrdinalIgnoreCase);
+                var props = ParsePropertyDictionary(staff.Element("Properties"));
 
                 props.TryGetValue("Tuning", out var tuningRaw);
                 var tuningPitches = SplitInts(tuningRaw);
@@ -477,6 +491,63 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                 };
             })
             .ToArray();
+    }
+
+    private static Dictionary<string, string> ParsePropertyDictionary(XElement? propertiesElement)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        if (propertiesElement is null)
+        {
+            return values;
+        }
+
+        foreach (var property in propertiesElement.Elements("Property"))
+        {
+            var name = property.Attribute("name")?.Value;
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            values[name] = ParsePropertyValue(property);
+        }
+
+        return values;
+    }
+
+    private static XElement? FindLastProperty(XElement? propertiesElement, string propertyName)
+    {
+        if (propertiesElement is null)
+        {
+            return null;
+        }
+
+        return propertiesElement.Elements("Property")
+            .LastOrDefault(p => string.Equals(p.Attribute("name")?.Value, propertyName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string ParsePropertyValue(XElement property)
+    {
+        var preferred = property.Element("Value")?.Value
+            ?? property.Element("Pitches")?.Value
+            ?? property.Element("Number")?.Value
+            ?? property.Element("Fret")?.Value
+            ?? property.Element("Float")?.Value
+            ?? property.Element("Bitset")?.Value
+            ?? property.Element("String")?.Value;
+
+        if (!string.IsNullOrWhiteSpace(preferred))
+        {
+            return preferred.Trim();
+        }
+
+        if (property.Element("Enable") is not null)
+        {
+            return "true";
+        }
+
+        return property.Value?.Trim() ?? string.Empty;
     }
 
     private static TupletRatio? ParseTuplet(XElement? tuplet)

@@ -14,7 +14,7 @@ Status legend:
 - ✅ Score metadata (title/artist/album)
 - ✅ Tracks
 - ✅ Master bars / measures
-- 🟡 Voices (primary voice path mapped; multi-voice strategy incomplete)
+- ✅ Voices (all voice references per bar mapped; primary-voice compatibility path retained)
 - ✅ Beats
 - 🟡 Notes (pitch + subset of articulations)
 
@@ -60,4 +60,4 @@ Status legend:
 1. Expand articulations (harmonics, slides, grace, palm mute, bends)
 2. Integrate tempo/automation timeline mapping
 3. Add explicit schema coverage report generation
-4. Expand fixture corpus for multi-voice mapping and write-path fidelity
+4. Expand fixture corpus for advanced patch planner structural diffs

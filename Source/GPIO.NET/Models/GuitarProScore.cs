@@ -267,6 +267,21 @@ public sealed class MeasureModel
 
     public IReadOnlyDictionary<string, string> BarProperties { get; init; } = new Dictionary<string, string>();
 
+    public IReadOnlyList<MeasureVoiceModel> Voices { get; init; } = Array.Empty<MeasureVoiceModel>();
+
+    public IReadOnlyList<BeatModel> Beats { get; init; } = Array.Empty<BeatModel>();
+}
+
+public sealed class MeasureVoiceModel
+{
+    public int VoiceIndex { get; init; }
+
+    public int SourceVoiceId { get; init; }
+
+    public IReadOnlyDictionary<string, string> Properties { get; init; } = new Dictionary<string, string>();
+
+    public IReadOnlyList<string> DirectionTags { get; init; } = Array.Empty<string>();
+
     public IReadOnlyList<BeatModel> Beats { get; init; } = Array.Empty<BeatModel>();
 }
 

@@ -5,7 +5,6 @@ using GPIO.NET.Models;
 using GPIO.NET.Models.Raw;
 using GPIO.NET.Models.Write;
 using GPIO.NET.Utilities;
-using System.Globalization;
 
 public sealed class DefaultScoreUnmapper : IScoreUnmapper
 {
@@ -118,85 +117,93 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 }
 
                 var measure = track.Measures[m];
+                var jump = ResolveDirectionValue(measure.Jump, measure.DirectionProperties, "Jump");
+                var target = ResolveDirectionValue(measure.Target, measure.DirectionProperties, "Target");
                 var currentBarId = barId++;
-                var currentVoiceId = voiceId++;
+                var measureVoiceIds = new List<int>();
+                var measureVoices = ResolveMeasureVoices(measure);
 
-                var beatIds = new List<int>();
-                var voiceProperties = measure.Beats.FirstOrDefault()?.VoiceProperties ?? new Dictionary<string,string>();
-                var voiceDirectionTags = measure.Beats.FirstOrDefault()?.VoiceDirectionTags ?? Array.Empty<string>();
-                foreach (var beat in measure.Beats)
+                foreach (var measureVoice in measureVoices)
                 {
-                    var currentBeatId = beatId++;
-                    var currentRhythmId = rhythmId++;
-                    var noteRefs = new List<int>();
+                    var currentVoiceId = voiceId++;
+                    var beatIds = new List<int>();
 
-                    rhythms[currentRhythmId] = ToRhythm(beat.Duration, currentRhythmId, diagnostics);
-
-                    if (beat.Notes.Count > 0)
+                    foreach (var beat in measureVoice.Beats)
                     {
-                        foreach (var note in beat.Notes)
+                        var currentBeatId = beatId++;
+                        var currentRhythmId = rhythmId++;
+                        var noteRefs = new List<int>();
+
+                        rhythms[currentRhythmId] = ToRhythm(beat.Duration, currentRhythmId, diagnostics);
+
+                        if (beat.Notes.Count > 0)
                         {
-                            var currentNoteId = noteId++;
-                            noteRefs.Add(currentNoteId);
-                            notes[currentNoteId] = new GpifNote
+                            foreach (var note in beat.Notes)
                             {
-                                Id = currentNoteId,
-                                MidiPitch = note.MidiPitch,
-                                Articulation = new GpifNoteArticulation
+                                var currentNoteId = noteId++;
+                                noteRefs.Add(currentNoteId);
+                                notes[currentNoteId] = new GpifNote
                                 {
-                                    LetRing = note.Articulation.LetRing,
-                                    Vibrato = note.Articulation.Vibrato,
-                                    TieOrigin = note.Articulation.TieOrigin,
-                                    TieDestination = note.Articulation.TieDestination,
-                                    Trill = note.Articulation.Trill,
-                                    Accent = note.Articulation.Accent,
-                                    AntiAccent = note.Articulation.AntiAccent,
-                                    InstrumentArticulation = note.Articulation.InstrumentArticulation,
-                                    PalmMuted = note.Articulation.PalmMuted,
-                                    Muted = note.Articulation.Muted,
-                                    Tapped = note.Articulation.Tapped,
-                                    LeftHandTapped = note.Articulation.LeftHandTapped,
-                                    HopoOrigin = note.Articulation.HopoOrigin,
-                                    HopoDestination = note.Articulation.HopoDestination,
-                                    SlideFlags = note.Articulation.SlideFlags ?? ArticulationDecoders.EncodeSlides(note.Articulation.Slides),
-                                    BendEnabled = note.Articulation.Bend?.Enabled ?? false,
-                                    BendOriginOffset = note.Articulation.Bend?.OriginOffset,
-                                    BendOriginValue = note.Articulation.Bend?.OriginValue,
-                                    BendMiddleOffset1 = note.Articulation.Bend?.MiddleOffset1,
-                                    BendMiddleOffset2 = note.Articulation.Bend?.MiddleOffset2,
-                                    BendMiddleValue = note.Articulation.Bend?.MiddleValue,
-                                    BendDestinationOffset = note.Articulation.Bend?.DestinationOffset,
-                                    BendDestinationValue = note.Articulation.Bend?.DestinationValue,
-                                    HarmonicEnabled = note.Articulation.Harmonic?.Enabled ?? false,
-                                    HarmonicType = note.Articulation.Harmonic?.Type,
-                                    HarmonicFret = note.Articulation.Harmonic?.Fret
-                                }
-                            };
+                                    Id = currentNoteId,
+                                    MidiPitch = note.MidiPitch,
+                                    Articulation = new GpifNoteArticulation
+                                    {
+                                        LetRing = note.Articulation.LetRing,
+                                        Vibrato = note.Articulation.Vibrato,
+                                        TieOrigin = note.Articulation.TieOrigin,
+                                        TieDestination = note.Articulation.TieDestination,
+                                        Trill = note.Articulation.Trill,
+                                        Accent = note.Articulation.Accent,
+                                        AntiAccent = note.Articulation.AntiAccent,
+                                        InstrumentArticulation = note.Articulation.InstrumentArticulation,
+                                        PalmMuted = note.Articulation.PalmMuted,
+                                        Muted = note.Articulation.Muted,
+                                        Tapped = note.Articulation.Tapped,
+                                        LeftHandTapped = note.Articulation.LeftHandTapped,
+                                        HopoOrigin = note.Articulation.HopoOrigin,
+                                        HopoDestination = note.Articulation.HopoDestination,
+                                        SlideFlags = note.Articulation.SlideFlags ?? ArticulationDecoders.EncodeSlides(note.Articulation.Slides),
+                                        BendEnabled = note.Articulation.Bend?.Enabled ?? false,
+                                        BendOriginOffset = note.Articulation.Bend?.OriginOffset,
+                                        BendOriginValue = note.Articulation.Bend?.OriginValue,
+                                        BendMiddleOffset1 = note.Articulation.Bend?.MiddleOffset1,
+                                        BendMiddleOffset2 = note.Articulation.Bend?.MiddleOffset2,
+                                        BendMiddleValue = note.Articulation.Bend?.MiddleValue,
+                                        BendDestinationOffset = note.Articulation.Bend?.DestinationOffset,
+                                        BendDestinationValue = note.Articulation.Bend?.DestinationValue,
+                                        HarmonicEnabled = note.Articulation.Harmonic?.Enabled ?? false,
+                                        HarmonicType = note.Articulation.Harmonic?.Type,
+                                        HarmonicFret = note.Articulation.Harmonic?.Fret
+                                    }
+                                };
+                            }
                         }
+
+                        beats[currentBeatId] = new GpifBeat
+                        {
+                            Id = currentBeatId,
+                            RhythmRef = currentRhythmId,
+                            NotesReferenceList = ReferenceListFormatter.JoinRefs(noteRefs)
+                        };
+
+                        beatIds.Add(currentBeatId);
                     }
 
-                    beats[currentBeatId] = new GpifBeat
+                    voices[currentVoiceId] = new GpifVoice
                     {
-                        Id = currentBeatId,
-                        RhythmRef = currentRhythmId,
-                        NotesReferenceList = ReferenceListFormatter.JoinRefs(noteRefs)
+                        Id = currentVoiceId,
+                        BeatsReferenceList = ReferenceListFormatter.JoinRefs(beatIds),
+                        Properties = measureVoice.Properties.ToDictionary(kv => kv.Key, kv => kv.Value),
+                        DirectionTags = measureVoice.DirectionTags.ToArray()
                     };
 
-                    beatIds.Add(currentBeatId);
+                    measureVoiceIds.Add(currentVoiceId);
                 }
-
-                voices[currentVoiceId] = new GpifVoice
-                {
-                    Id = currentVoiceId,
-                    BeatsReferenceList = ReferenceListFormatter.JoinRefs(beatIds),
-                    Properties = voiceProperties,
-                    DirectionTags = voiceDirectionTags.ToArray()
-                };
 
                 bars[currentBarId] = new GpifBar
                 {
                     Id = currentBarId,
-                    VoicesReferenceList = currentVoiceId.ToString(CultureInfo.InvariantCulture),
+                    VoicesReferenceList = ReferenceListFormatter.JoinRefs(measureVoiceIds),
                     Clef = measure.Clef,
                     Properties = measure.BarProperties,
                     XProperties = measure.XProperties
@@ -216,8 +223,8 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                         AlternateEndings = measure.AlternateEndings,
                         SectionLetter = measure.SectionLetter,
                         SectionText = measure.SectionText,
-                        Jump = measure.Jump,
-                        Target = measure.Target,
+                        Jump = jump,
+                        Target = target,
                         DirectionProperties = measure.DirectionProperties,
                         KeyAccidentalCount = measure.KeyAccidentalCount,
                         KeyMode = measure.KeyMode,
@@ -313,6 +320,50 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             RawDocument = doc,
             Diagnostics = diagnostics
         });
+    }
+
+    private static string ResolveDirectionValue(
+        string explicitValue,
+        IReadOnlyDictionary<string, string> directionProperties,
+        string directionKey)
+    {
+        if (!string.IsNullOrWhiteSpace(explicitValue))
+        {
+            return explicitValue;
+        }
+
+        return directionProperties.TryGetValue(directionKey, out var value)
+            ? value
+            : string.Empty;
+    }
+
+    private static IReadOnlyList<MeasureVoiceModel> ResolveMeasureVoices(MeasureModel measure)
+    {
+        if (measure.Voices.Count > 0)
+        {
+            return measure.Voices
+                .OrderBy(v => v.VoiceIndex)
+                .ToArray();
+        }
+
+        var fallbackProperties = measure.Beats.Count > 0
+            ? measure.Beats[0].VoiceProperties
+            : new Dictionary<string, string>();
+        var fallbackDirectionTags = measure.Beats.Count > 0
+            ? measure.Beats[0].VoiceDirectionTags
+            : Array.Empty<string>();
+
+        return
+        [
+            new MeasureVoiceModel
+            {
+                VoiceIndex = 0,
+                SourceVoiceId = 0,
+                Properties = fallbackProperties.ToDictionary(kv => kv.Key, kv => kv.Value),
+                DirectionTags = fallbackDirectionTags.ToArray(),
+                Beats = measure.Beats
+            }
+        ];
     }
 
     private static GpifRhythm ToRhythm(decimal duration, int id, WriteDiagnostics diagnostics)

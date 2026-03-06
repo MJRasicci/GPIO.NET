@@ -167,7 +167,8 @@ public sealed class DefaultScoreMapper : IScoreMapper
         foreach (var masterBar in source.MasterBars.OrderBy(m => m.Index))
         {
             var barRefs = ReferenceListParser.SplitRefs(masterBar.BarsReferenceList);
-            var beats = new List<BeatModel>();
+            var voices = new List<MeasureVoiceModel>();
+            IReadOnlyList<BeatModel> beats = Array.Empty<BeatModel>();
             var sourceBarId = -1;
             var clef = string.Empty;
             var barProperties = new Dictionary<string, string>();
@@ -178,72 +179,29 @@ public sealed class DefaultScoreMapper : IScoreMapper
                 clef = bar.Clef;
                 barProperties = bar.Properties.ToDictionary(kv => kv.Key, kv => kv.Value);
                 var voiceRefs = ReferenceListParser.SplitRefs(bar.VoicesReferenceList);
-                if (voiceRefs.Count > 0 && source.VoicesById.TryGetValue(voiceRefs[0], out var voice))
+
+                for (var voiceIndex = 0; voiceIndex < voiceRefs.Count; voiceIndex++)
                 {
-                    var beatRefs = ReferenceListParser.SplitRefs(voice.BeatsReferenceList);
-                    var voiceProps = voice.Properties.ToDictionary(kv => kv.Key, kv => kv.Value);
-                    var voiceDirTags = voice.DirectionTags.ToArray();
-                    decimal offset = 0;
-                    foreach (var beatId in beatRefs)
+                    if (!source.VoicesById.TryGetValue(voiceRefs[voiceIndex], out var voice))
                     {
-                        if (!source.BeatsById.TryGetValue(beatId, out var beat))
-                        {
-                            continue;
-                        }
-
-                        var duration = ResolveDuration(source, beat.RhythmRef);
-                        var notes = ReferenceListParser.SplitRefs(beat.NotesReferenceList)
-                            .Where(source.NotesById.ContainsKey)
-                            .Select(id => source.NotesById[id])
-                            .Select(n => new NoteModel
-                            {
-                                Id = n.Id,
-                                MidiPitch = n.MidiPitch,
-                                Duration = duration,
-                                Articulation = new NoteArticulationModel
-                                {
-                                    LetRing = n.Articulation.LetRing,
-                                    Vibrato = n.Articulation.Vibrato,
-                                    TieOrigin = n.Articulation.TieOrigin,
-                                    TieDestination = n.Articulation.TieDestination,
-                                    Trill = n.Articulation.Trill,
-                                    Accent = n.Articulation.Accent,
-                                    AntiAccent = n.Articulation.AntiAccent,
-                                    InstrumentArticulation = n.Articulation.InstrumentArticulation,
-                                    PalmMuted = n.Articulation.PalmMuted,
-                                    Muted = n.Articulation.Muted,
-                                    Tapped = n.Articulation.Tapped,
-                                    LeftHandTapped = n.Articulation.LeftHandTapped,
-                                    HopoOrigin = n.Articulation.HopoOrigin,
-                                    HopoDestination = n.Articulation.HopoDestination,
-                                    SlideFlags = n.Articulation.SlideFlags,
-                                    Slides = ArticulationDecoders.DecodeSlides(n.Articulation.SlideFlags),
-                                    Bend = ArticulationDecoders.DecodeBend(n.Articulation),
-                                    Harmonic = ArticulationDecoders.DecodeHarmonic(n.Articulation)
-                                }
-                            })
-                            .ToArray();
-
-                        var midi = notes
-                            .Where(n => n.MidiPitch.HasValue)
-                            .Select(n => n.MidiPitch!.Value)
-                            .ToArray();
-
-                        beats.Add(new BeatModel
-                        {
-                            Id = beat.Id,
-                            VoiceProperties = voiceProps,
-                            VoiceDirectionTags = voiceDirTags,
-                            Offset = offset,
-                            Duration = duration,
-                            Notes = notes,
-                            MidiPitches = midi
-                        });
-
-                        offset += duration;
+                        continue;
                     }
+
+                    var mappedBeats = MapVoiceBeats(source, voice);
+                    voices.Add(new MeasureVoiceModel
+                    {
+                        VoiceIndex = voiceIndex,
+                        SourceVoiceId = voice.Id,
+                        Properties = voice.Properties.ToDictionary(kv => kv.Key, kv => kv.Value),
+                        DirectionTags = voice.DirectionTags.ToArray(),
+                        Beats = mappedBeats
+                    });
                 }
             }
+
+            beats = voices.FirstOrDefault(v => v.VoiceIndex == 0)?.Beats
+                ?? voices.FirstOrDefault()?.Beats
+                ?? Array.Empty<BeatModel>();
 
             measures.Add(new MeasureModel
             {
@@ -271,11 +229,82 @@ public sealed class DefaultScoreMapper : IScoreMapper
                 }).ToArray(),
                 XProperties = masterBar.XProperties,
                 BarProperties = barProperties,
+                Voices = voices,
                 Beats = beats
             });
         }
 
         return measures;
+    }
+
+    private static IReadOnlyList<BeatModel> MapVoiceBeats(GpifDocument source, GpifVoice voice)
+    {
+        var beatRefs = ReferenceListParser.SplitRefs(voice.BeatsReferenceList);
+        var voiceProps = voice.Properties.ToDictionary(kv => kv.Key, kv => kv.Value);
+        var voiceDirTags = voice.DirectionTags.ToArray();
+        var beats = new List<BeatModel>(beatRefs.Count);
+
+        decimal offset = 0;
+        foreach (var beatId in beatRefs)
+        {
+            if (!source.BeatsById.TryGetValue(beatId, out var beat))
+            {
+                continue;
+            }
+
+            var duration = ResolveDuration(source, beat.RhythmRef);
+            var notes = ReferenceListParser.SplitRefs(beat.NotesReferenceList)
+                .Where(source.NotesById.ContainsKey)
+                .Select(id => source.NotesById[id])
+                .Select(n => new NoteModel
+                {
+                    Id = n.Id,
+                    MidiPitch = n.MidiPitch,
+                    Duration = duration,
+                    Articulation = new NoteArticulationModel
+                    {
+                        LetRing = n.Articulation.LetRing,
+                        Vibrato = n.Articulation.Vibrato,
+                        TieOrigin = n.Articulation.TieOrigin,
+                        TieDestination = n.Articulation.TieDestination,
+                        Trill = n.Articulation.Trill,
+                        Accent = n.Articulation.Accent,
+                        AntiAccent = n.Articulation.AntiAccent,
+                        InstrumentArticulation = n.Articulation.InstrumentArticulation,
+                        PalmMuted = n.Articulation.PalmMuted,
+                        Muted = n.Articulation.Muted,
+                        Tapped = n.Articulation.Tapped,
+                        LeftHandTapped = n.Articulation.LeftHandTapped,
+                        HopoOrigin = n.Articulation.HopoOrigin,
+                        HopoDestination = n.Articulation.HopoDestination,
+                        SlideFlags = n.Articulation.SlideFlags,
+                        Slides = ArticulationDecoders.DecodeSlides(n.Articulation.SlideFlags),
+                        Bend = ArticulationDecoders.DecodeBend(n.Articulation),
+                        Harmonic = ArticulationDecoders.DecodeHarmonic(n.Articulation)
+                    }
+                })
+                .ToArray();
+
+            var midi = notes
+                .Where(n => n.MidiPitch.HasValue)
+                .Select(n => n.MidiPitch!.Value)
+                .ToArray();
+
+            beats.Add(new BeatModel
+            {
+                Id = beat.Id,
+                VoiceProperties = voiceProps,
+                VoiceDirectionTags = voiceDirTags,
+                Offset = offset,
+                Duration = duration,
+                Notes = notes,
+                MidiPitches = midi
+            });
+
+            offset += duration;
+        }
+
+        return beats;
     }
 
     private static decimal ResolveDuration(GpifDocument source, int rhythmRef)
@@ -346,7 +375,9 @@ public sealed class DefaultScoreMapper : IScoreMapper
         var carryByPitch = new Dictionary<int, NoteModel>();
 
         foreach (var note in measures
-                     .SelectMany(m => m.Beats)
+                     .SelectMany(m => m.Voices.Count > 0
+                         ? m.Voices.SelectMany(v => v.Beats)
+                         : m.Beats)
                      .SelectMany(b => b.Notes)
                      .Where(n => n.MidiPitch.HasValue))
         {

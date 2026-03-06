@@ -50,6 +50,7 @@ Legend:
 - ✅ Bar clef
 - ✅ Bar properties dictionary
 - ✅ Bar `XProperties`
+- ✅ Multi-voice bar mapping/unmapping (all voice refs preserved)
 - ✅ Voice properties dictionary
 - ✅ Voice direction tags
 
