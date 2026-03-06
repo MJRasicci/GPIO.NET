@@ -85,6 +85,11 @@ try
             throw new InvalidOperationException("--from-json currently supports --format json only.");
         }
 
+        if (!string.IsNullOrWhiteSpace(options.SourceGpPath) && !File.Exists(options.SourceGpPath))
+        {
+            throw new InvalidOperationException("--source-gp requires <path-to-existing.gp>.");
+        }
+
         var json = await File.ReadAllTextAsync(options.InputPath).ConfigureAwait(false);
         var editedScore = JsonSerializer.Deserialize(json, CliJsonContext.Default.GuitarProScore)
                           ?? throw new InvalidDataException("Unable to deserialize mapped score JSON.");
@@ -156,10 +161,21 @@ try
         await serializer.SerializeAsync(unmapResult.RawDocument, gpifBuffer).ConfigureAwait(false);
         gpifBuffer.Position = 0;
 
+        if (!string.IsNullOrWhiteSpace(options.SourceGpPath) && !AreSamePath(options.SourceGpPath, outputPath))
+        {
+            EnsureOutputDirectory(outputPath);
+            File.Copy(options.SourceGpPath, outputPath, overwrite: true);
+        }
+
         var archiveWriter = new ZipGpArchiveWriter();
         await archiveWriter.WriteArchiveAsync(gpifBuffer, outputPath).ConfigureAwait(false);
 
         Console.WriteLine($"GP archive written: {outputPath}");
+        if (!string.IsNullOrWhiteSpace(options.SourceGpPath))
+        {
+            Console.WriteLine($"Archive template preserved from: {options.SourceGpPath}");
+        }
+
         Console.WriteLine($"Warnings: {unmapResult.Diagnostics.Warnings.Count}");
 
         if (unmapResult.Diagnostics.Warnings.Count > 0)
@@ -281,6 +297,16 @@ static void EnsureOutputDirectory(string outputPath)
     }
 }
 
+static bool AreSamePath(string left, string right)
+{
+    var normalizedLeft = Path.GetFullPath(left)
+        .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    var normalizedRight = Path.GetFullPath(right)
+        .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+    return string.Equals(normalizedLeft, normalizedRight, comparison);
+}
+
 static void PrintHelp()
 {
     var helpText = """
@@ -308,7 +334,13 @@ READ MODES  (default: --format json)
 WRITE MODES  (--from-json)
   gpio song.mapped.json --from-json
     Round-trip: read mapped JSON and write a new .gp archive.
+    Uses built-in default archive sidecar content and replaces Content/score.gpif.
     Output: song.gp
+
+  gpio song.mapped.json --from-json --source-gp original.gp
+    Round-trip with archive template preservation:
+    copies original.gp and replaces only Content/score.gpif.
+    Preserves stylesheets, score views, preferences, and other zip entries.
 
   gpio song.mapped.json --from-json --patch-from-json --source-gp original.gp
     Patch mode: diff the edited mapped JSON against an existing .gp file and
@@ -348,7 +380,7 @@ OPTIONS
   --out <path>                   Explicit output file path
   --from-json                    Input is mapped JSON; output is a .gp archive
   --patch-from-json              Enable patch mode (requires --from-json and --source-gp)
-  --source-gp <path>             Source .gp file for patch mode
+  --source-gp <path>             Source .gp for patch mode, or custom archive template for --from-json
   --plan-only                    Write patch plan JSON without patching
   --strict                       Fail on unsupported changes in patch mode
   --batch-input-dir <dir>        Source directory for batch export

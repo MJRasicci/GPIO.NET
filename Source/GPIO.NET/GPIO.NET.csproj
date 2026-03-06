@@ -4,4 +4,10 @@
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Resources/DefaultTemplate.gp">
+      <LogicalName>GPIO.NET.Resources.DefaultTemplate.gp</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
 </Project>

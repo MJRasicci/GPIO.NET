@@ -31,6 +31,26 @@ dotnet run --project Source/GPIO.NET.Tool -- score.json output.gp \
   --diagnostics-out patch-diagnostics.json --diagnostics-json
 ```
 
+## 5) Full rewrite while preserving archive payload (stylesheets/score views/preferences)
+
+Use this when you want a full unmap/serialize write, but keep non-`score.gpif` zip entries
+from an existing `.gp` archive:
+
+```bash
+dotnet run --project Source/GPIO.NET.Tool -- score.json output.gp \
+  --from-json --source-gp input.gp --format json
+```
+
+## 6) Full rewrite without source GP (uses built-in default archive template)
+
+Use this for non-GP-originated scores. The writer seeds a default empty archive payload
+(`VERSION`, `meta.json`, preferences, stylesheets, score views) and replaces `Content/score.gpif`.
+
+```bash
+dotnet run --project Source/GPIO.NET.Tool -- score.json output.gp \
+  --from-json --format json
+```
+
 ## Strict mode
 
 Fail fast if planner detects unsupported edits:
