@@ -1,7 +1,9 @@
 namespace GPIO.NET.UnitTests;
 
 using FluentAssertions;
+using GPIO.NET.Implementation;
 using GPIO.NET.Models;
+using GPIO.NET.Models.Raw;
 
 public class MetadataMappingTests
 {
@@ -28,6 +30,9 @@ public class MetadataMappingTests
         score.Tracks.Any(t => t.Metadata.Automations.Count > 0).Should().BeTrue();
         score.MasterTrack.TrackIds.Should().NotBeEmpty();
         score.MasterTrack.Automations.Should().NotBeEmpty();
+        score.MasterTrack.AutomationTimeline.Should().NotBeEmpty();
+        score.MasterTrack.AutomationTimeline.Should().Contain(a => a.Scope == AutomationScopeKind.MasterTrack);
+        score.MasterTrack.AutomationTimeline.Should().Contain(a => a.Scope == AutomationScopeKind.Track);
     }
 
     [Fact]
@@ -209,6 +214,14 @@ public class MetadataMappingTests
             readBack.MasterTrack.Automations[0].Type.Should().Be("Tempo");
             readBack.MasterTrack.TempoMap.Should().NotBeEmpty();
             readBack.MasterTrack.TempoMap[0].Bpm.Should().Be(120m);
+            readBack.MasterTrack.AutomationTimeline.Should().HaveCount(2);
+            readBack.MasterTrack.AutomationTimeline[0].Scope.Should().Be(AutomationScopeKind.MasterTrack);
+            readBack.MasterTrack.AutomationTimeline[0].Type.Should().Be("Tempo");
+            readBack.MasterTrack.AutomationTimeline[0].Tempo.Should().NotBeNull();
+            readBack.MasterTrack.AutomationTimeline[0].Tempo!.Bpm.Should().Be(120m);
+            readBack.MasterTrack.AutomationTimeline[1].Scope.Should().Be(AutomationScopeKind.Track);
+            readBack.MasterTrack.AutomationTimeline[1].TrackId.Should().Be(0);
+            readBack.MasterTrack.AutomationTimeline[1].Type.Should().Be("Sound");
 
             var measure = track.Measures[0];
             measure.KeyAccidentalCount.Should().Be(1);
@@ -231,5 +244,99 @@ public class MetadataMappingTests
                 File.Delete(outFile);
             }
         }
+    }
+
+    [Fact]
+    public async Task Mapper_synthesizes_unified_automation_timeline_with_order_and_typed_values()
+    {
+        var document = new GpifDocument
+        {
+            MasterTrack = new GpifMasterTrack
+            {
+                TrackIds = [10, 20],
+                Automations =
+                [
+                    new GpifAutomation
+                    {
+                        Type = "Tempo",
+                        Bar = 1,
+                        Position = 0,
+                        Value = "132 2",
+                        Linear = true,
+                        Visible = true
+                    },
+                    new GpifAutomation
+                    {
+                        Type = "MasterVolume",
+                        Bar = 0,
+                        Position = 5,
+                        Value = "0.8",
+                        Linear = false,
+                        Visible = true
+                    }
+                ]
+            },
+            Tracks =
+            [
+                new GpifTrack
+                {
+                    Id = 20,
+                    Name = "Track 20",
+                    Automations =
+                    [
+                        new GpifAutomation
+                        {
+                            Type = "Sound",
+                            Bar = 0,
+                            Position = 5,
+                            Value = "Stringed/Acoustic Guitars/Steel Guitar;Steel Mart;Factory",
+                            Visible = true
+                        }
+                    ]
+                },
+                new GpifTrack
+                {
+                    Id = 10,
+                    Name = "Track 10",
+                    Automations =
+                    [
+                        new GpifAutomation
+                        {
+                            Type = "DSPParam_12",
+                            Bar = 0,
+                            Position = 3,
+                            Value = "0.72",
+                            Linear = false,
+                            Visible = true
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var score = await new DefaultScoreMapper().MapAsync(document, TestContext.Current.CancellationToken);
+        var timeline = score.MasterTrack.AutomationTimeline;
+
+        timeline.Should().HaveCount(4);
+        timeline.Select(a => (a.Scope, a.TrackId, a.Type)).Should().Equal(
+            (AutomationScopeKind.Track, 10, "DSPParam_12"),
+            (AutomationScopeKind.MasterTrack, null, "MasterVolume"),
+            (AutomationScopeKind.Track, 20, "Sound"),
+            (AutomationScopeKind.MasterTrack, null, "Tempo"));
+
+        timeline[0].NumericValue.Should().Be(0.72m);
+        timeline[0].ReferenceHint.Should().BeNull();
+
+        timeline[1].NumericValue.Should().Be(0.8m);
+        timeline[1].ReferenceHint.Should().BeNull();
+
+        timeline[2].NumericValue.Should().BeNull();
+        timeline[2].ReferenceHint.Should().BeNull();
+
+        timeline[3].NumericValue.Should().Be(132m);
+        timeline[3].ReferenceHint.Should().Be(2);
+        timeline[3].Tempo.Should().NotBeNull();
+        timeline[3].Tempo!.Bpm.Should().Be(132m);
+        timeline[3].Tempo!.DenominatorHint.Should().Be(2);
     }
 }

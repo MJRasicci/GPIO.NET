@@ -58,7 +58,7 @@ Status legend:
 ## Tempo / automation / dynamics
 - ✅ Track/master automation capture + round-trip
 - ✅ Tempo map projection from tempo automations
-- 🟡 Unified automation timeline synthesis beyond current tempo projection
+- ✅ Unified automation timeline synthesis across master + track automations (ordered timeline with parsed value/reference hints)
 - ⛔ Dynamic map integration
 
 ## Validation and quality
@@ -67,7 +67,6 @@ Status legend:
 - ✅ Playback-sequence edge-case tests for repeat/jump behavior (DS/DC/Coda/Fine, alternate endings, anacrusis, legacy direction aliases)
 
 ## Immediate next targets
-1. Expand automation timeline synthesis beyond current tempo projection
-2. Integrate dynamic map
-3. Add explicit schema coverage report generation
-4. Expand fixture corpus for advanced patch planner structural diffs
+1. Integrate dynamic map
+2. Add explicit schema coverage report generation
+3. Expand fixture corpus for advanced patch planner structural diffs

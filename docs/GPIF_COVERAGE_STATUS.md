@@ -19,7 +19,7 @@ Legend:
 - ✅ Master-track anacrusis flag (`Anacrusis`) with read/map/write parity
 - ✅ Master-track automations (typed list)
 - ✅ Tempo map projection from tempo automations (`TempoEventMetadata`)
-- 🟡 Unified automation timeline synthesis beyond tempo projection
+- ✅ Unified automation timeline synthesis (master + track events, deterministic ordering, parsed numeric/reference hints, tempo projection attached when applicable)
 - 🟡 Master-track RSE (typed minimal + raw XML passthrough)
 
 ## 3) Track metadata

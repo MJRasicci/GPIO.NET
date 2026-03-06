@@ -209,6 +209,11 @@ public sealed class MasterTrackMetadata
 
     public IReadOnlyList<AutomationMetadata> Automations { get; init; } = Array.Empty<AutomationMetadata>();
 
+    /// <summary>
+    /// Unified, time-ordered automation events synthesized from master-track and per-track automation lists.
+    /// </summary>
+    public IReadOnlyList<AutomationTimelineEventMetadata> AutomationTimeline { get; init; } = Array.Empty<AutomationTimelineEventMetadata>();
+
     public bool Anacrusis { get; init; }
 
     public string RseXml { get; init; } = string.Empty;
@@ -225,6 +230,47 @@ public sealed class TempoEventMetadata
     public decimal? Bpm { get; init; }
 
     public int? DenominatorHint { get; init; }
+}
+
+public sealed class AutomationTimelineEventMetadata
+{
+    public AutomationScopeKind Scope { get; init; } = AutomationScopeKind.MasterTrack;
+
+    public int? TrackId { get; init; }
+
+    public string Type { get; init; } = string.Empty;
+
+    public bool? Linear { get; init; }
+
+    public int? Bar { get; init; }
+
+    public int? Position { get; init; }
+
+    public bool? Visible { get; init; }
+
+    public string Value { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Parsed first numeric token from <see cref="Value"/>, when available.
+    /// </summary>
+    public decimal? NumericValue { get; init; }
+
+    /// <summary>
+    /// Parsed second integer token from <see cref="Value"/>, when available.
+    /// Tempo automations commonly use this as a denominator/reference hint.
+    /// </summary>
+    public int? ReferenceHint { get; init; }
+
+    /// <summary>
+    /// Tempo-specific projection when <see cref="Type"/> is tempo.
+    /// </summary>
+    public TempoEventMetadata? Tempo { get; init; }
+}
+
+public enum AutomationScopeKind
+{
+    MasterTrack = 0,
+    Track = 1
 }
 
 public sealed class MeasureModel

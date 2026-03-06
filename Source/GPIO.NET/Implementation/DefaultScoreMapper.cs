@@ -110,6 +110,21 @@ public sealed class DefaultScoreMapper : IScoreMapper
             })
             .ToArray();
 
+        var masterAutomations = source.MasterTrack.Automations.Select(a => new AutomationMetadata
+        {
+            Type = a.Type,
+            Linear = a.Linear,
+            Bar = a.Bar,
+            Position = a.Position,
+            Visible = a.Visible,
+            Value = a.Value
+        }).ToArray();
+
+        var tempoMap = source.MasterTrack.Automations
+            .Where(a => string.Equals(a.Type, "Tempo", StringComparison.OrdinalIgnoreCase))
+            .Select(ParseTempo)
+            .ToArray();
+
         var score = new GuitarProScore
         {
             Title = source.Score.Title,
@@ -118,21 +133,11 @@ public sealed class DefaultScoreMapper : IScoreMapper
             MasterTrack = new MasterTrackMetadata
             {
                 TrackIds = source.MasterTrack.TrackIds,
-                Automations = source.MasterTrack.Automations.Select(a => new AutomationMetadata
-                {
-                    Type = a.Type,
-                    Linear = a.Linear,
-                    Bar = a.Bar,
-                    Position = a.Position,
-                    Visible = a.Visible,
-                    Value = a.Value
-                }).ToArray(),
+                Automations = masterAutomations,
+                AutomationTimeline = BuildAutomationTimeline(source),
                 Anacrusis = source.MasterTrack.Anacrusis,
                 RseXml = source.MasterTrack.RseXml,
-                TempoMap = source.MasterTrack.Automations
-                    .Where(a => string.Equals(a.Type, "Tempo", StringComparison.OrdinalIgnoreCase))
-                    .Select(a => ParseTempo(a))
-                    .ToArray()
+                TempoMap = tempoMap
             },
             Metadata = new ScoreMetadata
             {
@@ -502,9 +507,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
 
     private static TempoEventMetadata ParseTempo(GpifAutomation a)
     {
-        var parts = (a.Value ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        decimal? bpm = parts.Length > 0 && decimal.TryParse(parts[0], out var b) ? b : null;
-        int? den = parts.Length > 1 && int.TryParse(parts[1], out var d) ? d : null;
+        var (bpm, den) = ParseAutomationValueTokens(a.Value);
 
         return new TempoEventMetadata
         {
@@ -513,6 +516,71 @@ public sealed class DefaultScoreMapper : IScoreMapper
             Bpm = bpm,
             DenominatorHint = den
         };
+    }
+
+    private static IReadOnlyList<AutomationTimelineEventMetadata> BuildAutomationTimeline(GpifDocument source)
+    {
+        var timeline = new List<AutomationTimelineEventMetadata>();
+
+        foreach (var automation in source.MasterTrack.Automations)
+        {
+            timeline.Add(ToTimelineEvent(automation, AutomationScopeKind.MasterTrack, trackId: null));
+        }
+
+        foreach (var track in source.Tracks)
+        {
+            foreach (var automation in track.Automations)
+            {
+                timeline.Add(ToTimelineEvent(automation, AutomationScopeKind.Track, track.Id));
+            }
+        }
+
+        return timeline
+            .OrderBy(e => e.Bar ?? int.MaxValue)
+            .ThenBy(e => e.Position ?? int.MaxValue)
+            .ThenBy(e => e.Scope)
+            .ThenBy(e => e.TrackId ?? int.MaxValue)
+            .ThenBy(e => e.Type, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(e => e.Value, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static AutomationTimelineEventMetadata ToTimelineEvent(
+        GpifAutomation automation,
+        AutomationScopeKind scope,
+        int? trackId)
+    {
+        var (numericValue, referenceHint) = ParseAutomationValueTokens(automation.Value);
+
+        return new AutomationTimelineEventMetadata
+        {
+            Scope = scope,
+            TrackId = trackId,
+            Type = automation.Type,
+            Linear = automation.Linear,
+            Bar = automation.Bar,
+            Position = automation.Position,
+            Visible = automation.Visible,
+            Value = automation.Value,
+            NumericValue = numericValue,
+            ReferenceHint = referenceHint,
+            Tempo = string.Equals(automation.Type, "Tempo", StringComparison.OrdinalIgnoreCase)
+                ? ParseTempo(automation)
+                : null
+        };
+    }
+
+    private static (decimal? NumericValue, int? ReferenceHint) ParseAutomationValueTokens(string? rawValue)
+    {
+        var parts = (rawValue ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        decimal? numericValue = parts.Length > 0 && decimal.TryParse(parts[0], out var numeric)
+            ? numeric
+            : null;
+        int? referenceHint = parts.Length > 1 && int.TryParse(parts[1], out var reference)
+            ? reference
+            : null;
+
+        return (numericValue, referenceHint);
     }
 
     private static void ApplyTieDurationStitching(List<MeasureModel> measures)
