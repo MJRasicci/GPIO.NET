@@ -214,6 +214,11 @@ public sealed class MasterTrackMetadata
     /// </summary>
     public IReadOnlyList<AutomationTimelineEventMetadata> AutomationTimeline { get; init; } = Array.Empty<AutomationTimelineEventMetadata>();
 
+    /// <summary>
+    /// Ordered dynamic change points synthesized from beat-level dynamic markings.
+    /// </summary>
+    public IReadOnlyList<DynamicEventMetadata> DynamicMap { get; init; } = Array.Empty<DynamicEventMetadata>();
+
     public bool Anacrusis { get; init; }
 
     public string RseXml { get; init; } = string.Empty;
@@ -271,6 +276,36 @@ public enum AutomationScopeKind
 {
     MasterTrack = 0,
     Track = 1
+}
+
+public sealed class DynamicEventMetadata
+{
+    public int TrackId { get; init; }
+
+    public int MeasureIndex { get; init; }
+
+    public int VoiceIndex { get; init; }
+
+    public int BeatId { get; init; }
+
+    public decimal BeatOffset { get; init; }
+
+    public string Dynamic { get; init; } = string.Empty;
+
+    public DynamicKind Kind { get; init; } = DynamicKind.Unknown;
+}
+
+public enum DynamicKind
+{
+    Unknown = 0,
+    PPP = 1,
+    PP = 2,
+    P = 3,
+    MP = 4,
+    MF = 5,
+    F = 6,
+    FF = 7,
+    FFF = 8
 }
 
 public sealed class MeasureModel
@@ -345,6 +380,8 @@ public sealed class BeatModel
     public int Id { get; init; }
 
     public string GraceType { get; init; } = string.Empty;
+
+    public string Dynamic { get; init; } = string.Empty;
 
     public string PickStrokeDirection { get; init; } = string.Empty;
 

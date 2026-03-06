@@ -392,6 +392,7 @@ public sealed class XmlGpifSerializer : IGpifSerializer
     {
         var el = new XElement("Beat", new XAttribute("id", b.Id), new XElement("Rhythm", new XAttribute("ref", b.RhythmRef)));
         AddTextElement(el, "GraceNotes", b.GraceType);
+        AddTextElement(el, "Dynamic", b.Dynamic);
         if (b.DeadSlapped) el.Add(new XElement("DeadSlapped"));
         if (b.Tremolo) el.Add(new XElement("Tremolo", b.TremoloValue));
         AddTextElement(el, "Chord", b.ChordId);

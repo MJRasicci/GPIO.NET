@@ -339,4 +339,112 @@ public class MetadataMappingTests
         timeline[3].Tempo!.Bpm.Should().Be(132m);
         timeline[3].Tempo!.DenominatorHint.Should().Be(2);
     }
+
+    [Fact]
+    public async Task Reader_synthesizes_dynamic_map_from_fixture()
+    {
+        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "test.gp");
+        var reader = new GPIO.NET.GuitarProReader();
+
+        var score = await reader.ReadAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
+
+        score.MasterTrack.DynamicMap.Should().NotBeEmpty();
+        score.MasterTrack.DynamicMap[0].Dynamic.Should().NotBeNullOrWhiteSpace();
+        score.MasterTrack.DynamicMap[0].Kind.Should().NotBe(DynamicKind.Unknown);
+    }
+
+    [Fact]
+    public async Task Mapper_synthesizes_dynamic_map_change_points_per_track_and_voice()
+    {
+        var document = new GpifDocument
+        {
+            MasterTrack = new GpifMasterTrack
+            {
+                TrackIds = [0]
+            },
+            Tracks =
+            [
+                new GpifTrack
+                {
+                    Id = 0,
+                    Name = "Track 0"
+                }
+            ],
+            MasterBars =
+            [
+                new GpifMasterBar
+                {
+                    Index = 0,
+                    Time = "4/4",
+                    BarsReferenceList = "1"
+                }
+            ],
+            BarsById = new Dictionary<int, GpifBar>
+            {
+                [1] = new GpifBar
+                {
+                    Id = 1,
+                    VoicesReferenceList = "10"
+                }
+            },
+            VoicesById = new Dictionary<int, GpifVoice>
+            {
+                [10] = new GpifVoice
+                {
+                    Id = 10,
+                    BeatsReferenceList = "100 101 102"
+                }
+            },
+            BeatsById = new Dictionary<int, GpifBeat>
+            {
+                [100] = new GpifBeat
+                {
+                    Id = 100,
+                    RhythmRef = 1000,
+                    Dynamic = "MF"
+                },
+                [101] = new GpifBeat
+                {
+                    Id = 101,
+                    RhythmRef = 1000,
+                    Dynamic = "MF"
+                },
+                [102] = new GpifBeat
+                {
+                    Id = 102,
+                    RhythmRef = 1000,
+                    Dynamic = "FF"
+                }
+            },
+            RhythmsById = new Dictionary<int, GpifRhythm>
+            {
+                [1000] = new GpifRhythm
+                {
+                    Id = 1000,
+                    NoteValue = "Quarter"
+                }
+            }
+        };
+
+        var score = await new DefaultScoreMapper().MapAsync(document, TestContext.Current.CancellationToken);
+        var dynamicMap = score.MasterTrack.DynamicMap;
+
+        dynamicMap.Should().HaveCount(2);
+
+        dynamicMap[0].TrackId.Should().Be(0);
+        dynamicMap[0].MeasureIndex.Should().Be(0);
+        dynamicMap[0].VoiceIndex.Should().Be(0);
+        dynamicMap[0].BeatId.Should().Be(100);
+        dynamicMap[0].BeatOffset.Should().Be(0m);
+        dynamicMap[0].Dynamic.Should().Be("MF");
+        dynamicMap[0].Kind.Should().Be(DynamicKind.MF);
+
+        dynamicMap[1].TrackId.Should().Be(0);
+        dynamicMap[1].MeasureIndex.Should().Be(0);
+        dynamicMap[1].VoiceIndex.Should().Be(0);
+        dynamicMap[1].BeatId.Should().Be(102);
+        dynamicMap[1].BeatOffset.Should().Be(0.5m);
+        dynamicMap[1].Dynamic.Should().Be("FF");
+        dynamicMap[1].Kind.Should().Be(DynamicKind.FF);
+    }
 }

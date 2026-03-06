@@ -280,6 +280,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     RhythmRef = ParseInt(b.Element("Rhythm")?.Attribute("ref")?.Value),
                     NotesReferenceList = b.Element("Notes")?.Value ?? string.Empty,
                     GraceType = b.Element("GraceNotes")?.Value ?? string.Empty,
+                    Dynamic = b.Element("Dynamic")?.Value ?? string.Empty,
                     PickStrokeDirection = pickStrokeDirection ?? string.Empty,
                     VibratoWithTremBarStrength = vibratoWithTremBarStrength ?? string.Empty,
                     Slapped = string.Equals(slappedRaw, "true", StringComparison.OrdinalIgnoreCase),

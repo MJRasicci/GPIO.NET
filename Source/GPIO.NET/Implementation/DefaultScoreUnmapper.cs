@@ -206,6 +206,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                             RhythmRef = currentRhythmId,
                             NotesReferenceList = ReferenceListFormatter.JoinRefs(noteRefs),
                             GraceType = beat.GraceType,
+                            Dynamic = beat.Dynamic,
                             PickStrokeDirection = beat.PickStrokeDirection,
                             VibratoWithTremBarStrength = beat.VibratoWithTremBarStrength,
                             Slapped = beat.Slapped,

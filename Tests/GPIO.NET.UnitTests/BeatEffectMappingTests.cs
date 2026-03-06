@@ -443,6 +443,65 @@ public class BeatEffectMappingTests
         score.Tracks[0].Measures[0].Beats[0].FreeText.Should().Be("let ring");
     }
 
+    [Fact]
+    public async Task Dynamic_element_captures_value()
+    {
+        var gpif = BuildGpif("<Dynamic>FF</Dynamic>");
+
+        var score = await DeserializeAndMap(gpif);
+        score.Tracks[0].Measures[0].Beats[0].Dynamic.Should().Be("FF");
+    }
+
+    [Fact]
+    public async Task Dynamic_round_trips_through_write_and_read()
+    {
+        var score = new GuitarProScore
+        {
+            Tracks =
+            [
+                new TrackModel
+                {
+                    Id = 0,
+                    Name = "Guitar",
+                    Measures =
+                    [
+                        new MeasureModel
+                        {
+                            Index = 0,
+                            TimeSignature = "4/4",
+                            Beats =
+                            [
+                                new BeatModel
+                                {
+                                    Id = 1,
+                                    Duration = 0.25m,
+                                    Dynamic = "PP",
+                                    Notes =
+                                    [
+                                        new NoteModel { Id = 1, MidiPitch = 60 }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var outFile = Path.Combine(Path.GetTempPath(), $"gpio-dynamic-{Guid.NewGuid():N}.gp");
+        try
+        {
+            await new GPIO.NET.GuitarProWriter().WriteAsync(score, outFile, TestContext.Current.CancellationToken);
+            var readBack = await new GPIO.NET.GuitarProReader().ReadAsync(outFile, cancellationToken: TestContext.Current.CancellationToken);
+
+            readBack.Tracks[0].Measures[0].Beats[0].Dynamic.Should().Be("PP");
+        }
+        finally
+        {
+            if (File.Exists(outFile)) File.Delete(outFile);
+        }
+    }
+
     // ── Round-trip parity ───────────────────────────────────────────────
 
     [Fact]

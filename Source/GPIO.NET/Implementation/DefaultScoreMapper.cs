@@ -135,6 +135,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                 TrackIds = source.MasterTrack.TrackIds,
                 Automations = masterAutomations,
                 AutomationTimeline = BuildAutomationTimeline(source),
+                DynamicMap = BuildDynamicMap(tracks),
                 Anacrusis = source.MasterTrack.Anacrusis,
                 RseXml = source.MasterTrack.RseXml,
                 TempoMap = tempoMap
@@ -327,6 +328,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
             {
                 Id = beat.Id,
                 GraceType = beat.GraceType,
+                Dynamic = beat.Dynamic,
                 PickStrokeDirection = beat.PickStrokeDirection,
                 VibratoWithTremBarStrength = beat.VibratoWithTremBarStrength,
                 Slapped = beat.Slapped,
@@ -544,6 +546,102 @@ public sealed class DefaultScoreMapper : IScoreMapper
             .ThenBy(e => e.Value, StringComparer.Ordinal)
             .ToArray();
     }
+
+    private static IReadOnlyList<DynamicEventMetadata> BuildDynamicMap(IReadOnlyList<TrackModel> tracks)
+    {
+        var map = new List<DynamicEventMetadata>();
+        var lastDynamicByTrackVoice = new Dictionary<(int TrackId, int VoiceIndex), string>();
+
+        foreach (var track in tracks.OrderBy(t => t.Id))
+        {
+            foreach (var measure in track.Measures.OrderBy(m => m.Index))
+            {
+                if (measure.Voices.Count > 0)
+                {
+                    foreach (var voice in measure.Voices.OrderBy(v => v.VoiceIndex))
+                    {
+                        AppendDynamicEvents(
+                            map,
+                            lastDynamicByTrackVoice,
+                            track.Id,
+                            measure.Index,
+                            voice.VoiceIndex,
+                            voice.Beats);
+                    }
+                }
+                else
+                {
+                    AppendDynamicEvents(
+                        map,
+                        lastDynamicByTrackVoice,
+                        track.Id,
+                        measure.Index,
+                        voiceIndex: 0,
+                        measure.Beats);
+                }
+            }
+        }
+
+        return map
+            .OrderBy(e => e.TrackId)
+            .ThenBy(e => e.MeasureIndex)
+            .ThenBy(e => e.VoiceIndex)
+            .ThenBy(e => e.BeatOffset)
+            .ThenBy(e => e.BeatId)
+            .ToArray();
+    }
+
+    private static void AppendDynamicEvents(
+        List<DynamicEventMetadata> map,
+        Dictionary<(int TrackId, int VoiceIndex), string> lastDynamicByTrackVoice,
+        int trackId,
+        int measureIndex,
+        int voiceIndex,
+        IReadOnlyList<BeatModel> beats)
+    {
+        var key = (trackId, voiceIndex);
+
+        foreach (var beat in beats)
+        {
+            if (string.IsNullOrWhiteSpace(beat.Dynamic))
+            {
+                continue;
+            }
+
+            if (lastDynamicByTrackVoice.TryGetValue(key, out var previousDynamic)
+                && string.Equals(previousDynamic, beat.Dynamic, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            lastDynamicByTrackVoice[key] = beat.Dynamic;
+
+            map.Add(new DynamicEventMetadata
+            {
+                TrackId = trackId,
+                MeasureIndex = measureIndex,
+                VoiceIndex = voiceIndex,
+                BeatId = beat.Id,
+                BeatOffset = beat.Offset,
+                Dynamic = beat.Dynamic,
+                Kind = ParseDynamicKind(beat.Dynamic)
+            });
+        }
+    }
+
+    private static DynamicKind ParseDynamicKind(string dynamic)
+        => dynamic.Trim().ToUpperInvariant() switch
+        {
+            "PPP" => DynamicKind.PPP,
+            "PP" => DynamicKind.PP,
+            "P" => DynamicKind.P,
+            "MP" => DynamicKind.MP,
+            "MF" => DynamicKind.MF,
+            "F" => DynamicKind.F,
+            "FF" => DynamicKind.FF,
+            "FFF" => DynamicKind.FFF,
+            _ => DynamicKind.Unknown
+        };
 
     private static AutomationTimelineEventMetadata ToTimelineEvent(
         GpifAutomation automation,

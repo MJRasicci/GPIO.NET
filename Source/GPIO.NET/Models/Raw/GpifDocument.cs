@@ -233,6 +233,8 @@ public sealed class GpifBeat
 
     public string GraceType { get; init; } = string.Empty;
 
+    public string Dynamic { get; init; } = string.Empty;
+
     public string PickStrokeDirection { get; init; } = string.Empty;
 
     public string VibratoWithTremBarStrength { get; init; } = string.Empty;
