@@ -2,6 +2,7 @@ namespace GPIO.NET.Implementation;
 
 using GPIO.NET.Abstractions;
 using GPIO.NET.Models.Raw;
+using System.Globalization;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
@@ -579,7 +580,12 @@ public sealed class XmlGpifSerializer : IGpifSerializer
     private static XElement BuildRhythm(GpifRhythm r)
     {
         var el = new XElement("Rhythm", new XAttribute("id", r.Id), new XElement("NoteValue", r.NoteValue));
-        for (var i = 0; i < r.AugmentationDots; i++) el.Add(new XElement("AugmentationDot"));
+        for (var i = 0; i < r.AugmentationDots; i++)
+        {
+            el.Add(r.AugmentationDotUsesCountAttribute
+                ? new XElement("AugmentationDot", new XAttribute("count", 1))
+                : new XElement("AugmentationDot"));
+        }
         if (r.PrimaryTuplet is not null) el.Add(new XElement("PrimaryTuplet", new XAttribute("num", r.PrimaryTuplet.Numerator), new XAttribute("den", r.PrimaryTuplet.Denominator)));
         if (r.SecondaryTuplet is not null) el.Add(new XElement("SecondaryTuplet", new XAttribute("num", r.SecondaryTuplet.Numerator), new XAttribute("den", r.SecondaryTuplet.Denominator)));
         return el;
@@ -599,70 +605,36 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         if (b.Arpeggio) el.Add(new XElement("Arpeggio", b.BrushIsUp ? "Up" : "Down"));
         if (!string.IsNullOrWhiteSpace(b.NotesReferenceList)) el.Add(new XElement("Notes", b.NotesReferenceList));
 
-        var beatProperties = new XElement("Properties");
-        if (!string.IsNullOrWhiteSpace(b.PickStrokeDirection))
-        {
-            beatProperties.Add(new XElement("Property",
-                new XAttribute("name", "PickStroke"),
-                new XElement("Direction", b.PickStrokeDirection)));
-        }
-
-        if (!string.IsNullOrWhiteSpace(b.VibratoWithTremBarStrength))
-        {
-            beatProperties.Add(new XElement("Property",
-                new XAttribute("name", "VibratoWTremBar"),
-                new XElement("Strength", b.VibratoWithTremBarStrength)));
-        }
-
-        if (b.Slapped)
-        {
-            beatProperties.Add(new XElement("Property",
-                new XAttribute("name", "Slapped"),
-                new XElement("Enable")));
-        }
-
-        if (b.Popped)
-        {
-            beatProperties.Add(new XElement("Property",
-                new XAttribute("name", "Popped"),
-                new XElement("Enable")));
-        }
-
+        var beatPropertyValues = new Dictionary<string, string>(b.Properties, StringComparer.OrdinalIgnoreCase);
+        UpsertBeatProperty(beatPropertyValues, "PickStroke", b.PickStrokeDirection);
+        UpsertBeatProperty(beatPropertyValues, "VibratoWTremBar", b.VibratoWithTremBarStrength);
+        UpsertBeatProperty(beatPropertyValues, "Slapped", b.Slapped);
+        UpsertBeatProperty(beatPropertyValues, "Popped", b.Popped);
         if (b.Brush && !b.Arpeggio)
         {
-            beatProperties.Add(new XElement("Property",
-                new XAttribute("name", "Brush"),
-                new XElement("Direction", b.BrushIsUp ? "Up" : "Down")));
+            UpsertBeatProperty(beatPropertyValues, "Brush", b.BrushIsUp ? "Up" : "Down");
         }
 
-        if (b.Rasgueado)
+        UpsertBeatProperty(beatPropertyValues, "Rasgueado", b.Rasgueado);
+        UpsertBeatProperty(beatPropertyValues, "WhammyBar", b.WhammyBar);
+        UpsertBeatProperty(beatPropertyValues, "WhammyBarExtend", b.WhammyBarExtended);
+        UpsertBeatProperty(beatPropertyValues, "WhammyBarOriginValue", b.WhammyBarOriginValue);
+        UpsertBeatProperty(beatPropertyValues, "WhammyBarMiddleValue", b.WhammyBarMiddleValue);
+        UpsertBeatProperty(beatPropertyValues, "WhammyBarDestinationValue", b.WhammyBarDestinationValue);
+        UpsertBeatProperty(beatPropertyValues, "WhammyBarOriginOffset", b.WhammyBarOriginOffset);
+        UpsertBeatProperty(beatPropertyValues, "WhammyBarMiddleOffset1", b.WhammyBarMiddleOffset1);
+        UpsertBeatProperty(beatPropertyValues, "WhammyBarMiddleOffset2", b.WhammyBarMiddleOffset2);
+        UpsertBeatProperty(beatPropertyValues, "WhammyBarDestinationOffset", b.WhammyBarDestinationOffset);
+
+        var beatProperties = new XElement("Properties");
+        foreach (var (name, value) in beatPropertyValues.OrderBy(kv => kv.Key, StringComparer.Ordinal))
         {
-            beatProperties.Add(new XElement("Property",
-                new XAttribute("name", "Rasgueado"),
-                new XElement("Enable")));
+            var property = BuildBeatProperty(name, value);
+            if (property is not null)
+            {
+                beatProperties.Add(property);
+            }
         }
-
-        if (b.WhammyBar)
-        {
-            beatProperties.Add(new XElement("Property",
-                new XAttribute("name", "WhammyBar"),
-                new XElement("Enable")));
-        }
-
-        if (b.WhammyBarExtended)
-        {
-            beatProperties.Add(new XElement("Property",
-                new XAttribute("name", "WhammyBarExtend"),
-                new XElement("Enable")));
-        }
-
-        AddBeatFloatProperty(beatProperties, "WhammyBarOriginValue", b.WhammyBarOriginValue);
-        AddBeatFloatProperty(beatProperties, "WhammyBarMiddleValue", b.WhammyBarMiddleValue);
-        AddBeatFloatProperty(beatProperties, "WhammyBarDestinationValue", b.WhammyBarDestinationValue);
-        AddBeatFloatProperty(beatProperties, "WhammyBarOriginOffset", b.WhammyBarOriginOffset);
-        AddBeatFloatProperty(beatProperties, "WhammyBarMiddleOffset1", b.WhammyBarMiddleOffset1);
-        AddBeatFloatProperty(beatProperties, "WhammyBarMiddleOffset2", b.WhammyBarMiddleOffset2);
-        AddBeatFloatProperty(beatProperties, "WhammyBarDestinationOffset", b.WhammyBarDestinationOffset);
 
         if (beatProperties.HasElements)
         {
@@ -678,11 +650,89 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         return el;
     }
 
-    private static void AddBeatFloatProperty(XElement parent, string name, decimal? value)
+    private static void UpsertBeatProperty(IDictionary<string, string> properties, string name, string value)
     {
-        if (!value.HasValue) return;
-        parent.Add(new XElement("Property", new XAttribute("name", name), new XElement("Float", value.Value)));
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        properties[name] = value;
     }
+
+    private static void UpsertBeatProperty(IDictionary<string, string> properties, string name, bool value)
+    {
+        if (!value)
+        {
+            return;
+        }
+
+        properties[name] = "true";
+    }
+
+    private static void UpsertBeatProperty(IDictionary<string, string> properties, string name, decimal? value)
+    {
+        if (!value.HasValue)
+        {
+            return;
+        }
+
+        properties[name] = value.Value.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static XElement? BuildBeatProperty(string name, string value)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        if (IsBeatEnableProperty(name))
+        {
+            return TryParseBeatBooleanValue(value)
+                ? new XElement("Property", new XAttribute("name", name), new XElement("Enable"))
+                : null;
+        }
+
+        var payloadName = GetBeatPropertyPayloadName(name);
+        if (payloadName is not null)
+        {
+            return new XElement("Property", new XAttribute("name", name), new XElement(payloadName, value));
+        }
+
+        if (TryParseBeatBooleanValue(value))
+        {
+            return new XElement("Property", new XAttribute("name", name), new XElement("Enable"));
+        }
+
+        return new XElement("Property", new XAttribute("name", name), new XElement("Value", value));
+    }
+
+    private static bool IsBeatEnableProperty(string name)
+        => name is "Slapped"
+            or "Popped"
+            or "Rasgueado"
+            or "WhammyBar"
+            or "WhammyBarExtend";
+
+    private static string? GetBeatPropertyPayloadName(string name)
+        => name switch
+        {
+            "PickStroke" or "Brush" => "Direction",
+            "VibratoWTremBar" => "Strength",
+            "PrimaryPickupVolume" or "PrimaryPickupTone"
+                or "WhammyBarOriginValue"
+                or "WhammyBarMiddleValue"
+                or "WhammyBarDestinationValue"
+                or "WhammyBarOriginOffset"
+                or "WhammyBarMiddleOffset1"
+                or "WhammyBarMiddleOffset2"
+                or "WhammyBarDestinationOffset" => "Float",
+            _ => null
+        };
+
+    private static bool TryParseBeatBooleanValue(string value)
+        => bool.TryParse(value, out var parsed) && parsed;
 
     private static XElement BuildNote(GpifNote n)
     {
@@ -691,7 +741,12 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         AddTextElement(el, "RightFingering", n.Articulation.RightFingering);
         AddTextElement(el, "Ornament", n.Articulation.Ornament);
         if (n.Articulation.Accent.HasValue) el.Add(new XElement("Accent", n.Articulation.Accent.Value));
-        if (n.Articulation.AntiAccent) el.Add(new XElement("AntiAccent"));
+        if (n.Articulation.AntiAccent)
+        {
+            el.Add(string.IsNullOrWhiteSpace(n.Articulation.AntiAccentValue)
+                ? new XElement("AntiAccent")
+                : new XElement("AntiAccent", n.Articulation.AntiAccentValue));
+        }
         if (n.Articulation.InstrumentArticulation.HasValue) el.Add(new XElement("InstrumentArticulation", n.Articulation.InstrumentArticulation.Value));
         if (n.Articulation.LetRing) el.Add(new XElement("LetRing"));
         if (n.Articulation.TieOrigin || n.Articulation.TieDestination)

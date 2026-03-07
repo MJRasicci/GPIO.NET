@@ -314,6 +314,8 @@ public sealed class GpifBeat
 
     public decimal? WhammyBarDestinationOffset { get; init; }
 
+    public IReadOnlyDictionary<string, string> Properties { get; init; } = new Dictionary<string, string>();
+
     public IReadOnlyDictionary<string, int> XProperties { get; init; } = new Dictionary<string, int>();
 }
 
@@ -375,6 +377,8 @@ public sealed class GpifNoteArticulation
 
     public bool AntiAccent { get; init; }
 
+    public string AntiAccentValue { get; init; } = string.Empty;
+
     public int? InstrumentArticulation { get; init; }
 
     public bool PalmMuted { get; init; }
@@ -423,6 +427,8 @@ public sealed class GpifRhythm
     public string NoteValue { get; init; } = string.Empty;
 
     public int AugmentationDots { get; init; }
+
+    public bool AugmentationDotUsesCountAttribute { get; init; }
 
     public TupletRatio? PrimaryTuplet { get; init; }
 

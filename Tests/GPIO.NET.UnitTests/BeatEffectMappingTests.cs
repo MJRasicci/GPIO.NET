@@ -4,6 +4,7 @@ using FluentAssertions;
 using GPIO.NET.Implementation;
 using GPIO.NET.Models;
 using System.Text;
+using System.Xml.Linq;
 
 public class BeatEffectMappingTests
 {
@@ -46,6 +47,15 @@ public class BeatEffectMappingTests
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(gpif));
         var raw = await new XmlGpifDeserializer().DeserializeAsync(stream, TestContext.Current.CancellationToken);
         return await new DefaultScoreMapper().MapAsync(raw, TestContext.Current.CancellationToken);
+    }
+
+    private static async Task<XDocument> RoundTripThroughWrite(string gpif)
+    {
+        var score = await DeserializeAndMap(gpif);
+        var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
+        await using var stream = new MemoryStream();
+        await new XmlGpifSerializer().SerializeAsync(result.RawDocument, stream, TestContext.Current.CancellationToken);
+        return XDocument.Parse(Encoding.UTF8.GetString(stream.ToArray()));
     }
 
     // ── Whammy bar ──────────────────────────────────────────────────────
@@ -100,11 +110,85 @@ public class BeatEffectMappingTests
     }
 
     [Fact]
+    public async Task Unmodeled_beat_properties_round_trip_through_write()
+    {
+        var gpif = BuildGpif("""
+            <Properties>
+              <Property name="PrimaryPickupVolume"><Float>0.500000</Float></Property>
+              <Property name="PrimaryPickupTone"><Float>0.500000</Float></Property>
+            </Properties>
+            """);
+
+        var score = await DeserializeAndMap(gpif);
+        var beat = score.Tracks[0].Measures[0].Beats[0];
+        beat.Properties.Should().ContainKey("PrimaryPickupVolume");
+        beat.Properties["PrimaryPickupVolume"].Should().Be("0.500000");
+        beat.Properties.Should().ContainKey("PrimaryPickupTone");
+        beat.Properties["PrimaryPickupTone"].Should().Be("0.500000");
+
+        var roundTrip = await RoundTripThroughWrite(gpif);
+        var outputBeat = roundTrip.Root!.Element("Beats")!.Element("Beat")!;
+        var outputProperties = outputBeat.Element("Properties")!.Elements("Property")
+            .ToDictionary(p => (string)p.Attribute("name")!, p => p);
+
+        outputProperties["PrimaryPickupVolume"].Element("Float")!.Value.Should().Be("0.500000");
+        outputProperties["PrimaryPickupTone"].Element("Float")!.Value.Should().Be("0.500000");
+    }
+
+    [Fact]
     public async Task WhammyBar_absent_returns_null()
     {
         var gpif = BuildGpif("");
         var score = await DeserializeAndMap(gpif);
         score.Tracks[0].Measures[0].Beats[0].WhammyBar.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Midi_number_property_is_preferred_over_pitch_element_for_note_midi()
+    {
+        var gpif = BuildGpif(
+            beatBody: "",
+            noteBody: """
+                <Properties>
+                  <Property name="ConcertPitch">
+                    <Pitch><Step>C</Step><Accidental></Accidental><Octave>-1</Octave></Pitch>
+                  </Property>
+                  <Property name="Midi"><Number>36</Number></Property>
+                  <Property name="String"><String>0</String></Property>
+                </Properties>
+                """);
+
+        var score = await DeserializeAndMap(gpif);
+        score.Tracks[0].Measures[0].Beats[0].Notes[0].MidiPitch.Should().Be(36);
+    }
+
+    [Fact]
+    public async Task AntiAccent_text_round_trips_through_write()
+    {
+        var gpif = BuildGpif(
+            beatBody: "",
+            noteBody: """
+                <AntiAccent>Normal</AntiAccent>
+                <Properties>
+                  <Property name="ConcertPitch">
+                    <Pitch><Step>C</Step><Accidental></Accidental><Octave>4</Octave></Pitch>
+                  </Property>
+                  <Property name="Midi"><Number>48</Number></Property>
+                  <Property name="String"><String>0</String></Property>
+                </Properties>
+                """);
+
+        var score = await DeserializeAndMap(gpif);
+        var note = score.Tracks[0].Measures[0].Beats[0].Notes[0];
+        note.Articulation.AntiAccent.Should().BeTrue();
+        note.Articulation.AntiAccentValue.Should().Be("Normal");
+
+        var roundTrip = await RoundTripThroughWrite(gpif);
+        roundTrip.Root!
+            .Element("Notes")!
+            .Element("Note")!
+            .Element("AntiAccent")!
+            .Value.Should().Be("Normal");
     }
 
     [Fact]

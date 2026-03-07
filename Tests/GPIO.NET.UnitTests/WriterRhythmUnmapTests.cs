@@ -3,6 +3,8 @@ namespace GPIO.NET.UnitTests;
 using FluentAssertions;
 using GPIO.NET.Implementation;
 using GPIO.NET.Models;
+using System.Text;
+using System.Xml.Linq;
 
 public class WriterRhythmUnmapTests
 {
@@ -137,5 +139,59 @@ public class WriterRhythmUnmapTests
         result.RawDocument.RhythmsById[10].PrimaryTuplet.Should().NotBeNull();
         result.RawDocument.RhythmsById[10].PrimaryTuplet!.Numerator.Should().Be(3);
         result.RawDocument.RhythmsById[10].PrimaryTuplet!.Denominator.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Unmapper_preserves_augmentation_dot_count_attribute_when_requested_by_source_shape()
+    {
+        var score = new GuitarProScore
+        {
+            Tracks =
+            [
+                new TrackModel
+                {
+                    Id = 0,
+                    Name = "Guitar",
+                    Measures =
+                    [
+                        new MeasureModel
+                        {
+                            Index = 0,
+                            TimeSignature = "4/4",
+                            Beats =
+                            [
+                                new BeatModel
+                                {
+                                    Id = 1,
+                                    SourceRhythmId = 4,
+                                    SourceRhythm = new RhythmShapeModel
+                                    {
+                                        NoteValue = "Quarter",
+                                        AugmentationDots = 1,
+                                        AugmentationDotUsesCountAttribute = true
+                                    },
+                                    Duration = 0.375m
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var unmapper = new DefaultScoreUnmapper();
+        var result = await unmapper.UnmapAsync(score, TestContext.Current.CancellationToken);
+
+        result.RawDocument.RhythmsById[4].AugmentationDotUsesCountAttribute.Should().BeTrue();
+
+        await using var stream = new MemoryStream();
+        await new XmlGpifSerializer().SerializeAsync(result.RawDocument, stream, TestContext.Current.CancellationToken);
+        var xml = XDocument.Parse(Encoding.UTF8.GetString(stream.ToArray()));
+        xml.Root!
+            .Element("Rhythms")!
+            .Element("Rhythm")!
+            .Element("AugmentationDot")!
+            .Attribute("count")!
+            .Value.Should().Be("1");
     }
 }

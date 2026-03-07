@@ -204,6 +204,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     Id = ParseInt(r.Attribute("id")?.Value),
                     NoteValue = r.Element("NoteValue")?.Value ?? string.Empty,
                     AugmentationDots = r.Elements("AugmentationDot").Count(),
+                    AugmentationDotUsesCountAttribute = r.Elements("AugmentationDot").Any(dot => dot.Attribute("count") is not null),
                     PrimaryTuplet = ParseTuplet(primaryTuplet),
                     SecondaryTuplet = ParseTuplet(secondaryTuplet)
                 };
@@ -223,7 +224,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                 return new GpifNote
                 {
                     Id = ParseInt(n.Attribute("id")?.Value),
-                    MidiPitch = ParseMidiPitch(n),
+                    MidiPitch = ParseNamedNumberProperty(n, "Midi") ?? ParseMidiPitch(n),
                     TransposedMidiPitch = ParseNamedMidiPitch(n, "TransposedPitch"),
                     Properties = properties,
                     Articulation = ParseArticulation(n, properties),
@@ -313,6 +314,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     WhammyBarMiddleOffset1 = GetBeatPropertyFloat("WhammyBarMiddleOffset1"),
                     WhammyBarMiddleOffset2 = GetBeatPropertyFloat("WhammyBarMiddleOffset2"),
                     WhammyBarDestinationOffset = GetBeatPropertyFloat("WhammyBarDestinationOffset"),
+                    Properties = properties,
                     XProperties = xprops
                 };
             })
@@ -436,6 +438,14 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
         return ParsePitchElementToMidi(pitch);
     }
 
+    private static int? ParseNamedNumberProperty(XElement note, string propertyName)
+        => TryParseNullableInt(
+            note.Element("Properties")?
+                .Elements("Property")
+                .FirstOrDefault(p => string.Equals(p.Attribute("name")?.Value, propertyName, StringComparison.OrdinalIgnoreCase))
+                ?.Element("Number")
+                ?.Value);
+
     private static int? ParsePitchElementToMidi(XElement pitch)
     {
         var step = pitch.Element("Step")?.Value;
@@ -535,6 +545,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
             Trill = TryParseNullableInt(note.Element("Trill")?.Value),
             Accent = TryParseNullableInt(note.Element("Accent")?.Value),
             AntiAccent = note.Element("AntiAccent") is not null,
+            AntiAccentValue = note.Element("AntiAccent")?.Value ?? string.Empty,
             InstrumentArticulation = TryParseNullableInt(note.Element("InstrumentArticulation")?.Value),
             PalmMuted = HasEnabledProperty("PalmMuted"),
             Muted = HasEnabledProperty("Muted"),

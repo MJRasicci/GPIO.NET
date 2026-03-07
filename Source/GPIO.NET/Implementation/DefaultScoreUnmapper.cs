@@ -214,7 +214,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 {
                                     var bend = ArticulationDecoders.EncodeBend(note.Articulation.Bend);
                                     var harmonic = ArticulationDecoders.EncodeHarmonic(note.Articulation.Harmonic);
-                                    var (resolvedStringNumber, resolvedFret) = ResolveStringAndFret(note, track);
+                                    var (resolvedStringNumber, resolvedFret) = ResolveStringAndFret(note, track, staffBar.StaffIndex);
                                     var noteXProperties = new Dictionary<string, int>();
                                     var encodedTrillSpeed = ArticulationDecoders.EncodeTrillSpeed(note.Articulation.TrillSpeed);
                                     if (encodedTrillSpeed.HasValue)
@@ -241,6 +241,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                             Trill = note.Articulation.Trill,
                                             Accent = note.Articulation.Accent,
                                             AntiAccent = note.Articulation.AntiAccent,
+                                            AntiAccentValue = note.Articulation.AntiAccentValue,
                                             InstrumentArticulation = note.Articulation.InstrumentArticulation,
                                             PalmMuted = beat.PalmMuted || note.Articulation.PalmMuted,
                                             Muted = note.Articulation.Muted,
@@ -288,6 +289,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                             var rhythmSignature = new RhythmSignature(
                                 rhythmCandidate.NoteValue,
                                 rhythmCandidate.AugmentationDots,
+                                rhythmCandidate.AugmentationDotUsesCountAttribute,
                                 rhythmCandidate.PrimaryTuplet?.Numerator,
                                 rhythmCandidate.PrimaryTuplet?.Denominator,
                                 rhythmCandidate.SecondaryTuplet?.Numerator,
@@ -350,6 +352,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 WhammyBarMiddleOffset1 = encodedWhammy.MiddleOffset1,
                                 WhammyBarMiddleOffset2 = encodedWhammy.MiddleOffset2,
                                 WhammyBarDestinationOffset = encodedWhammy.DestinationOffset,
+                                Properties = beat.Properties.ToDictionary(kv => kv.Key, kv => kv.Value),
                                 XProperties = beatXProperties
                             };
 
@@ -597,14 +600,14 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
         return properties;
     }
 
-    private static (int? StringNumber, int? Fret) ResolveStringAndFret(NoteModel note, TrackModel track)
+    private static (int? StringNumber, int? Fret) ResolveStringAndFret(NoteModel note, TrackModel track, int staffIndex)
     {
         if (!note.MidiPitch.HasValue)
         {
             return (note.StringNumber, null);
         }
 
-        var tuning = track.Metadata.TuningPitches;
+        var tuning = ResolveTuningPitches(track, staffIndex);
         if (tuning.Length == 0)
         {
             return (note.StringNumber, null);
@@ -643,6 +646,20 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
         }
 
         return (bestString ?? note.StringNumber, bestFret);
+    }
+
+    private static int[] ResolveTuningPitches(TrackModel track, int staffIndex)
+    {
+        if (staffIndex >= 0 && staffIndex < track.Metadata.Staffs.Count)
+        {
+            var staffTuning = track.Metadata.Staffs[staffIndex].TuningPitches;
+            if (staffTuning.Length > 0)
+            {
+                return staffTuning;
+            }
+        }
+
+        return track.Metadata.TuningPitches;
     }
 
     private static int? ResolveTransposedMidiPitch(NoteModel note, TrackModel track)
@@ -847,6 +864,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             WhammyBarMiddleOffset1 = beat.WhammyBarMiddleOffset1,
             WhammyBarMiddleOffset2 = beat.WhammyBarMiddleOffset2,
             WhammyBarDestinationOffset = beat.WhammyBarDestinationOffset,
+            Properties = beat.Properties,
             XProperties = beat.XProperties
         };
 
@@ -867,6 +885,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             Id = id,
             NoteValue = rhythm.NoteValue,
             AugmentationDots = rhythm.AugmentationDots,
+            AugmentationDotUsesCountAttribute = rhythm.AugmentationDotUsesCountAttribute,
             PrimaryTuplet = rhythm.PrimaryTuplet,
             SecondaryTuplet = rhythm.SecondaryTuplet
         };
@@ -913,11 +932,13 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
            && a.WhammyBarMiddleOffset1 == b.WhammyBarMiddleOffset1
            && a.WhammyBarMiddleOffset2 == b.WhammyBarMiddleOffset2
            && a.WhammyBarDestinationOffset == b.WhammyBarDestinationOffset
+           && DictionariesEqual(a.Properties, b.Properties)
            && DictionariesEqual(a.XProperties, b.XProperties);
 
     private static bool RhythmsEqual(GpifRhythm a, GpifRhythm b)
         => string.Equals(a.NoteValue, b.NoteValue, StringComparison.Ordinal)
            && a.AugmentationDots == b.AugmentationDots
+           && a.AugmentationDotUsesCountAttribute == b.AugmentationDotUsesCountAttribute
            && TupletsEqual(a.PrimaryTuplet, b.PrimaryTuplet)
            && TupletsEqual(a.SecondaryTuplet, b.SecondaryTuplet);
 
@@ -953,6 +974,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
            && a.Trill == b.Trill
            && a.Accent == b.Accent
            && a.AntiAccent == b.AntiAccent
+           && string.Equals(a.AntiAccentValue, b.AntiAccentValue, StringComparison.Ordinal)
            && a.InstrumentArticulation == b.InstrumentArticulation
            && a.PalmMuted == b.PalmMuted
            && a.Muted == b.Muted
@@ -1009,6 +1031,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             Id = 0,
             NoteValue = beat.SourceRhythm.NoteValue,
             AugmentationDots = beat.SourceRhythm.AugmentationDots,
+            AugmentationDotUsesCountAttribute = beat.SourceRhythm.AugmentationDotUsesCountAttribute,
             PrimaryTuplet = ToRawTuplet(beat.SourceRhythm.PrimaryTuplet),
             SecondaryTuplet = ToRawTuplet(beat.SourceRhythm.SecondaryTuplet)
         };
@@ -1073,6 +1096,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
     private readonly record struct RhythmSignature(
         string NoteValue,
         int AugmentationDots,
+        bool AugmentationDotUsesCountAttribute,
         int? PrimaryNumerator,
         int? PrimaryDenominator,
         int? SecondaryNumerator,

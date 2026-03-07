@@ -524,6 +524,8 @@ public sealed class RhythmShapeModel
 
     public int AugmentationDots { get; init; }
 
+    public bool AugmentationDotUsesCountAttribute { get; init; }
+
     public TupletRatioModel? PrimaryTuplet { get; init; }
 
     public TupletRatioModel? SecondaryTuplet { get; init; }
@@ -595,6 +597,8 @@ public sealed class BeatModel
 
     public WhammyBarModel? WhammyBar { get; init; }
 
+    public IReadOnlyDictionary<string, string> Properties { get; init; } = new Dictionary<string, string>();
+
     public IReadOnlyDictionary<string, string> VoiceProperties { get; init; } = new Dictionary<string, string>();
 
     public IReadOnlyList<string> VoiceDirectionTags { get; init; } = Array.Empty<string>();
@@ -646,6 +650,8 @@ public sealed class NoteArticulationModel
     public int? Accent { get; init; }
 
     public bool AntiAccent { get; init; }
+
+    public string AntiAccentValue { get; init; } = string.Empty;
 
     public int? InstrumentArticulation { get; init; }
 

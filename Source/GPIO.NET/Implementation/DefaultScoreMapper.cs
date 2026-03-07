@@ -438,6 +438,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                             TrillSpeed = ArticulationDecoders.DecodeTrillSpeed(n.XProperties),
                             Accent = n.Articulation.Accent,
                             AntiAccent = n.Articulation.AntiAccent,
+                            AntiAccentValue = n.Articulation.AntiAccentValue,
                             InstrumentArticulation = n.Articulation.InstrumentArticulation,
                             PalmMuted = n.Articulation.PalmMuted,
                             Muted = n.Articulation.Muted,
@@ -488,6 +489,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                 ChordId = beat.ChordId,
                 FreeText = beat.FreeText,
                 WhammyBar = ArticulationDecoders.DecodeWhammyBar(beat),
+                Properties = beat.Properties.ToDictionary(kv => kv.Key, kv => kv.Value),
                 VoiceProperties = voiceProps,
                 VoiceDirectionTags = voiceDirTags,
                 Offset = offset,
@@ -513,6 +515,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
         {
             NoteValue = rhythm.NoteValue,
             AugmentationDots = rhythm.AugmentationDots,
+            AugmentationDotUsesCountAttribute = rhythm.AugmentationDotUsesCountAttribute,
             PrimaryTuplet = ToTupletModel(rhythm.PrimaryTuplet),
             SecondaryTuplet = ToTupletModel(rhythm.SecondaryTuplet)
         };
