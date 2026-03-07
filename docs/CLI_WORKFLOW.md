@@ -58,12 +58,3 @@ Fail fast if planner detects unsupported edits:
 ```bash
 --strict
 ```
-
-## Single-file publish (Windows x64)
-
-```powershell
-./scripts/publish-win-x64.ps1
-```
-
-Output location:
-- `artifacts/publish/GPIO.NET.Tool/release_win-x64/`
