@@ -49,4 +49,41 @@ public class WriterRhythmUnmapTests
         rhythms[1].PrimaryTuplet!.Numerator.Should().Be(3);
         rhythms[1].PrimaryTuplet!.Denominator.Should().Be(2);
     }
+
+    [Fact]
+    public async Task Unmapper_preserves_distinct_source_rhythm_ids_even_when_shapes_match()
+    {
+        var score = new GuitarProScore
+        {
+            Tracks =
+            [
+                new TrackModel
+                {
+                    Id = 0,
+                    Name = "Guitar",
+                    Measures =
+                    [
+                        new MeasureModel
+                        {
+                            Index = 0,
+                            TimeSignature = "4/4",
+                            Beats =
+                            [
+                                new BeatModel { Id = 1, SourceRhythmId = 3, Duration = 0.25m },
+                                new BeatModel { Id = 2, SourceRhythmId = 7, Duration = 0.25m }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var unmapper = new DefaultScoreUnmapper();
+        var result = await unmapper.UnmapAsync(score, TestContext.Current.CancellationToken);
+
+        result.Diagnostics.Warnings.Should().BeEmpty();
+        result.RawDocument.RhythmsById.Keys.Should().BeEquivalentTo([3, 7]);
+        result.RawDocument.BeatsById[1].RhythmRef.Should().Be(3);
+        result.RawDocument.BeatsById[2].RhythmRef.Should().Be(7);
+    }
 }

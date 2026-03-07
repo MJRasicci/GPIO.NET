@@ -481,6 +481,23 @@ public sealed class MeasureModel
 
     public IReadOnlyDictionary<string, string> BarProperties { get; init; } = new Dictionary<string, string>();
 
+    public IReadOnlyList<MeasureStaffModel> AdditionalStaffBars { get; init; } = Array.Empty<MeasureStaffModel>();
+
+    public IReadOnlyList<MeasureVoiceModel> Voices { get; init; } = Array.Empty<MeasureVoiceModel>();
+
+    public IReadOnlyList<BeatModel> Beats { get; init; } = Array.Empty<BeatModel>();
+}
+
+public sealed class MeasureStaffModel
+{
+    public int StaffIndex { get; init; }
+
+    public int SourceBarId { get; init; }
+
+    public string Clef { get; init; } = string.Empty;
+
+    public IReadOnlyDictionary<string, string> BarProperties { get; init; } = new Dictionary<string, string>();
+
     public IReadOnlyList<MeasureVoiceModel> Voices { get; init; } = Array.Empty<MeasureVoiceModel>();
 
     public IReadOnlyList<BeatModel> Beats { get; init; } = Array.Empty<BeatModel>();
@@ -511,6 +528,8 @@ public sealed class FermataMetadata
 public sealed class BeatModel
 {
     public int Id { get; init; }
+
+    public int SourceRhythmId { get; init; } = -1;
 
     public string GraceType { get; init; } = string.Empty;
 

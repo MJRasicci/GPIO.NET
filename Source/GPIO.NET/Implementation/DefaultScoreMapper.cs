@@ -24,12 +24,20 @@ public sealed class DefaultScoreMapper : IScoreMapper
         ArgumentNullException.ThrowIfNull(source);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var tracks = source.Tracks
+        var orderedTracks = source.Tracks
             .OrderBy(t => t.Id)
-            .Select((track, trackOrdinal) =>
+            .ToArray();
+        var barSlotStartByTrackId = BuildBarSlotStartByTrackId(orderedTracks);
+
+        var tracks = orderedTracks
+            .Select(track =>
             {
                 var isStringedTrack = IsStringedTrack(track);
-                var measures = MapMeasures(source, trackOrdinal, isStringedTrack);
+                var measures = MapMeasures(
+                    source,
+                    barSlotStartByTrackId[track.Id],
+                    GetTrackStaffCount(track),
+                    isStringedTrack);
                 ApplyTieDurationStitching(measures);
 
                 return new TrackModel
@@ -249,55 +257,58 @@ public sealed class DefaultScoreMapper : IScoreMapper
         return ValueTask.FromResult(score);
     }
 
-    private static List<MeasureModel> MapMeasures(GpifDocument source, int trackOrdinal, bool isStringedTrack)
+    private static Dictionary<int, int> BuildBarSlotStartByTrackId(IReadOnlyList<GpifTrack> tracks)
+    {
+        var slotStartByTrackId = new Dictionary<int, int>();
+        var nextSlot = 0;
+
+        foreach (var track in tracks)
+        {
+            slotStartByTrackId[track.Id] = nextSlot;
+            nextSlot += GetTrackStaffCount(track);
+        }
+
+        return slotStartByTrackId;
+    }
+
+    private static int GetTrackStaffCount(GpifTrack track)
+        => Math.Max(1, track.Staffs.Count);
+
+    private static List<MeasureModel> MapMeasures(GpifDocument source, int trackBarSlotStart, int staffCount, bool isStringedTrack)
     {
         var measures = new List<MeasureModel>(source.MasterBars.Count);
 
         foreach (var masterBar in source.MasterBars.OrderBy(m => m.Index))
         {
             var barRefs = ReferenceListParser.SplitRefs(masterBar.BarsReferenceList);
-            var voices = new List<MeasureVoiceModel>();
-            IReadOnlyList<BeatModel> beats = Array.Empty<BeatModel>();
-            var sourceBarId = -1;
-            var clef = string.Empty;
-            var barProperties = new Dictionary<string, string>();
-
-            if (trackOrdinal < barRefs.Count && source.BarsById.TryGetValue(barRefs[trackOrdinal], out var bar))
+            var primaryStaff = trackBarSlotStart < barRefs.Count
+                ? MapStaffBar(source, barRefs[trackBarSlotStart], staffIndex: 0, isStringedTrack)
+                : null;
+            var additionalStaffBars = new List<MeasureStaffModel>(Math.Max(0, staffCount - 1));
+            for (var staffIndex = 1; staffIndex < staffCount; staffIndex++)
             {
-                sourceBarId = bar.Id;
-                clef = bar.Clef;
-                barProperties = bar.Properties.ToDictionary(kv => kv.Key, kv => kv.Value);
-                var voiceRefs = ReferenceListParser.SplitRefs(bar.VoicesReferenceList);
-
-                for (var voiceIndex = 0; voiceIndex < voiceRefs.Count; voiceIndex++)
+                var barSlot = trackBarSlotStart + staffIndex;
+                if (barSlot >= barRefs.Count)
                 {
-                    if (!source.VoicesById.TryGetValue(voiceRefs[voiceIndex], out var voice))
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    var mappedBeats = MapVoiceBeats(source, voice, isStringedTrack);
-                    voices.Add(new MeasureVoiceModel
-                    {
-                        VoiceIndex = voiceIndex,
-                        SourceVoiceId = voice.Id,
-                        Properties = voice.Properties.ToDictionary(kv => kv.Key, kv => kv.Value),
-                        DirectionTags = voice.DirectionTags.ToArray(),
-                        Beats = mappedBeats
-                    });
+                var additionalStaff = MapStaffBar(source, barRefs[barSlot], staffIndex, isStringedTrack);
+                if (additionalStaff is not null)
+                {
+                    additionalStaffBars.Add(additionalStaff);
                 }
             }
 
-            beats = voices.FirstOrDefault(v => v.VoiceIndex == 0)?.Beats
-                ?? voices.FirstOrDefault()?.Beats
-                ?? Array.Empty<BeatModel>();
+            var voices = primaryStaff?.Voices ?? Array.Empty<MeasureVoiceModel>();
+            var beats = primaryStaff?.Beats ?? Array.Empty<BeatModel>();
 
             measures.Add(new MeasureModel
             {
                 Index = masterBar.Index,
                 TimeSignature = masterBar.Time,
-                SourceBarId = sourceBarId,
-                Clef = clef,
+                SourceBarId = primaryStaff?.SourceBarId ?? -1,
+                Clef = primaryStaff?.Clef ?? string.Empty,
                 RepeatStart = masterBar.RepeatStart,
                 RepeatEnd = masterBar.RepeatEnd,
                 RepeatCount = masterBar.RepeatCount,
@@ -317,13 +328,57 @@ public sealed class DefaultScoreMapper : IScoreMapper
                     Length = f.Length
                 }).ToArray(),
                 XProperties = masterBar.XProperties,
-                BarProperties = barProperties,
+                BarProperties = primaryStaff?.BarProperties ?? new Dictionary<string, string>(),
+                AdditionalStaffBars = additionalStaffBars,
                 Voices = voices,
                 Beats = beats
             });
         }
 
         return measures;
+    }
+
+    private static MeasureStaffModel? MapStaffBar(GpifDocument source, int barId, int staffIndex, bool isStringedTrack)
+    {
+        if (!source.BarsById.TryGetValue(barId, out var bar))
+        {
+            return null;
+        }
+
+        var voices = new List<MeasureVoiceModel>();
+        var voiceRefs = ReferenceListParser.SplitRefs(bar.VoicesReferenceList);
+
+        for (var voiceIndex = 0; voiceIndex < voiceRefs.Count; voiceIndex++)
+        {
+            if (!source.VoicesById.TryGetValue(voiceRefs[voiceIndex], out var voice))
+            {
+                continue;
+            }
+
+            var mappedBeats = MapVoiceBeats(source, voice, isStringedTrack);
+            voices.Add(new MeasureVoiceModel
+            {
+                VoiceIndex = voiceIndex,
+                SourceVoiceId = voice.Id,
+                Properties = voice.Properties.ToDictionary(kv => kv.Key, kv => kv.Value),
+                DirectionTags = voice.DirectionTags.ToArray(),
+                Beats = mappedBeats
+            });
+        }
+
+        var beats = voices.FirstOrDefault(v => v.VoiceIndex == 0)?.Beats
+            ?? voices.FirstOrDefault()?.Beats
+            ?? Array.Empty<BeatModel>();
+
+        return new MeasureStaffModel
+        {
+            StaffIndex = staffIndex,
+            SourceBarId = bar.Id,
+            Clef = bar.Clef,
+            BarProperties = bar.Properties.ToDictionary(kv => kv.Key, kv => kv.Value),
+            Voices = voices,
+            Beats = beats
+        };
     }
 
     private static IReadOnlyList<BeatModel> MapVoiceBeats(GpifDocument source, GpifVoice voice, bool isStringedTrack)
@@ -409,6 +464,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
             beats.Add(new BeatModel
             {
                 Id = beat.Id,
+                SourceRhythmId = beat.RhythmRef,
                 GraceType = beat.GraceType,
                 Dynamic = beat.Dynamic,
                 PickStrokeDirection = beat.PickStrokeDirection,
