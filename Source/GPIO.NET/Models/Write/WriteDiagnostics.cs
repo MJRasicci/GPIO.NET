@@ -6,10 +6,38 @@ public sealed class WriteDiagnostics
 
     public IReadOnlyList<WriteDiagnosticEntry> Entries => entries;
 
+    public IReadOnlyList<WriteDiagnosticEntry> Infos
+        => entries.Where(e => e.Severity == WriteDiagnosticSeverity.Info).ToArray();
+
     public IReadOnlyList<WriteDiagnosticEntry> Warnings
         => entries.Where(e => e.Severity == WriteDiagnosticSeverity.Warning).ToArray();
 
-    public void Warn(string code, string category, string message)
+    public void Info(
+        string code,
+        string category,
+        string message,
+        string? path = null,
+        string? sourceValue = null,
+        string? outputValue = null)
+        => Add(WriteDiagnosticSeverity.Info, code, category, message, path, sourceValue, outputValue);
+
+    public void Warn(
+        string code,
+        string category,
+        string message,
+        string? path = null,
+        string? sourceValue = null,
+        string? outputValue = null)
+        => Add(WriteDiagnosticSeverity.Warning, code, category, message, path, sourceValue, outputValue);
+
+    private void Add(
+        WriteDiagnosticSeverity severity,
+        string code,
+        string category,
+        string message,
+        string? path,
+        string? sourceValue,
+        string? outputValue)
     {
         if (string.IsNullOrWhiteSpace(message))
         {
@@ -21,7 +49,10 @@ public sealed class WriteDiagnostics
             Code = code,
             Category = category,
             Message = message,
-            Severity = WriteDiagnosticSeverity.Warning
+            Severity = severity,
+            Path = path,
+            SourceValue = sourceValue,
+            OutputValue = outputValue
         });
     }
 }

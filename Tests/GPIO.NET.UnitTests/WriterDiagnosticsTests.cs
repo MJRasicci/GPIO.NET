@@ -6,6 +6,7 @@ using GPIO.NET.Models;
 using GPIO.NET.Models.Raw;
 using GPIO.NET.Models.Write;
 using System.IO.Compression;
+using System.Text;
 using System.Xml.Linq;
 
 public class WriterDiagnosticsTests
@@ -214,6 +215,139 @@ public class WriterDiagnosticsTests
         diagnostics.Warnings.Select(w => w.Code).Should().Contain("RAW_REFERENCE_COUNT_DRIFT");
         diagnostics.Warnings.Select(w => w.Code).Should().Contain("MASTER_BAR_SLOT_COUNT_DRIFT");
         diagnostics.Warnings.Select(w => w.Code).Should().NotContain("RAW_GPIF_BYTE_DRIFT");
+    }
+
+    [Fact]
+    public void No_op_source_fidelity_diagnostics_capture_specific_xml_difference_entries()
+    {
+        var raw = new GpifDocument();
+        var diagnostics = new WriteDiagnostics();
+
+        var sourceBytes = Encoding.UTF8.GetBytes(
+            """
+            <GPIF>
+              <Score>
+                <Title><![CDATA[Title]]></Title>
+                <Artist><![CDATA[Artist]]></Artist>
+                <PageFooter><![CDATA[Page %page%/%pages%]]></PageFooter>
+              </Score>
+              <Tracks>
+                <Track id="0">
+                  <PlaybackState>Solo</PlaybackState>
+                  <Properties>
+                    <Property name="ChordCollection">
+                      <Items>
+                        <Item id="0" name="C" />
+                      </Items>
+                    </Property>
+                  </Properties>
+                </Track>
+              </Tracks>
+            </GPIF>
+            """);
+
+        var outputBytes = Encoding.UTF8.GetBytes(
+            """
+            <GPIF>
+              <Score>
+                <Title><![CDATA[]]></Title>
+                <Artist><![CDATA[Artist]]></Artist>
+              </Score>
+              <Tracks>
+                <Track id="0">
+                  <AutoBrush />
+                  <PlaybackState>Default</PlaybackState>
+                  <Properties>
+                    <Property name="ChordCollection">
+                      <Items />
+                    </Property>
+                  </Properties>
+                </Track>
+              </Tracks>
+            </GPIF>
+            """);
+
+        GpifWriteFidelityDiagnostics.AppendNoOpSourceFidelityWarnings(
+            raw,
+            raw,
+            sourceBytes,
+            outputBytes,
+            diagnostics);
+
+        diagnostics.Warnings.Select(w => w.Code).Should().Contain("RAW_XML_DIFFERENCE_SUMMARY");
+        diagnostics.Warnings.Select(w => w.Code).Should().Contain("RAW_GPIF_BYTE_DRIFT");
+
+        diagnostics.Infos.Should().Contain(entry =>
+            entry.Code == "RAW_XML_VALUE_DRIFT"
+            && entry.Path == "/GPIF/Score/Title"
+            && entry.SourceValue == "Title"
+            && entry.OutputValue == string.Empty);
+
+        diagnostics.Infos.Should().Contain(entry =>
+            entry.Code == "RAW_XML_ELEMENT_MISSING"
+            && entry.Path == "/GPIF/Score/PageFooter"
+            && entry.SourceValue!.Contains("PageFooter", StringComparison.Ordinal)
+            && entry.OutputValue == null);
+
+        diagnostics.Infos.Should().Contain(entry =>
+            entry.Code == "RAW_XML_ELEMENT_ADDED"
+            && entry.Path == "/GPIF/Tracks/Track[@id='0']/AutoBrush"
+            && entry.SourceValue == null
+            && entry.OutputValue!.Contains("AutoBrush", StringComparison.Ordinal));
+
+        diagnostics.Infos.Should().Contain(entry =>
+            entry.Code == "RAW_XML_VALUE_DRIFT"
+            && entry.Path == "/GPIF/Tracks/Track[@id='0']/PlaybackState"
+            && entry.SourceValue == "Solo"
+            && entry.OutputValue == "Default");
+
+        diagnostics.Infos.Should().Contain(entry =>
+            entry.Code == "RAW_XML_ELEMENT_MISSING"
+            && entry.Path == "/GPIF/Tracks/Track[@id='0']/Properties/Property[@name='ChordCollection']/Items/Item[@id='0']"
+            && entry.SourceValue!.Contains("Item id=\"0\"", StringComparison.Ordinal)
+            && entry.OutputValue == null);
+    }
+
+    [Fact]
+    public void No_op_source_fidelity_diagnostics_capture_attribute_difference_entries()
+    {
+        var raw = new GpifDocument();
+        var diagnostics = new WriteDiagnostics();
+
+        var sourceBytes = Encoding.UTF8.GetBytes(
+            """
+            <GPIF>
+              <Notes>
+                <Note id="513">
+                  <Tie origin="true" destination="false" />
+                </Note>
+              </Notes>
+            </GPIF>
+            """);
+
+        var outputBytes = Encoding.UTF8.GetBytes(
+            """
+            <GPIF>
+              <Notes>
+                <Note id="513">
+                  <Tie origin="true" destination="true" />
+                </Note>
+              </Notes>
+            </GPIF>
+            """);
+
+        GpifWriteFidelityDiagnostics.AppendNoOpSourceFidelityWarnings(
+            raw,
+            raw,
+            sourceBytes,
+            outputBytes,
+            diagnostics);
+
+        diagnostics.Infos.Should().Contain(entry =>
+            entry.Code == "RAW_XML_ATTRIBUTE_DRIFT"
+            && entry.Path == "/GPIF/Notes/Note[@id='513']/Tie/@destination"
+            && entry.SourceValue == "false"
+            && entry.OutputValue == "true");
     }
 
     private static string FixturePath(string fixtureName)

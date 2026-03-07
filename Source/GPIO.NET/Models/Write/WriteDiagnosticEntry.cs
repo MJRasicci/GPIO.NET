@@ -15,4 +15,10 @@ public sealed class WriteDiagnosticEntry
     public required string Category { get; init; }
 
     public WriteDiagnosticSeverity Severity { get; init; } = WriteDiagnosticSeverity.Warning;
+
+    public string? Path { get; init; }
+
+    public string? SourceValue { get; init; }
+
+    public string? OutputValue { get; init; }
 }

@@ -45,6 +45,7 @@ public static class GpifWriteFidelityDiagnostics
         WarnIfReferenceCountsChanged(sourceRaw, outputRaw, diagnostics);
         WarnIfMasterBarSlotCountsChanged(sourceRaw, outputRaw, diagnostics);
         WarnIfEmptyScoreNodesDropped(sourceGpifBytes, outputGpifBytes, diagnostics);
+        AppendXmlDifferenceDiagnostics(sourceGpifBytes, outputGpifBytes, diagnostics);
 
         if (!sourceGpifBytes.AsSpan().SequenceEqual(outputGpifBytes))
         {
@@ -168,6 +169,46 @@ public static class GpifWriteFidelityDiagnostics
         }
     }
 
+    private static void AppendXmlDifferenceDiagnostics(byte[] sourceGpifBytes, byte[] outputGpifBytes, WriteDiagnostics diagnostics)
+    {
+        if (sourceGpifBytes.AsSpan().SequenceEqual(outputGpifBytes))
+        {
+            return;
+        }
+
+        try
+        {
+            var differences = GpifXmlDifferenceComparer.Compare(sourceGpifBytes, outputGpifBytes);
+            if (differences.Count == 0)
+            {
+                return;
+            }
+
+            diagnostics.Warn(
+                code: "RAW_XML_DIFFERENCE_SUMMARY",
+                category: "RawFidelity",
+                message: $"No-op full write changed {differences.Count} XML nodes/attributes across {FormatDifferenceSections(differences)}; categories: {FormatDifferenceCodes(differences)}.");
+
+            foreach (var difference in differences)
+            {
+                diagnostics.Info(
+                    code: difference.Code,
+                    category: "RawFidelity",
+                    message: difference.Message,
+                    path: difference.Path,
+                    sourceValue: difference.SourceValue,
+                    outputValue: difference.OutputValue);
+            }
+        }
+        catch (Exception ex)
+        {
+            diagnostics.Warn(
+                code: "RAW_XML_DIFFERENCE_DIAGNOSTICS_FAILED",
+                category: "RawFidelity",
+                message: $"XML difference diagnostics failed: {ex.Message}");
+        }
+    }
+
     private static XElement? LoadScore(byte[] gpifBytes)
     {
         using var stream = new MemoryStream(gpifBytes, writable: false);
@@ -200,5 +241,51 @@ public static class GpifWriteFidelityDiagnostics
         }
 
         return $"{string.Join(", ", values.Take(sampleSize))} (+{values.Count - sampleSize} more)";
+    }
+
+    private static string FormatDifferenceSections(IReadOnlyList<GpifXmlDifference> differences)
+    {
+        var sections = differences
+            .GroupBy(difference => GetTopLevelSection(difference.Path), StringComparer.Ordinal)
+            .OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group => $"{group.Key} x{group.Count()}")
+            .ToArray();
+
+        return FormatSample(sections);
+    }
+
+    private static string FormatDifferenceCodes(IReadOnlyList<GpifXmlDifference> differences)
+    {
+        var codes = differences
+            .GroupBy(difference => difference.Code, StringComparer.Ordinal)
+            .OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group => $"{group.Key} x{group.Count()}")
+            .ToArray();
+
+        return FormatSample(codes);
+    }
+
+    private static string GetTopLevelSection(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return "GPIF";
+        }
+
+        var segments = path.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length <= 1)
+        {
+            return segments[0];
+        }
+
+        return RemovePathQualifier(segments[1]);
+    }
+
+    private static string RemovePathQualifier(string segment)
+    {
+        var qualifierIndex = segment.IndexOfAny(['[', '@']);
+        return qualifierIndex >= 0 ? segment[..qualifierIndex] : segment;
     }
 }
