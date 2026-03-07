@@ -310,4 +310,43 @@ public class WriterNotationFidelityTests
         var outputNote = roundTrip.Root!.Element("Notes")!.Element("Note")!;
         outputNote.Element("Properties")!.ToString(SaveOptions.DisableFormatting).Should().Contain("<Fret>9</Fret>");
     }
+
+    [Fact]
+    public async Task Source_brush_related_beat_xproperties_round_trip_without_being_collapsed()
+    {
+        const string gpif = """
+        <GPIF>
+          <Score><Title>T</Title><Artist>A</Artist><Album>B</Album></Score>
+          <Tracks><Track id="0"><Name>Lead</Name></Track></Tracks>
+          <MasterBars><MasterBar><Time>4/4</Time><Bars>1</Bars></MasterBar></MasterBars>
+          <Bars><Bar id="1"><Voices>10</Voices></Bar></Bars>
+          <Voices><Voice id="10"><Beats>100</Beats></Voice></Voices>
+          <Rhythms><Rhythm id="1000"><NoteValue>Quarter</NoteValue></Rhythm></Rhythms>
+          <Beats>
+            <Beat id="100">
+              <Rhythm ref="1000" />
+              <XProperties>
+                <XProperty id="687931393"><Int>126</Int></XProperty>
+                <XProperty id="687931394"><Float>0.959596</Float></XProperty>
+                <XProperty id="687935489"><Int>240</Int></XProperty>
+                <XProperty id="687935490"><Float>0.555556</Float></XProperty>
+              </XProperties>
+            </Beat>
+          </Beats>
+          <Notes />
+        </GPIF>
+        """;
+
+        var roundTrip = await RoundTripThroughJsonAndWrite(gpif);
+        var outputBeatXProperties = roundTrip.Root!
+            .Element("Beats")!
+            .Element("Beat")!
+            .Element("XProperties")!
+            .ToString(SaveOptions.DisableFormatting);
+
+        outputBeatXProperties.Should().Contain("""<XProperty id="687931393"><Int>126</Int></XProperty>""");
+        outputBeatXProperties.Should().Contain("""<XProperty id="687931394"><Float>0.959596</Float></XProperty>""");
+        outputBeatXProperties.Should().Contain("""<XProperty id="687935489"><Int>240</Int></XProperty>""");
+        outputBeatXProperties.Should().Contain("""<XProperty id="687935490"><Float>0.555556</Float></XProperty>""");
+    }
 }

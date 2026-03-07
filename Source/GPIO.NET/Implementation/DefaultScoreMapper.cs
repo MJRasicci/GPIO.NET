@@ -48,6 +48,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                     Metadata = new TrackMetadata
                     {
                         ShortName = track.ShortName,
+                        HasExplicitEmptyShortName = track.HasExplicitEmptyShortName,
                         Color = track.Color,
                         SystemsDefaultLayout = track.SystemsDefaultLayout,
                         SystemsLayout = track.SystemsLayout,
@@ -446,6 +447,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                     return new NoteModel
                     {
                         Id = n.Id,
+                        Velocity = n.Velocity,
                         MidiPitch = n.MidiPitch,
                         SourceMidiPitch = n.MidiPitch,
                         SourceTransposedMidiPitch = ResolveSourceTransposedMidiPitch(n.MidiPitch, track.Transpose),
@@ -504,7 +506,12 @@ public sealed class DefaultScoreMapper : IScoreMapper
                 Dynamic = beat.Dynamic,
                 TransposedPitchStemOrientation = beat.TransposedPitchStemOrientation,
                 UserTransposedPitchStemOrientation = beat.UserTransposedPitchStemOrientation,
+                HasTransposedPitchStemOrientationUserDefinedElement = beat.HasTransposedPitchStemOrientationUserDefinedElement,
                 ConcertPitchStemOrientation = beat.ConcertPitchStemOrientation,
+                Wah = beat.Wah,
+                Golpe = beat.Golpe,
+                Fadding = beat.Fadding,
+                Slashed = beat.Slashed,
                 Hairpin = beat.Hairpin,
                 Variation = beat.Variation,
                 Ottavia = beat.Ottavia,
@@ -522,6 +529,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                 BrushDurationTicks = beat.BrushDurationTicks,
                 BrushDurationXPropertyId = beat.BrushDurationXPropertyId,
                 Rasgueado = beat.Rasgueado,
+                RasgueadoPattern = beat.RasgueadoPattern,
                 DeadSlapped = beat.DeadSlapped,
                 Tremolo = beat.Tremolo,
                 TremoloValue = beat.TremoloValue,
@@ -559,6 +567,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
             NoteValue = rhythm.NoteValue,
             AugmentationDots = rhythm.AugmentationDots,
             AugmentationDotUsesCountAttribute = rhythm.AugmentationDotUsesCountAttribute,
+            AugmentationDotCounts = rhythm.AugmentationDotCounts,
             PrimaryTuplet = ToTupletModel(rhythm.PrimaryTuplet),
             SecondaryTuplet = ToTupletModel(rhythm.SecondaryTuplet)
         };

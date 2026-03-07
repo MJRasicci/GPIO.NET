@@ -94,6 +94,8 @@ public sealed class GpifTrack
 
     public string ShortName { get; init; } = string.Empty;
 
+    public bool HasExplicitEmptyShortName { get; init; }
+
     public string Color { get; init; } = string.Empty;
 
     public string SystemsDefaultLayout { get; init; } = string.Empty;
@@ -286,7 +288,17 @@ public sealed class GpifBeat
 
     public string UserTransposedPitchStemOrientation { get; init; } = string.Empty;
 
+    public bool HasTransposedPitchStemOrientationUserDefinedElement { get; init; }
+
     public string ConcertPitchStemOrientation { get; init; } = string.Empty;
+
+    public string Wah { get; init; } = string.Empty;
+
+    public string Golpe { get; init; } = string.Empty;
+
+    public string Fadding { get; init; } = string.Empty;
+
+    public bool Slashed { get; init; }
 
     public string Hairpin { get; init; } = string.Empty;
 
@@ -319,6 +331,8 @@ public sealed class GpifBeat
     public string BrushDurationXPropertyId { get; init; } = string.Empty;
 
     public bool Rasgueado { get; init; }
+
+    public string RasgueadoPattern { get; init; } = string.Empty;
 
     public bool DeadSlapped { get; init; }
 
@@ -362,6 +376,8 @@ public sealed class GpifBeat
 public sealed class GpifNote
 {
     public int Id { get; init; }
+
+    public int? Velocity { get; init; }
 
     public int? MidiPitch { get; init; }
 
@@ -488,6 +504,8 @@ public sealed class GpifRhythm
     public int AugmentationDots { get; init; }
 
     public bool AugmentationDotUsesCountAttribute { get; init; }
+
+    public int[] AugmentationDotCounts { get; init; } = Array.Empty<int>();
 
     public TupletRatio? PrimaryTuplet { get; init; }
 

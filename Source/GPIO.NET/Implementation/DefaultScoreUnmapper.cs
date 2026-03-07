@@ -23,6 +23,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 Id = t.Id,
                 Name = t.Name,
                 ShortName = t.Metadata.ShortName,
+                HasExplicitEmptyShortName = t.Metadata.HasExplicitEmptyShortName,
                 Color = t.Metadata.Color,
                 SystemsDefaultLayout = t.Metadata.SystemsDefaultLayout,
                 SystemsLayout = t.Metadata.SystemsLayout,
@@ -213,8 +214,12 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                             var noteRefs = new List<int>();
                             var encodedWhammy = ArticulationDecoders.EncodeWhammyBar(beat.WhammyBar);
                             var beatXProperties = beat.XProperties.ToDictionary(kv => kv.Key, kv => kv.Value);
-                            beatXProperties.Remove("687931393");
-                            beatXProperties.Remove("687935489");
+                            if (!BrushDurationXPropertiesMatch(beat, beatXProperties))
+                            {
+                                beatXProperties.Remove("687931393");
+                                beatXProperties.Remove("687935489");
+                            }
+
                             if (beat.BrushDurationTicks.HasValue)
                             {
                                 var brushDurationXPropertyId = !string.IsNullOrWhiteSpace(beat.BrushDurationXPropertyId)
@@ -243,6 +248,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                     var noteCandidate = new GpifNote
                                     {
                                         Id = 0,
+                                        Velocity = note.Velocity,
                                         MidiPitch = note.MidiPitch,
                                         TransposedMidiPitch = transposedMidiPitch,
                                         ConcertPitch = ShouldPreserveSourceConcertPitch(note)
@@ -318,6 +324,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 rhythmCandidate.NoteValue,
                                 rhythmCandidate.AugmentationDots,
                                 rhythmCandidate.AugmentationDotUsesCountAttribute,
+                                string.Join(",", rhythmCandidate.AugmentationDotCounts),
                                 rhythmCandidate.PrimaryTuplet?.Numerator,
                                 rhythmCandidate.PrimaryTuplet?.Denominator,
                                 rhythmCandidate.SecondaryTuplet?.Numerator,
@@ -357,7 +364,12 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 Dynamic = beat.Dynamic,
                                 TransposedPitchStemOrientation = beat.TransposedPitchStemOrientation,
                                 UserTransposedPitchStemOrientation = beat.UserTransposedPitchStemOrientation,
+                                HasTransposedPitchStemOrientationUserDefinedElement = beat.HasTransposedPitchStemOrientationUserDefinedElement,
                                 ConcertPitchStemOrientation = beat.ConcertPitchStemOrientation,
+                                Wah = beat.Wah,
+                                Golpe = beat.Golpe,
+                                Fadding = beat.Fadding,
+                                Slashed = beat.Slashed,
                                 Hairpin = beat.Hairpin,
                                 Variation = beat.Variation,
                                 Ottavia = beat.Ottavia,
@@ -374,6 +386,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 BrushDurationTicks = beat.BrushDurationTicks,
                                 BrushDurationXPropertyId = beat.BrushDurationXPropertyId,
                                 Rasgueado = beat.Rasgueado,
+                                RasgueadoPattern = beat.RasgueadoPattern,
                                 DeadSlapped = beat.DeadSlapped,
                                 Tremolo = beat.Tremolo,
                                 TremoloValue = beat.TremoloValue,
@@ -723,6 +736,25 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
         // BeatModel.PalmMuted is a derived aggregate on read, so only fan it back out when the caller
         // set the beat-level flag without any explicit note-level palm-muted articulations.
         return beat.Notes.Count > 0 && !beat.Notes.Any(candidate => candidate.Articulation.PalmMuted);
+    }
+
+    private static bool BrushDurationXPropertiesMatch(BeatModel beat, IReadOnlyDictionary<string, int> beatXProperties)
+    {
+        if (!beat.BrushDurationTicks.HasValue)
+        {
+            return !beatXProperties.ContainsKey("687931393")
+                && !beatXProperties.ContainsKey("687935489");
+        }
+
+        if (!string.IsNullOrWhiteSpace(beat.BrushDurationXPropertyId))
+        {
+            return beatXProperties.TryGetValue(beat.BrushDurationXPropertyId, out var value)
+                && value == beat.BrushDurationTicks.Value;
+        }
+
+        return beatXProperties.Any(kv =>
+            (kv.Key == "687931393" || kv.Key == "687935489")
+            && kv.Value == beat.BrushDurationTicks.Value);
     }
 
     private static int[] ResolveTuningPitches(TrackModel track, int staffIndex)
@@ -1194,7 +1226,12 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             Dynamic = beat.Dynamic,
             TransposedPitchStemOrientation = beat.TransposedPitchStemOrientation,
             UserTransposedPitchStemOrientation = beat.UserTransposedPitchStemOrientation,
+            HasTransposedPitchStemOrientationUserDefinedElement = beat.HasTransposedPitchStemOrientationUserDefinedElement,
             ConcertPitchStemOrientation = beat.ConcertPitchStemOrientation,
+            Wah = beat.Wah,
+            Golpe = beat.Golpe,
+            Fadding = beat.Fadding,
+            Slashed = beat.Slashed,
             Hairpin = beat.Hairpin,
             Variation = beat.Variation,
             Ottavia = beat.Ottavia,
@@ -1211,6 +1248,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             BrushDurationTicks = beat.BrushDurationTicks,
             BrushDurationXPropertyId = beat.BrushDurationXPropertyId,
             Rasgueado = beat.Rasgueado,
+            RasgueadoPattern = beat.RasgueadoPattern,
             DeadSlapped = beat.DeadSlapped,
             Tremolo = beat.Tremolo,
             TremoloValue = beat.TremoloValue,
@@ -1236,6 +1274,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
         => new()
         {
             Id = id,
+            Velocity = note.Velocity,
             MidiPitch = note.MidiPitch,
             TransposedMidiPitch = note.TransposedMidiPitch,
             ConcertPitch = note.ConcertPitch,
@@ -1255,6 +1294,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             NoteValue = rhythm.NoteValue,
             AugmentationDots = rhythm.AugmentationDots,
             AugmentationDotUsesCountAttribute = rhythm.AugmentationDotUsesCountAttribute,
+            AugmentationDotCounts = rhythm.AugmentationDotCounts,
             PrimaryTuplet = rhythm.PrimaryTuplet,
             SecondaryTuplet = rhythm.SecondaryTuplet
         };
@@ -1278,7 +1318,12 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
            && string.Equals(a.Dynamic, b.Dynamic, StringComparison.Ordinal)
            && string.Equals(a.TransposedPitchStemOrientation, b.TransposedPitchStemOrientation, StringComparison.Ordinal)
            && string.Equals(a.UserTransposedPitchStemOrientation, b.UserTransposedPitchStemOrientation, StringComparison.Ordinal)
+           && a.HasTransposedPitchStemOrientationUserDefinedElement == b.HasTransposedPitchStemOrientationUserDefinedElement
            && string.Equals(a.ConcertPitchStemOrientation, b.ConcertPitchStemOrientation, StringComparison.Ordinal)
+           && string.Equals(a.Wah, b.Wah, StringComparison.Ordinal)
+           && string.Equals(a.Golpe, b.Golpe, StringComparison.Ordinal)
+           && string.Equals(a.Fadding, b.Fadding, StringComparison.Ordinal)
+           && a.Slashed == b.Slashed
            && string.Equals(a.Hairpin, b.Hairpin, StringComparison.Ordinal)
            && string.Equals(a.Variation, b.Variation, StringComparison.Ordinal)
            && string.Equals(a.Ottavia, b.Ottavia, StringComparison.Ordinal)
@@ -1295,6 +1340,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
            && a.BrushDurationTicks == b.BrushDurationTicks
            && string.Equals(a.BrushDurationXPropertyId, b.BrushDurationXPropertyId, StringComparison.Ordinal)
            && a.Rasgueado == b.Rasgueado
+           && string.Equals(a.RasgueadoPattern, b.RasgueadoPattern, StringComparison.Ordinal)
            && a.DeadSlapped == b.DeadSlapped
            && a.Tremolo == b.Tremolo
            && string.Equals(a.TremoloValue, b.TremoloValue, StringComparison.Ordinal)
@@ -1319,11 +1365,13 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
         => string.Equals(a.NoteValue, b.NoteValue, StringComparison.Ordinal)
            && a.AugmentationDots == b.AugmentationDots
            && a.AugmentationDotUsesCountAttribute == b.AugmentationDotUsesCountAttribute
+           && IntArraysEqual(a.AugmentationDotCounts, b.AugmentationDotCounts)
            && TupletsEqual(a.PrimaryTuplet, b.PrimaryTuplet)
            && TupletsEqual(a.SecondaryTuplet, b.SecondaryTuplet);
 
     private static bool NotesEqual(GpifNote a, GpifNote b)
-        => a.MidiPitch == b.MidiPitch
+        => a.Velocity == b.Velocity
+           && a.MidiPitch == b.MidiPitch
            && a.TransposedMidiPitch == b.TransposedMidiPitch
            && PitchValuesEqual(a.ConcertPitch, b.ConcertPitch)
            && PitchValuesEqual(a.TransposedPitch, b.TransposedPitch)
@@ -1344,6 +1392,9 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
 
     private static bool PropertiesEqual(IReadOnlyList<GpifNoteProperty> a, IReadOnlyList<GpifNoteProperty> b)
         => a.Count == b.Count && a.Zip(b).All(pair => NotePropertiesEqual(pair.First, pair.Second));
+
+    private static bool IntArraysEqual(int[] a, int[] b)
+        => a.Length == b.Length && a.SequenceEqual(b);
 
     private static bool NotePropertiesEqual(GpifNoteProperty a, GpifNoteProperty b)
         => string.Equals(a.Name, b.Name, StringComparison.Ordinal)
@@ -1425,6 +1476,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             NoteValue = beat.SourceRhythm.NoteValue,
             AugmentationDots = beat.SourceRhythm.AugmentationDots,
             AugmentationDotUsesCountAttribute = beat.SourceRhythm.AugmentationDotUsesCountAttribute,
+            AugmentationDotCounts = beat.SourceRhythm.AugmentationDotCounts,
             PrimaryTuplet = ToRawTuplet(beat.SourceRhythm.PrimaryTuplet),
             SecondaryTuplet = ToRawTuplet(beat.SourceRhythm.SecondaryTuplet)
         };
@@ -1501,6 +1553,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
         string NoteValue,
         int AugmentationDots,
         bool AugmentationDotUsesCountAttribute,
+        string AugmentationDotCountsKey,
         int? PrimaryNumerator,
         int? PrimaryDenominator,
         int? SecondaryNumerator,

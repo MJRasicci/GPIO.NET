@@ -86,6 +86,8 @@ public sealed class TrackMetadata
 {
     public string ShortName { get; init; } = string.Empty;
 
+    public bool HasExplicitEmptyShortName { get; init; }
+
     public string Color { get; init; } = string.Empty;
 
     public string SystemsDefaultLayout { get; init; } = string.Empty;
@@ -552,6 +554,8 @@ public sealed class RhythmShapeModel
 
     public bool AugmentationDotUsesCountAttribute { get; init; }
 
+    public int[] AugmentationDotCounts { get; init; } = Array.Empty<int>();
+
     public TupletRatioModel? PrimaryTuplet { get; init; }
 
     public TupletRatioModel? SecondaryTuplet { get; init; }
@@ -589,7 +593,17 @@ public sealed class BeatModel
 
     public string UserTransposedPitchStemOrientation { get; init; } = string.Empty;
 
+    public bool HasTransposedPitchStemOrientationUserDefinedElement { get; init; }
+
     public string ConcertPitchStemOrientation { get; init; } = string.Empty;
+
+    public string Wah { get; init; } = string.Empty;
+
+    public string Golpe { get; init; } = string.Empty;
+
+    public string Fadding { get; init; } = string.Empty;
+
+    public bool Slashed { get; init; }
 
     public string Hairpin { get; init; } = string.Empty;
 
@@ -624,6 +638,8 @@ public sealed class BeatModel
     public string BrushDurationXPropertyId { get; init; } = string.Empty;
 
     public bool Rasgueado { get; init; }
+
+    public string RasgueadoPattern { get; init; } = string.Empty;
 
     public bool DeadSlapped { get; init; }
 
@@ -663,6 +679,8 @@ public sealed class BeatModel
 public sealed class NoteModel
 {
     public int Id { get; init; }
+
+    public int? Velocity { get; init; }
 
     public int? MidiPitch { get; init; }
 

@@ -248,4 +248,35 @@ public class WriterNotePropertyFidelityTests
         outputProperties["TransposedPitch"].Element("Pitch")!.Element("Accidental")!.Value.Should().BeEmpty();
         outputProperties["TransposedPitch"].Element("Pitch")!.Element("Octave")!.Value.Should().Be("3");
     }
+
+    [Fact]
+    public async Task Note_velocity_and_bend_float_payloads_round_trip_through_json_and_write()
+    {
+        var gpif = BuildGpif("""
+            <Velocity>72</Velocity>
+            <Properties>
+              <Property name="Bended"><Enable /></Property>
+              <Property name="BendMiddleOffset1"><Float>12.000000</Float></Property>
+              <Property name="BendMiddleOffset2"><Float>34.000000</Float></Property>
+              <Property name="BendDestinationOffset"><Float>50.000000</Float></Property>
+              <Property name="Midi"><Number>60</Number></Property>
+            </Properties>
+            """);
+
+        var score = await DeserializeAndMap(gpif);
+        var note = score.Tracks[0].Measures[0].Beats[0].Notes[0];
+
+        note.Velocity.Should().Be(72);
+        note.Articulation.Bend.Should().NotBeNull();
+
+        var roundTrip = await RoundTripThroughJsonAndWrite(gpif);
+        var outputNote = roundTrip.Root!.Element("Notes")!.Element("Note")!;
+        var outputProperties = outputNote.Element("Properties")!.Elements("Property")
+            .ToDictionary(p => (string)p.Attribute("name")!, p => p);
+
+        outputNote.Element("Velocity")!.Value.Should().Be("72");
+        outputProperties["BendMiddleOffset1"].Element("Float")!.Value.Should().Be("12.000000");
+        outputProperties["BendMiddleOffset2"].Element("Float")!.Value.Should().Be("34.000000");
+        outputProperties["BendDestinationOffset"].Element("Float")!.Value.Should().Be("50.000000");
+    }
 }

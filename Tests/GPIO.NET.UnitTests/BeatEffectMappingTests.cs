@@ -273,6 +273,50 @@ public class BeatEffectMappingTests
         score.Tracks[0].Measures[0].Beats[0].Rasgueado.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task Beat_shape_effects_round_trip_through_write()
+    {
+        var gpif = BuildGpif("""
+            <TransposedPitchStemOrientationUserDefined />
+            <Wah>Open</Wah>
+            <Golpe>Finger</Golpe>
+            <Fadding>FadeIn</Fadding>
+            <Slashed />
+            <Properties>
+              <Property name="BarreFret"><Fret>7</Fret></Property>
+              <Property name="BarreString"><String>0</String></Property>
+              <Property name="Rasgueado"><Rasgueado>mii_1</Rasgueado></Property>
+            </Properties>
+            """);
+
+        var score = await DeserializeAndMap(gpif);
+        var beat = score.Tracks[0].Measures[0].Beats[0];
+
+        beat.HasTransposedPitchStemOrientationUserDefinedElement.Should().BeTrue();
+        beat.Wah.Should().Be("Open");
+        beat.Golpe.Should().Be("Finger");
+        beat.Fadding.Should().Be("FadeIn");
+        beat.Slashed.Should().BeTrue();
+        beat.Rasgueado.Should().BeTrue();
+        beat.RasgueadoPattern.Should().Be("mii_1");
+        beat.Properties["BarreFret"].Should().Be("7");
+        beat.Properties["BarreString"].Should().Be("0");
+
+        var roundTrip = await RoundTripThroughWrite(gpif);
+        var outputBeat = roundTrip.Root!.Element("Beats")!.Element("Beat")!;
+        var outputProperties = outputBeat.Element("Properties")!.Elements("Property")
+            .ToDictionary(p => (string)p.Attribute("name")!, p => p);
+
+        outputBeat.Element("TransposedPitchStemOrientationUserDefined").Should().NotBeNull();
+        outputBeat.Element("Wah")!.Value.Should().Be("Open");
+        outputBeat.Element("Golpe")!.Value.Should().Be("Finger");
+        outputBeat.Element("Fadding")!.Value.Should().Be("FadeIn");
+        outputBeat.Element("Slashed").Should().NotBeNull();
+        outputProperties["BarreFret"].Element("Fret")!.Value.Should().Be("7");
+        outputProperties["BarreString"].Element("String")!.Value.Should().Be("0");
+        outputProperties["Rasgueado"].Element("Rasgueado")!.Value.Should().Be("mii_1");
+    }
+
     // ── DeadSlapped ─────────────────────────────────────────────────────
 
     [Fact]

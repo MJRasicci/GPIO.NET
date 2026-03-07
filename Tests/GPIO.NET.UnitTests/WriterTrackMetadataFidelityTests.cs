@@ -63,6 +63,7 @@ public class WriterTrackMetadataFidelityTests
     public async Task Track_metadata_passthrough_round_trips_empty_systems_layout_notation_patch_and_staff_tuning_shape()
     {
         var gpif = BuildGpif("""
+            <ShortName></ShortName>
             <SystemsLayout></SystemsLayout>
             <NotationPatch><Name>Drumkit-Standard</Name></NotationPatch>
             <Staves>
@@ -83,6 +84,8 @@ public class WriterTrackMetadataFidelityTests
         var score = await DeserializeAndMap(gpif);
         var track = score.Tracks[0];
 
+        track.Metadata.ShortName.Should().BeEmpty();
+        track.Metadata.HasExplicitEmptyShortName.Should().BeTrue();
         track.Metadata.SystemsLayout.Should().BeEmpty();
         track.Metadata.HasExplicitEmptySystemsLayout.Should().BeTrue();
         track.Metadata.NotationPatchXml.Should().Contain("<NotationPatch>");
@@ -94,6 +97,8 @@ public class WriterTrackMetadataFidelityTests
         var roundTrip = await RoundTripThroughJsonAndWrite(gpif);
         var outputTrack = roundTrip.Root!.Element("Tracks")!.Element("Track")!;
 
+        outputTrack.Element("ShortName").Should().NotBeNull();
+        outputTrack.Element("ShortName")!.Value.Should().BeEmpty();
         outputTrack.Element("SystemsLayout").Should().NotBeNull();
         outputTrack.Element("SystemsLayout")!.Value.Should().BeEmpty();
         outputTrack.Element("NotationPatch").Should().NotBeNull();

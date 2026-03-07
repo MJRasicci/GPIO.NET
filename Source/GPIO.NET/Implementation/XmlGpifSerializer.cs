@@ -123,7 +123,7 @@ public sealed class XmlGpifSerializer : IGpifSerializer
             new XAttribute("id", t.Id),
             new XElement("Name", t.Name));
 
-        AddTextElement(el, "ShortName", t.ShortName);
+        AddOptionalEmptyTextElement(el, "ShortName", t.ShortName, t.HasExplicitEmptyShortName);
         AddTextElement(el, "Color", t.Color);
         AddTextElement(el, "SystemsDefautLayout", t.SystemsDefaultLayout);
         AddOptionalEmptyTextElement(el, "SystemsLayout", t.SystemsLayout, t.HasExplicitEmptySystemsLayout);
@@ -632,11 +632,28 @@ public sealed class XmlGpifSerializer : IGpifSerializer
     private static XElement BuildRhythm(GpifRhythm r)
     {
         var el = new XElement("Rhythm", new XAttribute("id", r.Id), new XElement("NoteValue", r.NoteValue));
-        for (var i = 0; i < r.AugmentationDots; i++)
+        if (r.AugmentationDotCounts.Length > 0)
         {
-            el.Add(r.AugmentationDotUsesCountAttribute
-                ? new XElement("AugmentationDot", new XAttribute("count", 1))
-                : new XElement("AugmentationDot"));
+            foreach (var count in r.AugmentationDotCounts)
+            {
+                el.Add(r.AugmentationDotUsesCountAttribute || count != 1
+                    ? new XElement("AugmentationDot", new XAttribute("count", count))
+                    : new XElement("AugmentationDot"));
+            }
+        }
+        else if (r.AugmentationDots > 0)
+        {
+            if (r.AugmentationDotUsesCountAttribute)
+            {
+                el.Add(new XElement("AugmentationDot", new XAttribute("count", r.AugmentationDots)));
+            }
+            else
+            {
+                for (var i = 0; i < r.AugmentationDots; i++)
+                {
+                    el.Add(new XElement("AugmentationDot"));
+                }
+            }
         }
         if (r.PrimaryTuplet is not null) el.Add(new XElement("PrimaryTuplet", new XAttribute("num", r.PrimaryTuplet.Numerator), new XAttribute("den", r.PrimaryTuplet.Denominator)));
         if (r.SecondaryTuplet is not null) el.Add(new XElement("SecondaryTuplet", new XAttribute("num", r.SecondaryTuplet.Numerator), new XAttribute("den", r.SecondaryTuplet.Denominator)));
@@ -648,8 +665,26 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         AddTextElement(el, "GraceNotes", b.GraceType);
         AddTextElement(el, "Dynamic", b.Dynamic);
         AddTextElement(el, "TransposedPitchStemOrientation", b.TransposedPitchStemOrientation);
-        AddTextElement(el, "UserTransposedPitchStemOrientation", b.UserTransposedPitchStemOrientation);
+        if (b.HasTransposedPitchStemOrientationUserDefinedElement)
+        {
+            AddOptionalEmptyTextElement(
+                el,
+                "TransposedPitchStemOrientationUserDefined",
+                b.UserTransposedPitchStemOrientation,
+                preserveExplicitEmpty: true);
+        }
+        else
+        {
+            AddTextElement(el, "UserTransposedPitchStemOrientation", b.UserTransposedPitchStemOrientation);
+        }
         AddTextElement(el, "ConcertPitchStemOrientation", b.ConcertPitchStemOrientation);
+        AddTextElement(el, "Wah", b.Wah);
+        AddTextElement(el, "Golpe", b.Golpe);
+        AddTextElement(el, "Fadding", b.Fadding);
+        if (b.Slashed)
+        {
+            el.Add(new XElement("Slashed"));
+        }
         AddTextElement(el, "Hairpin", b.Hairpin);
         AddTextElement(el, "Ottavia", b.Ottavia);
         if (b.WhammyUsesElement)
@@ -686,8 +721,14 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         {
             UpsertBeatProperty(beatPropertyValues, "Brush", b.BrushIsUp ? "Up" : "Down");
         }
-
-        UpsertBeatProperty(beatPropertyValues, "Rasgueado", b.Rasgueado);
+        if (!string.IsNullOrWhiteSpace(b.RasgueadoPattern))
+        {
+            UpsertBeatProperty(beatPropertyValues, "Rasgueado", b.RasgueadoPattern);
+        }
+        else
+        {
+            UpsertBeatProperty(beatPropertyValues, "Rasgueado", b.Rasgueado);
+        }
         if (!b.WhammyUsesElement)
         {
             if (ShouldEmitWhammyBarProperty(b))
@@ -774,6 +815,12 @@ public sealed class XmlGpifSerializer : IGpifSerializer
             return null;
         }
 
+        if (string.Equals(name, "Rasgueado", StringComparison.OrdinalIgnoreCase)
+            && !TryParseBeatBooleanValue(value))
+        {
+            return new XElement("Property", new XAttribute("name", name), new XElement("Rasgueado", value));
+        }
+
         if (IsBeatEnableProperty(name))
         {
             return TryParseBeatBooleanValue(value)
@@ -805,6 +852,8 @@ public sealed class XmlGpifSerializer : IGpifSerializer
     private static string? GetBeatPropertyPayloadName(string name)
         => name switch
         {
+            "BarreFret" => "Fret",
+            "BarreString" => "String",
             "PickStroke" or "Brush" => "Direction",
             "VibratoWTremBar" => "Strength",
             "PrimaryPickupVolume" or "PrimaryPickupTone"
@@ -834,6 +883,7 @@ public sealed class XmlGpifSerializer : IGpifSerializer
                 ? new XElement("AntiAccent")
                 : new XElement("AntiAccent", n.Articulation.AntiAccentValue));
         }
+        if (n.Velocity.HasValue) el.Add(new XElement("Velocity", n.Velocity.Value));
         if (n.Articulation.InstrumentArticulation.HasValue) el.Add(new XElement("InstrumentArticulation", n.Articulation.InstrumentArticulation.Value));
         if (n.Articulation.LetRing) el.Add(new XElement("LetRing"));
         if (n.Articulation.TieOrigin || n.Articulation.TieDestination)
@@ -1210,7 +1260,10 @@ public sealed class XmlGpifSerializer : IGpifSerializer
     private static void AddDecimalProperty(XElement parent, string name, decimal? value)
     {
         if (!value.HasValue) return;
-        parent.Add(new XElement("Property", new XAttribute("name", name), new XElement("Float", value.Value)));
+        parent.Add(new XElement(
+            "Property",
+            new XAttribute("name", name),
+            new XElement("Float", value.Value.ToString("0.000000", CultureInfo.InvariantCulture))));
     }
 
     private static (string step, string accidental, int octave) FromMidi(int midi)

@@ -66,6 +66,8 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     Id = ParseInt(t.Attribute("id")?.Value),
                     Name = t.Element("Name")?.Value ?? string.Empty,
                     ShortName = t.Element("ShortName")?.Value ?? string.Empty,
+                    HasExplicitEmptyShortName = t.Element("ShortName") is not null
+                        && string.IsNullOrWhiteSpace(t.Element("ShortName")?.Value),
                     Color = t.Element("Color")?.Value ?? string.Empty,
                     SystemsDefaultLayout = t.Element("SystemsDefautLayout")?.Value ?? string.Empty,
                     SystemsLayout = t.Element("SystemsLayout")?.Value ?? string.Empty,
@@ -208,8 +210,13 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                 {
                     Id = ParseInt(r.Attribute("id")?.Value),
                     NoteValue = r.Element("NoteValue")?.Value ?? string.Empty,
-                    AugmentationDots = r.Elements("AugmentationDot").Count(),
+                    AugmentationDots = r.Elements("AugmentationDot")
+                        .Select(dot => TryParseNullableInt(dot.Attribute("count")?.Value) ?? 1)
+                        .Sum(),
                     AugmentationDotUsesCountAttribute = r.Elements("AugmentationDot").Any(dot => dot.Attribute("count") is not null),
+                    AugmentationDotCounts = r.Elements("AugmentationDot")
+                        .Select(dot => TryParseNullableInt(dot.Attribute("count")?.Value) ?? 1)
+                        .ToArray(),
                     PrimaryTuplet = ParseTuplet(primaryTuplet),
                     SecondaryTuplet = ParseTuplet(secondaryTuplet)
                 };
@@ -226,6 +233,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                 return new GpifNote
                 {
                     Id = ParseInt(n.Attribute("id")?.Value),
+                    Velocity = TryParseNullableInt(n.Element("Velocity")?.Value),
                     MidiPitch = ParseNamedNumberProperty(n, "Midi") ?? ParseMidiPitch(n),
                     TransposedMidiPitch = ParseNamedMidiPitch(n, "TransposedPitch"),
                     ConcertPitch = ParseNamedPitchValue(n, "ConcertPitch"),
@@ -295,6 +303,11 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                 }
 
                 var legato = b.Element("Legato");
+                var transposedUserElement = b.Element("TransposedPitchStemOrientationUserDefined");
+                var legacyUserElement = b.Element("UserTransposedPitchStemOrientation");
+                var rasgueadoPattern = IsBeatBooleanTrue(rasgueadoRaw)
+                    ? string.Empty
+                    : rasgueadoRaw ?? string.Empty;
 
                 return new GpifBeat
                 {
@@ -304,8 +317,13 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     GraceType = b.Element("GraceNotes")?.Value ?? string.Empty,
                     Dynamic = b.Element("Dynamic")?.Value ?? string.Empty,
                     TransposedPitchStemOrientation = b.Element("TransposedPitchStemOrientation")?.Value ?? string.Empty,
-                    UserTransposedPitchStemOrientation = b.Element("UserTransposedPitchStemOrientation")?.Value ?? string.Empty,
+                    UserTransposedPitchStemOrientation = transposedUserElement?.Value ?? legacyUserElement?.Value ?? string.Empty,
+                    HasTransposedPitchStemOrientationUserDefinedElement = transposedUserElement is not null,
                     ConcertPitchStemOrientation = b.Element("ConcertPitchStemOrientation")?.Value ?? string.Empty,
+                    Wah = b.Element("Wah")?.Value ?? string.Empty,
+                    Golpe = b.Element("Golpe")?.Value ?? string.Empty,
+                    Fadding = b.Element("Fadding")?.Value ?? string.Empty,
+                    Slashed = b.Element("Slashed") is not null,
                     Hairpin = b.Element("Hairpin")?.Value ?? string.Empty,
                     Variation = b.Element("Variation")?.Value ?? string.Empty,
                     Ottavia = b.Element("Ottavia")?.Value ?? string.Empty,
@@ -322,7 +340,8 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     Arpeggio = hasArpeggio,
                     BrushDurationTicks = brushDurationTicks,
                     BrushDurationXPropertyId = brushDurationXPropertyId,
-                    Rasgueado = string.Equals(rasgueadoRaw, "true", StringComparison.OrdinalIgnoreCase),
+                    Rasgueado = IsBeatBooleanTrue(rasgueadoRaw) || !string.IsNullOrWhiteSpace(rasgueadoPattern),
+                    RasgueadoPattern = rasgueadoPattern,
                     DeadSlapped = b.Element("DeadSlapped") is not null,
                     Tremolo = b.Element("Tremolo") is not null,
                     TremoloValue = b.Element("Tremolo")?.Value ?? string.Empty,
@@ -656,6 +675,9 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
     private static bool? TryParseNullableBool(string? value)
         => bool.TryParse(value, out var parsed) ? parsed : null;
 
+    private static bool IsBeatBooleanTrue(string? value)
+        => bool.TryParse(value, out var parsed) && parsed;
+
     private static int[] SplitInts(string? value)
         => string.IsNullOrWhiteSpace(value)
             ? Array.Empty<int>()
@@ -885,7 +907,8 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
             ?? property.Element("Strength")?.Value
             ?? property.Element("Float")?.Value
             ?? property.Element("Bitset")?.Value
-            ?? property.Element("String")?.Value;
+            ?? property.Element("String")?.Value
+            ?? property.Element("Rasgueado")?.Value;
 
         if (!string.IsNullOrWhiteSpace(preferred))
         {

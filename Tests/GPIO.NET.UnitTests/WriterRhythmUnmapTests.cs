@@ -194,4 +194,60 @@ public class WriterRhythmUnmapTests
             .Attribute("count")!
             .Value.Should().Be("1");
     }
+
+    [Fact]
+    public async Task Unmapper_preserves_grouped_augmentation_dot_count_shape_when_requested_by_source()
+    {
+        var score = new GuitarProScore
+        {
+            Tracks =
+            [
+                new TrackModel
+                {
+                    Id = 0,
+                    Name = "Guitar",
+                    Measures =
+                    [
+                        new MeasureModel
+                        {
+                            Index = 0,
+                            TimeSignature = "4/4",
+                            Beats =
+                            [
+                                new BeatModel
+                                {
+                                    Id = 1,
+                                    SourceRhythmId = 9,
+                                    SourceRhythm = new RhythmShapeModel
+                                    {
+                                        NoteValue = "Quarter",
+                                        AugmentationDots = 2,
+                                        AugmentationDotUsesCountAttribute = true,
+                                        AugmentationDotCounts = [2]
+                                    },
+                                    Duration = 0.4375m
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var unmapper = new DefaultScoreUnmapper();
+        var result = await unmapper.UnmapAsync(score, TestContext.Current.CancellationToken);
+
+        result.RawDocument.RhythmsById[9].AugmentationDots.Should().Be(2);
+        result.RawDocument.RhythmsById[9].AugmentationDotCounts.Should().Equal(2);
+
+        await using var stream = new MemoryStream();
+        await new XmlGpifSerializer().SerializeAsync(result.RawDocument, stream, TestContext.Current.CancellationToken);
+        var xml = XDocument.Parse(Encoding.UTF8.GetString(stream.ToArray()));
+        xml.Root!
+            .Element("Rhythms")!
+            .Element("Rhythm")!
+            .Element("AugmentationDot")!
+            .Attribute("count")!
+            .Value.Should().Be("2");
+    }
 }
