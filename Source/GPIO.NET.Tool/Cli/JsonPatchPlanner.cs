@@ -31,40 +31,76 @@ internal static class JsonPatchPlanner
             {
                 var srcMeasure = sourceTrack.Measures[mi];
                 var edMeasure = editedTrack.Measures[mi];
-
-                var srcById = srcMeasure.Beats.Where(b => b.Id > 0).GroupBy(b => b.Id).ToDictionary(g => g.Key, g => g.First());
-                var editedBeatIds = edMeasure.Beats.Where(b => b.Id > 0).Select(b => b.Id).ToHashSet();
-
-                foreach (var srcBeat in srcMeasure.Beats.Where(b => b.Id > 0))
+                var srcBeatsById = BuildOccurrenceMap(srcMeasure.Beats, beat => beat.Id);
+                var editedBeatCounts = CountOccurrences(edMeasure.Beats, beat => beat.Id);
+                foreach (var srcBeatGroup in srcBeatsById)
                 {
-                    if (!editedBeatIds.Contains(srcBeat.Id))
+                    var sourceCount = srcBeatGroup.Value.Count;
+                    var editedCount = editedBeatCounts.GetValueOrDefault(srcBeatGroup.Key, 0);
+                    if (editedCount == 0)
                     {
-                        deleteBeats.Add(new DeleteBeatPatch { BeatId = srcBeat.Id });
+                        if (sourceCount == 1)
+                        {
+                            deleteBeats.Add(new DeleteBeatPatch { BeatId = srcBeatGroup.Key });
+                        }
+                        else
+                        {
+                            unsupported.Add(
+                                $"Track {editedTrack.Id}, Measure {mi}: shared Beat {srcBeatGroup.Key} was removed entirely ({sourceCount} -> 0); shared beat reference deletions are not auto-planned yet.");
+                        }
+
                         continue;
                     }
 
-                    var editedBeat = edMeasure.Beats.First(b => b.Id == srcBeat.Id);
-                    var editedNoteIds = editedBeat.Notes.Where(n => n.Id > 0).Select(n => n.Id).ToHashSet();
-                    foreach (var srcNote in srcBeat.Notes.Where(n => n.Id > 0))
+                    if (editedCount < sourceCount)
                     {
-                        if (!editedNoteIds.Contains(srcNote.Id))
-                        {
-                            deleteNotes.Add(new DeleteNotePatch { NoteId = srcNote.Id });
-                        }
+                        unsupported.Add(
+                            $"Track {editedTrack.Id}, Measure {mi}: shared Beat {srcBeatGroup.Key} occurrence count changed ({sourceCount} -> {editedCount}); shared beat reference diffs are not auto-planned yet.");
                     }
                 }
+
+                var consumedBeatCounts = new Dictionary<int, int>();
 
                 for (var bi = 0; bi < edMeasure.Beats.Count; bi++)
                 {
                     var edBeat = edMeasure.Beats[bi];
 
-                    if (edBeat.Id > 0 && srcById.TryGetValue(edBeat.Id, out var srcBeat))
+                    if (TryTakeOccurrence(srcBeatsById, consumedBeatCounts, edBeat.Id, out var srcBeat))
                     {
+                        var srcNotesById = BuildOccurrenceMap(srcBeat.Notes, note => note.Id);
+                        var editedNoteCounts = CountOccurrences(edBeat.Notes, note => note.Id);
+                        foreach (var srcNoteGroup in srcNotesById)
+                        {
+                            var sourceCount = srcNoteGroup.Value.Count;
+                            var editedCount = editedNoteCounts.GetValueOrDefault(srcNoteGroup.Key, 0);
+                            if (editedCount == 0)
+                            {
+                                if (sourceCount == 1)
+                                {
+                                    deleteNotes.Add(new DeleteNotePatch { NoteId = srcNoteGroup.Key });
+                                }
+                                else
+                                {
+                                    unsupported.Add(
+                                        $"Track {editedTrack.Id}, Measure {mi}, Beat {srcBeat.Id}: shared Note {srcNoteGroup.Key} was removed entirely ({sourceCount} -> 0); shared note reference deletions are not auto-planned yet.");
+                                }
+
+                                continue;
+                            }
+
+                            if (editedCount < sourceCount)
+                            {
+                                unsupported.Add(
+                                    $"Track {editedTrack.Id}, Measure {mi}, Beat {srcBeat.Id}: shared Note {srcNoteGroup.Key} occurrence count changed ({sourceCount} -> {editedCount}); shared note reference diffs are not auto-planned yet.");
+                            }
+                        }
+
+                        var consumedNoteCounts = new Dictionary<int, int>();
                         var notesToAdd = new List<int>();
+                        var matchedExistingNoteIds = new List<int>();
                         foreach (var edNote in edBeat.Notes)
                         {
-                            var srcNote = srcBeat.Notes.FirstOrDefault(n => n.Id == edNote.Id);
-                            if (srcNote is null)
+                            if (!TryTakeOccurrence(srcNotesById, consumedNoteCounts, edNote.Id, out var srcNote))
                             {
                                 if (edNote.MidiPitch.HasValue)
                                 {
@@ -88,6 +124,8 @@ internal static class JsonPatchPlanner
                             {
                                 updateArticulations.Add(patch);
                             }
+
+                            matchedExistingNoteIds.Add(edNote.Id);
                         }
 
                         if (notesToAdd.Count > 0)
@@ -99,8 +137,8 @@ internal static class JsonPatchPlanner
                             });
                         }
 
-                        var srcOrder = srcBeat.Notes.Where(n => n.Id > 0).Select(n => n.Id).ToArray();
-                        var editedOrder = edBeat.Notes.Where(n => n.Id > 0).Select(n => n.Id).Where(id => srcOrder.Contains(id)).ToArray();
+                        var srcOrder = srcBeat.Notes.Where(n => n.Id >= 0).Select(n => n.Id).ToArray();
+                        var editedOrder = matchedExistingNoteIds.ToArray();
                         if (editedOrder.Length == srcOrder.Length && !srcOrder.SequenceEqual(editedOrder))
                         {
                             reorderBeatNotes.Add(new ReorderBeatNotesPatch
@@ -113,7 +151,7 @@ internal static class JsonPatchPlanner
                         continue;
                     }
 
-                    // New beat (id <= 0 or unknown): insert within existing range, append at end.
+                    // New beat (negative or unknown, or an extra occurrence beyond the source count).
                     var midiPitches = edBeat.Notes.Where(n => n.MidiPitch.HasValue).Select(n => n.MidiPitch!.Value).ToArray();
                     var op = new InsertBeatPatch
                     {
@@ -168,6 +206,75 @@ internal static class JsonPatchPlanner
             },
             UnsupportedChanges = unsupported
         };
+    }
+
+    private static Dictionary<int, List<T>> BuildOccurrenceMap<T>(IEnumerable<T> items, Func<T, int> idSelector)
+        where T : class
+    {
+        var occurrences = new Dictionary<int, List<T>>();
+
+        foreach (var item in items)
+        {
+            var id = idSelector(item);
+            if (id < 0)
+            {
+                continue;
+            }
+
+            if (!occurrences.TryGetValue(id, out var list))
+            {
+                list = new List<T>();
+                occurrences[id] = list;
+            }
+
+            list.Add(item);
+        }
+
+        return occurrences;
+    }
+
+    private static Dictionary<int, int> CountOccurrences<T>(IEnumerable<T> items, Func<T, int> idSelector)
+    {
+        var counts = new Dictionary<int, int>();
+
+        foreach (var item in items)
+        {
+            var id = idSelector(item);
+            if (id < 0)
+            {
+                continue;
+            }
+
+            counts[id] = counts.TryGetValue(id, out var count)
+                ? count + 1
+                : 1;
+        }
+
+        return counts;
+    }
+
+    private static bool TryTakeOccurrence<T>(
+        IReadOnlyDictionary<int, List<T>> occurrencesById,
+        Dictionary<int, int> consumedCounts,
+        int id,
+        out T? item)
+        where T : class
+    {
+        item = null;
+        if (id < 0 || !occurrencesById.TryGetValue(id, out var occurrences))
+        {
+            return false;
+        }
+
+        var consumed = consumedCounts.GetValueOrDefault(id);
+        if (consumed >= occurrences.Count)
+        {
+            return false;
+        }
+
+        consumedCounts[id] = consumed + 1;
+        item = occurrences[consumed];
+        return true;
     }
 
     private static UpdateNoteArticulationPatch? BuildArticulationPatch(NoteModel src, NoteModel edited)

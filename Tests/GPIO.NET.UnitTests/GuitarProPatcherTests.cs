@@ -283,6 +283,40 @@ public class GuitarProPatcherTests
         }
     }
 
+    [Fact]
+    public async Task Empty_patch_preserves_score_gpif_bytes_exactly()
+    {
+        var source = Path.Combine(AppContext.BaseDirectory, "Fixtures", "test.gp");
+        var output = Path.Combine(Path.GetTempPath(), $"gpio-patched-empty-{Guid.NewGuid():N}.gp");
+
+        try
+        {
+            var patcher = new GuitarProPatcher();
+            var result = await patcher.PatchAsync(source, output, new GpPatchDocument(), TestContext.Current.CancellationToken);
+
+            result.Diagnostics.Entries.Should().BeEmpty();
+
+            using var sourceZip = ZipFile.OpenRead(source);
+            using var outputZip = ZipFile.OpenRead(output);
+
+            var sourceEntry = sourceZip.GetEntry("Content/score.gpif");
+            var outputEntry = outputZip.GetEntry("Content/score.gpif");
+            sourceEntry.Should().NotBeNull();
+            outputEntry.Should().NotBeNull();
+
+            var sourceBytes = await ReadAllBytesAsync(sourceEntry!, TestContext.Current.CancellationToken);
+            var outputBytes = await ReadAllBytesAsync(outputEntry!, TestContext.Current.CancellationToken);
+            outputBytes.Should().Equal(sourceBytes);
+        }
+        finally
+        {
+            if (File.Exists(output))
+            {
+                File.Delete(output);
+            }
+        }
+    }
+
     private static async Task<byte[]> ReadAllBytesAsync(ZipArchiveEntry entry, CancellationToken cancellationToken)
     {
         await using var stream = entry.Open();

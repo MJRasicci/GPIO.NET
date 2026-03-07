@@ -12,6 +12,7 @@ public sealed class GuitarProPatcher : IGuitarProPatcher
         ArgumentNullException.ThrowIfNull(patch);
 
         var diagnostics = new PatchDiagnostics();
+        var hasOperations = HasOperations(patch);
 
         if (!File.Exists(sourceGpPath))
         {
@@ -27,13 +28,14 @@ public sealed class GuitarProPatcher : IGuitarProPatcher
         await using var source = await ZipFile.OpenReadAsync(sourceGpPath, cancellationToken).ConfigureAwait(false);
         var scoreEntry = source.GetEntry("Content/score.gpif") ?? throw new InvalidDataException("Archive missing Content/score.gpif");
 
-        XDocument gpif;
-        await using (var scoreStream = await scoreEntry.OpenAsync(cancellationToken).ConfigureAwait(false))
+        XDocument? gpif = null;
+        if (hasOperations)
         {
+            await using var scoreStream = await scoreEntry.OpenAsync(cancellationToken).ConfigureAwait(false);
             gpif = await XDocument.LoadAsync(scoreStream, LoadOptions.None, cancellationToken).ConfigureAwait(false);
-        }
 
-        ApplyPatch(gpif, patch, diagnostics);
+            ApplyPatch(gpif, patch, diagnostics);
+        }
 
         if (File.Exists(outputGpPath))
         {
@@ -47,7 +49,7 @@ public sealed class GuitarProPatcher : IGuitarProPatcher
             await using var inStream = await entry.OpenAsync(cancellationToken).ConfigureAwait(false);
             await using var outStream = await targetEntry.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-            if (string.Equals(entry.FullName, "Content/score.gpif", StringComparison.OrdinalIgnoreCase))
+            if (gpif is not null && string.Equals(entry.FullName, "Content/score.gpif", StringComparison.OrdinalIgnoreCase))
             {
                 await gpif.SaveAsync(outStream, SaveOptions.None, cancellationToken).ConfigureAwait(false);
             }
@@ -59,6 +61,18 @@ public sealed class GuitarProPatcher : IGuitarProPatcher
 
         return new PatchResult { Diagnostics = diagnostics };
     }
+
+    private static bool HasOperations(GpPatchDocument patch)
+        => patch.AppendBars.Count > 0
+           || patch.AppendVoices.Count > 0
+           || patch.AppendNotes.Count > 0
+           || patch.InsertBeats.Count > 0
+           || patch.AddNotesToBeats.Count > 0
+           || patch.ReorderBeatNotes.Count > 0
+           || patch.UpdateNoteArticulations.Count > 0
+           || patch.UpdateNotePitches.Count > 0
+           || patch.DeleteNotes.Count > 0
+           || patch.DeleteBeats.Count > 0;
 
     private static void ApplyPatch(XDocument gpif, GpPatchDocument patch, PatchDiagnostics diagnostics)
     {

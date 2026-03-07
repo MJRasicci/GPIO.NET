@@ -157,10 +157,10 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             })
             .ToArray();
 
-        var barId = 0;
-        var voiceId = 0;
-        var beatId = 0;
-        var noteId = 0;
+        var barId = NextIdAfter(score.Tracks.SelectMany(t => t.Measures).Select(m => m.SourceBarId));
+        var voiceId = NextIdAfter(score.Tracks.SelectMany(t => t.Measures).SelectMany(m => m.Voices).Select(v => v.SourceVoiceId));
+        var beatId = NextIdAfter(score.Tracks.SelectMany(t => t.Measures).SelectMany(m => m.Voices.Count > 0 ? m.Voices.SelectMany(v => v.Beats) : m.Beats).Select(b => b.Id));
+        var noteId = NextIdAfter(score.Tracks.SelectMany(t => t.Measures).SelectMany(m => m.Voices.Count > 0 ? m.Voices.SelectMany(v => v.Beats) : m.Beats).SelectMany(b => b.Notes).Select(n => n.Id));
         var rhythmId = 0;
 
         var bars = new Dictionary<int, GpifBar>();
@@ -168,6 +168,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
         var beats = new Dictionary<int, GpifBeat>();
         var notes = new Dictionary<int, GpifNote>();
         var rhythms = new Dictionary<int, GpifRhythm>();
+        var rhythmIdsBySignature = new Dictionary<RhythmSignature, int>();
         var masterBars = new List<GpifMasterBar>();
 
         var maxMeasures = score.Tracks.Select(t => t.Measures.Count).DefaultIfEmpty(0).Max();
@@ -186,22 +187,23 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 var measure = track.Measures[m];
                 var jump = ResolveDirectionValue(measure.Jump, measure.DirectionProperties, "Jump");
                 var target = ResolveDirectionValue(measure.Target, measure.DirectionProperties, "Target");
-                var currentBarId = barId++;
+                var currentBarId = measure.SourceBarId;
                 var measureVoiceIds = new List<int>();
                 var measureVoices = ResolveMeasureVoices(measure);
 
                 foreach (var measureVoice in measureVoices)
                 {
-                    var currentVoiceId = voiceId++;
                     var beatIds = new List<int>();
 
                     foreach (var beat in measureVoice.Beats)
                     {
-                        var currentBeatId = beatId++;
-                        var currentRhythmId = rhythmId++;
                         var noteRefs = new List<int>();
-
-                        rhythms[currentRhythmId] = ToRhythm(beat.Duration, currentRhythmId, diagnostics);
+                        var encodedWhammy = ArticulationDecoders.EncodeWhammyBar(beat.WhammyBar);
+                        var beatXProperties = new Dictionary<string, int>();
+                        if (beat.BrushDurationTicks.HasValue)
+                        {
+                            beatXProperties[beat.Arpeggio ? "687931393" : "687935489"] = beat.BrushDurationTicks.Value;
+                        }
 
                         if (beat.Notes.Count > 0)
                         {
@@ -217,11 +219,9 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                     noteXProperties["688062467"] = encodedTrillSpeed.Value;
                                 }
 
-                                var currentNoteId = noteId++;
-                                noteRefs.Add(currentNoteId);
-                                notes[currentNoteId] = new GpifNote
+                                var noteCandidate = new GpifNote
                                 {
-                                    Id = currentNoteId,
+                                    Id = 0,
                                     MidiPitch = note.MidiPitch,
                                     TransposedMidiPitch = ResolveTransposedMidiPitch(note, track),
                                     Properties = BuildCoreNoteProperties(note.MidiPitch, resolvedStringNumber, resolvedFret),
@@ -260,19 +260,44 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                         HarmonicFret = harmonic.Fret
                                     }
                                 };
+
+                                var currentNoteId = AllocateId(
+                                    note.Id,
+                                    noteCandidate,
+                                    notes,
+                                    ref noteId,
+                                    NotesEqual,
+                                    diagnostics,
+                                    code: "NOTE_ID_CONFLICT",
+                                    category: "ReferenceReuse",
+                                    message: $"Note id {note.Id} appeared with different content; a new raw note id was allocated.");
+
+                                noteRefs.Add(currentNoteId);
+                                if (!notes.ContainsKey(currentNoteId))
+                                {
+                                    notes[currentNoteId] = WithNoteId(noteCandidate, currentNoteId);
+                                }
                             }
                         }
 
-                        var encodedWhammy = ArticulationDecoders.EncodeWhammyBar(beat.WhammyBar);
-                        var beatXProperties = new Dictionary<string, int>();
-                        if (beat.BrushDurationTicks.HasValue)
+                        var rhythmCandidate = ToRhythm(beat.Duration, id: 0, diagnostics);
+                        var rhythmSignature = new RhythmSignature(
+                            rhythmCandidate.NoteValue,
+                            rhythmCandidate.AugmentationDots,
+                            rhythmCandidate.PrimaryTuplet?.Numerator,
+                            rhythmCandidate.PrimaryTuplet?.Denominator,
+                            rhythmCandidate.SecondaryTuplet?.Numerator,
+                            rhythmCandidate.SecondaryTuplet?.Denominator);
+                        if (!rhythmIdsBySignature.TryGetValue(rhythmSignature, out var currentRhythmId))
                         {
-                            beatXProperties[beat.Arpeggio ? "687931393" : "687935489"] = beat.BrushDurationTicks.Value;
+                            currentRhythmId = NextAvailableId(rhythms, ref rhythmId);
+                            rhythmIdsBySignature[rhythmSignature] = currentRhythmId;
+                            rhythms[currentRhythmId] = WithRhythmId(rhythmCandidate, currentRhythmId);
                         }
 
-                        beats[currentBeatId] = new GpifBeat
+                        var beatCandidate = new GpifBeat
                         {
-                            Id = currentBeatId,
+                            Id = 0,
                             RhythmRef = currentRhythmId,
                             NotesReferenceList = ReferenceListFormatter.JoinRefs(noteRefs),
                             GraceType = beat.GraceType,
@@ -303,16 +328,48 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                             XProperties = beatXProperties
                         };
 
+                        var currentBeatId = AllocateId(
+                            beat.Id,
+                            beatCandidate,
+                            beats,
+                            ref beatId,
+                            BeatsEqual,
+                            diagnostics,
+                            code: "BEAT_ID_CONFLICT",
+                            category: "ReferenceReuse",
+                            message: $"Beat id {beat.Id} appeared with different content; a new raw beat id was allocated.");
+
+                        if (!beats.ContainsKey(currentBeatId))
+                        {
+                            beats[currentBeatId] = WithBeatId(beatCandidate, currentBeatId);
+                        }
+
                         beatIds.Add(currentBeatId);
                     }
 
-                    voices[currentVoiceId] = new GpifVoice
+                    var voiceCandidate = new GpifVoice
                     {
-                        Id = currentVoiceId,
+                        Id = 0,
                         BeatsReferenceList = ReferenceListFormatter.JoinRefs(beatIds),
                         Properties = measureVoice.Properties.ToDictionary(kv => kv.Key, kv => kv.Value),
                         DirectionTags = measureVoice.DirectionTags.ToArray()
                     };
+
+                    var currentVoiceId = AllocateId(
+                        measureVoice.SourceVoiceId,
+                        voiceCandidate,
+                        voices,
+                        ref voiceId,
+                        VoicesEqual,
+                        diagnostics,
+                        code: "VOICE_ID_CONFLICT",
+                        category: "ReferenceReuse",
+                        message: $"Voice id {measureVoice.SourceVoiceId} appeared with different content; a new raw voice id was allocated.");
+
+                    if (!voices.ContainsKey(currentVoiceId))
+                    {
+                        voices[currentVoiceId] = WithVoiceId(voiceCandidate, currentVoiceId);
+                    }
 
                     measureVoiceIds.Add(currentVoiceId);
                 }
@@ -323,14 +380,30 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                     voiceSlots.Add(-1);
                 }
 
-                bars[currentBarId] = new GpifBar
+                var barCandidate = new GpifBar
                 {
-                    Id = currentBarId,
+                    Id = 0,
                     VoicesReferenceList = ReferenceListFormatter.JoinRefs(voiceSlots),
                     Clef = measure.Clef,
                     Properties = measure.BarProperties,
                     XProperties = measure.XProperties
                 };
+
+                currentBarId = AllocateId(
+                    measure.SourceBarId,
+                    barCandidate,
+                    bars,
+                    ref barId,
+                    BarsEqual,
+                    diagnostics,
+                    code: "BAR_ID_CONFLICT",
+                    category: "ReferenceReuse",
+                    message: $"Bar id {measure.SourceBarId} appeared with different content; a new raw bar id was allocated.");
+
+                if (!bars.ContainsKey(currentBarId))
+                {
+                    bars[currentBarId] = WithBarId(barCandidate, currentBarId);
+                }
 
                 measureBarIds.Add(currentBarId);
 
@@ -581,6 +654,11 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 .ToArray();
         }
 
+        if (measure.Beats.Count == 0)
+        {
+            return Array.Empty<MeasureVoiceModel>();
+        }
+
         var fallbackProperties = measure.Beats.Count > 0
             ? measure.Beats[0].VoiceProperties
             : new Dictionary<string, string>();
@@ -600,6 +678,246 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             }
         ];
     }
+
+    private static int NextIdAfter(IEnumerable<int> ids)
+        => ids.Where(id => id >= 0).DefaultIfEmpty(-1).Max() + 1;
+
+    private static int AllocateId<T>(
+        int preferredId,
+        T candidate,
+        Dictionary<int, T> existingItems,
+        ref int nextId,
+        Func<T, T, bool> structurallyEqual,
+        WriteDiagnostics diagnostics,
+        string code,
+        string category,
+        string message)
+    {
+        if (preferredId >= 0)
+        {
+            if (existingItems.TryGetValue(preferredId, out var existing))
+            {
+                if (structurallyEqual(existing, candidate))
+                {
+                    return preferredId;
+                }
+
+                diagnostics.Warn(code, category, message);
+            }
+            else
+            {
+                nextId = Math.Max(nextId, preferredId + 1);
+                return preferredId;
+            }
+        }
+
+        return NextAvailableId(existingItems, ref nextId);
+    }
+
+    private static int NextAvailableId<T>(Dictionary<int, T> existingItems, ref int nextId)
+    {
+        while (existingItems.ContainsKey(nextId))
+        {
+            nextId++;
+        }
+
+        return nextId++;
+    }
+
+    private static GpifBar WithBarId(GpifBar bar, int id)
+        => new()
+        {
+            Id = id,
+            VoicesReferenceList = bar.VoicesReferenceList,
+            Clef = bar.Clef,
+            XProperties = bar.XProperties,
+            Properties = bar.Properties
+        };
+
+    private static GpifVoice WithVoiceId(GpifVoice voice, int id)
+        => new()
+        {
+            Id = id,
+            BeatsReferenceList = voice.BeatsReferenceList,
+            Properties = voice.Properties,
+            DirectionTags = voice.DirectionTags
+        };
+
+    private static GpifBeat WithBeatId(GpifBeat beat, int id)
+        => new()
+        {
+            Id = id,
+            RhythmRef = beat.RhythmRef,
+            NotesReferenceList = beat.NotesReferenceList,
+            GraceType = beat.GraceType,
+            Dynamic = beat.Dynamic,
+            PickStrokeDirection = beat.PickStrokeDirection,
+            VibratoWithTremBarStrength = beat.VibratoWithTremBarStrength,
+            Slapped = beat.Slapped,
+            Popped = beat.Popped,
+            Brush = beat.Brush,
+            BrushIsUp = beat.BrushIsUp,
+            Arpeggio = beat.Arpeggio,
+            BrushDurationTicks = beat.BrushDurationTicks,
+            Rasgueado = beat.Rasgueado,
+            DeadSlapped = beat.DeadSlapped,
+            Tremolo = beat.Tremolo,
+            TremoloValue = beat.TremoloValue,
+            ChordId = beat.ChordId,
+            FreeText = beat.FreeText,
+            WhammyBar = beat.WhammyBar,
+            WhammyBarExtended = beat.WhammyBarExtended,
+            WhammyBarOriginValue = beat.WhammyBarOriginValue,
+            WhammyBarMiddleValue = beat.WhammyBarMiddleValue,
+            WhammyBarDestinationValue = beat.WhammyBarDestinationValue,
+            WhammyBarOriginOffset = beat.WhammyBarOriginOffset,
+            WhammyBarMiddleOffset1 = beat.WhammyBarMiddleOffset1,
+            WhammyBarMiddleOffset2 = beat.WhammyBarMiddleOffset2,
+            WhammyBarDestinationOffset = beat.WhammyBarDestinationOffset,
+            XProperties = beat.XProperties
+        };
+
+    private static GpifNote WithNoteId(GpifNote note, int id)
+        => new()
+        {
+            Id = id,
+            MidiPitch = note.MidiPitch,
+            TransposedMidiPitch = note.TransposedMidiPitch,
+            Properties = note.Properties,
+            Articulation = note.Articulation,
+            XProperties = note.XProperties
+        };
+
+    private static GpifRhythm WithRhythmId(GpifRhythm rhythm, int id)
+        => new()
+        {
+            Id = id,
+            NoteValue = rhythm.NoteValue,
+            AugmentationDots = rhythm.AugmentationDots,
+            PrimaryTuplet = rhythm.PrimaryTuplet,
+            SecondaryTuplet = rhythm.SecondaryTuplet
+        };
+
+    private static bool BarsEqual(GpifBar a, GpifBar b)
+        => string.Equals(a.VoicesReferenceList, b.VoicesReferenceList, StringComparison.Ordinal)
+           && string.Equals(a.Clef, b.Clef, StringComparison.Ordinal)
+           && DictionariesEqual(a.XProperties, b.XProperties)
+           && DictionariesEqual(a.Properties, b.Properties);
+
+    private static bool VoicesEqual(GpifVoice a, GpifVoice b)
+        => string.Equals(a.BeatsReferenceList, b.BeatsReferenceList, StringComparison.Ordinal)
+           && DictionariesEqual(a.Properties, b.Properties)
+           && a.DirectionTags.SequenceEqual(b.DirectionTags, StringComparer.Ordinal);
+
+    private static bool BeatsEqual(GpifBeat a, GpifBeat b)
+        => a.RhythmRef == b.RhythmRef
+           && string.Equals(a.NotesReferenceList, b.NotesReferenceList, StringComparison.Ordinal)
+           && string.Equals(a.GraceType, b.GraceType, StringComparison.Ordinal)
+           && string.Equals(a.Dynamic, b.Dynamic, StringComparison.Ordinal)
+           && string.Equals(a.PickStrokeDirection, b.PickStrokeDirection, StringComparison.Ordinal)
+           && string.Equals(a.VibratoWithTremBarStrength, b.VibratoWithTremBarStrength, StringComparison.Ordinal)
+           && a.Slapped == b.Slapped
+           && a.Popped == b.Popped
+           && a.Brush == b.Brush
+           && a.BrushIsUp == b.BrushIsUp
+           && a.Arpeggio == b.Arpeggio
+           && a.BrushDurationTicks == b.BrushDurationTicks
+           && a.Rasgueado == b.Rasgueado
+           && a.DeadSlapped == b.DeadSlapped
+           && a.Tremolo == b.Tremolo
+           && string.Equals(a.TremoloValue, b.TremoloValue, StringComparison.Ordinal)
+           && string.Equals(a.ChordId, b.ChordId, StringComparison.Ordinal)
+           && string.Equals(a.FreeText, b.FreeText, StringComparison.Ordinal)
+           && a.WhammyBar == b.WhammyBar
+           && a.WhammyBarExtended == b.WhammyBarExtended
+           && a.WhammyBarOriginValue == b.WhammyBarOriginValue
+           && a.WhammyBarMiddleValue == b.WhammyBarMiddleValue
+           && a.WhammyBarDestinationValue == b.WhammyBarDestinationValue
+           && a.WhammyBarOriginOffset == b.WhammyBarOriginOffset
+           && a.WhammyBarMiddleOffset1 == b.WhammyBarMiddleOffset1
+           && a.WhammyBarMiddleOffset2 == b.WhammyBarMiddleOffset2
+           && a.WhammyBarDestinationOffset == b.WhammyBarDestinationOffset
+           && DictionariesEqual(a.XProperties, b.XProperties);
+
+    private static bool NotesEqual(GpifNote a, GpifNote b)
+        => a.MidiPitch == b.MidiPitch
+           && a.TransposedMidiPitch == b.TransposedMidiPitch
+           && PropertiesEqual(a.Properties, b.Properties)
+           && ArticulationsEqual(a.Articulation, b.Articulation)
+           && DictionariesEqual(a.XProperties, b.XProperties);
+
+    private static bool PropertiesEqual(IReadOnlyList<GpifNoteProperty> a, IReadOnlyList<GpifNoteProperty> b)
+        => a.Count == b.Count && a.Zip(b).All(pair => NotePropertiesEqual(pair.First, pair.Second));
+
+    private static bool NotePropertiesEqual(GpifNoteProperty a, GpifNoteProperty b)
+        => string.Equals(a.Name, b.Name, StringComparison.Ordinal)
+           && a.Enabled == b.Enabled
+           && a.Flags == b.Flags
+           && a.Number == b.Number
+           && a.Fret == b.Fret
+           && a.StringNumber == b.StringNumber
+           && string.Equals(a.HType, b.HType, StringComparison.Ordinal)
+           && a.HFret == b.HFret
+           && a.Float == b.Float;
+
+    private static bool ArticulationsEqual(GpifNoteArticulation a, GpifNoteArticulation b)
+        => string.Equals(a.LeftFingering, b.LeftFingering, StringComparison.Ordinal)
+           && string.Equals(a.RightFingering, b.RightFingering, StringComparison.Ordinal)
+           && string.Equals(a.Ornament, b.Ornament, StringComparison.Ordinal)
+           && a.LetRing == b.LetRing
+           && string.Equals(a.Vibrato, b.Vibrato, StringComparison.Ordinal)
+           && a.TieOrigin == b.TieOrigin
+           && a.TieDestination == b.TieDestination
+           && a.Trill == b.Trill
+           && a.Accent == b.Accent
+           && a.AntiAccent == b.AntiAccent
+           && a.InstrumentArticulation == b.InstrumentArticulation
+           && a.PalmMuted == b.PalmMuted
+           && a.Muted == b.Muted
+           && a.Tapped == b.Tapped
+           && a.LeftHandTapped == b.LeftHandTapped
+           && a.HopoOrigin == b.HopoOrigin
+           && a.HopoDestination == b.HopoDestination
+           && a.SlideFlags == b.SlideFlags
+           && a.BendEnabled == b.BendEnabled
+           && a.BendOriginOffset == b.BendOriginOffset
+           && a.BendOriginValue == b.BendOriginValue
+           && a.BendMiddleOffset1 == b.BendMiddleOffset1
+           && a.BendMiddleOffset2 == b.BendMiddleOffset2
+           && a.BendMiddleValue == b.BendMiddleValue
+           && a.BendDestinationOffset == b.BendDestinationOffset
+           && a.BendDestinationValue == b.BendDestinationValue
+           && a.HarmonicEnabled == b.HarmonicEnabled
+           && a.HarmonicType == b.HarmonicType
+           && string.Equals(a.HarmonicTypeText, b.HarmonicTypeText, StringComparison.Ordinal)
+           && a.HarmonicFret == b.HarmonicFret;
+
+    private static bool DictionariesEqual<TValue>(IReadOnlyDictionary<string, TValue> a, IReadOnlyDictionary<string, TValue> b)
+        where TValue : notnull
+    {
+        if (a.Count != b.Count)
+        {
+            return false;
+        }
+
+        foreach (var (key, value) in a)
+        {
+            if (!b.TryGetValue(key, out var otherValue) || !EqualityComparer<TValue>.Default.Equals(value, otherValue))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private readonly record struct RhythmSignature(
+        string NoteValue,
+        int AugmentationDots,
+        int? PrimaryNumerator,
+        int? PrimaryDenominator,
+        int? SecondaryNumerator,
+        int? SecondaryDenominator);
 
     private static GpifRhythm ToRhythm(decimal duration, int id, WriteDiagnostics diagnostics)
     {
