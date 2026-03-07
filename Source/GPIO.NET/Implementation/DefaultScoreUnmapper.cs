@@ -207,10 +207,17 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                         {
                             var noteRefs = new List<int>();
                             var encodedWhammy = ArticulationDecoders.EncodeWhammyBar(beat.WhammyBar);
-                            var beatXProperties = new Dictionary<string, int>();
+                            var beatXProperties = beat.XProperties.ToDictionary(kv => kv.Key, kv => kv.Value);
+                            beatXProperties.Remove("687931393");
+                            beatXProperties.Remove("687935489");
                             if (beat.BrushDurationTicks.HasValue)
                             {
-                                beatXProperties[beat.Arpeggio ? "687931393" : "687935489"] = beat.BrushDurationTicks.Value;
+                                var brushDurationXPropertyId = !string.IsNullOrWhiteSpace(beat.BrushDurationXPropertyId)
+                                    ? beat.BrushDurationXPropertyId
+                                    : beat.Arpeggio
+                                        ? "687931393"
+                                        : "687935489";
+                                beatXProperties[brushDurationXPropertyId] = beat.BrushDurationTicks.Value;
                             }
                             if (beat.Notes.Count > 0)
                             {
@@ -220,8 +227,9 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                     var harmonic = ArticulationDecoders.EncodeHarmonic(note.Articulation.Harmonic);
                                     var (resolvedStringNumber, resolvedFret) = ResolveStringAndFret(note, track, staffBar.StaffIndex);
                                     var transposedMidiPitch = ResolveTransposedMidiPitch(note, track);
-                                    var noteXProperties = new Dictionary<string, int>();
-                                    var encodedTrillSpeed = ArticulationDecoders.EncodeTrillSpeed(note.Articulation.TrillSpeed);
+                                    var noteXProperties = note.XProperties.ToDictionary(kv => kv.Key, kv => kv.Value);
+                                    noteXProperties.Remove("688062467");
+                                    var encodedTrillSpeed = ResolveTrillSpeedXPropertyValue(note);
                                     if (encodedTrillSpeed.HasValue)
                                     {
                                         noteXProperties["688062467"] = encodedTrillSpeed.Value;
@@ -238,8 +246,11 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                         TransposedPitch = ShouldPreserveSourceTransposedPitch(note, transposedMidiPitch)
                                             ? ToRawPitchValue(note.TransposedPitch)
                                             : null,
+                                        SourceFret = note.SourceFret,
+                                        SourceStringNumber = note.SourceStringNumber,
                                         Properties = BuildCoreNoteProperties(note.MidiPitch, resolvedStringNumber, resolvedFret),
                                         XProperties = noteXProperties,
+                                        XPropertiesXml = note.XPropertiesXml,
                                         Articulation = new GpifNoteArticulation
                                         {
                                             LeftFingering = note.Articulation.LeftFingering,
@@ -340,6 +351,12 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 TransposedPitchStemOrientation = beat.TransposedPitchStemOrientation,
                                 UserTransposedPitchStemOrientation = beat.UserTransposedPitchStemOrientation,
                                 ConcertPitchStemOrientation = beat.ConcertPitchStemOrientation,
+                                Hairpin = beat.Hairpin,
+                                Variation = beat.Variation,
+                                Ottavia = beat.Ottavia,
+                                LegatoOrigin = beat.LegatoOrigin,
+                                LegatoDestination = beat.LegatoDestination,
+                                LyricsXml = beat.LyricsXml,
                                 PickStrokeDirection = beat.PickStrokeDirection,
                                 VibratoWithTremBarStrength = beat.VibratoWithTremBarStrength,
                                 Slapped = beat.Slapped,
@@ -348,6 +365,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 BrushIsUp = beat.BrushIsUp,
                                 Arpeggio = beat.Arpeggio,
                                 BrushDurationTicks = beat.BrushDurationTicks,
+                                BrushDurationXPropertyId = beat.BrushDurationXPropertyId,
                                 Rasgueado = beat.Rasgueado,
                                 DeadSlapped = beat.DeadSlapped,
                                 Tremolo = beat.Tremolo,
@@ -363,8 +381,11 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 WhammyBarMiddleOffset1 = encodedWhammy.MiddleOffset1,
                                 WhammyBarMiddleOffset2 = encodedWhammy.MiddleOffset2,
                                 WhammyBarDestinationOffset = encodedWhammy.DestinationOffset,
+                                WhammyUsesElement = beat.WhammyUsesElement,
+                                WhammyExtendUsesElement = beat.WhammyExtendUsesElement,
                                 Properties = beat.Properties.ToDictionary(kv => kv.Key, kv => kv.Value),
-                                XProperties = beatXProperties
+                                XProperties = beatXProperties,
+                                XPropertiesXml = beat.XPropertiesXml
                             };
 
                             var currentBeatId = AllocateId(
@@ -425,7 +446,8 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                         VoicesReferenceList = ReferenceListFormatter.JoinRefs(voiceSlots),
                         Clef = staffBar.Clef,
                         Properties = staffBar.BarProperties,
-                        XProperties = new Dictionary<string, int>()
+                        XProperties = staffBar.BarXProperties,
+                        XPropertiesXml = staffBar.BarXPropertiesXml
                     };
 
                     currentBarId = AllocateId(
@@ -453,9 +475,14 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                     {
                         Index = m,
                         Time = measure.TimeSignature,
+                        DoubleBar = measure.DoubleBar,
+                        TripletFeel = measure.TripletFeel,
                         RepeatStart = measure.RepeatStart,
+                        RepeatStartAttributePresent = measure.RepeatStartAttributePresent,
                         RepeatEnd = measure.RepeatEnd,
+                        RepeatEndAttributePresent = measure.RepeatEndAttributePresent,
                         RepeatCount = measure.RepeatCount,
+                        RepeatCountAttributePresent = measure.RepeatCountAttributePresent,
                         AlternateEndings = measure.AlternateEndings,
                         SectionLetter = measure.SectionLetter,
                         SectionText = measure.SectionText,
@@ -471,7 +498,8 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                             Offset = f.Offset,
                             Length = f.Length
                         }).ToArray(),
-                        XProperties = measure.XProperties
+                        XProperties = measure.XProperties,
+                        XPropertiesXml = measure.MasterBarXPropertiesXml
                     });
                 }
             }
@@ -483,11 +511,16 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 {
                     Index = existing.Index,
                     Time = existing.Time,
+                    DoubleBar = existing.DoubleBar,
+                    TripletFeel = existing.TripletFeel,
                     BarsReferenceList = ReferenceListFormatter.JoinRefs(measureBarIds),
                     AlternateEndings = existing.AlternateEndings,
                     RepeatStart = existing.RepeatStart,
+                    RepeatStartAttributePresent = existing.RepeatStartAttributePresent,
                     RepeatEnd = existing.RepeatEnd,
+                    RepeatEndAttributePresent = existing.RepeatEndAttributePresent,
                     RepeatCount = existing.RepeatCount,
+                    RepeatCountAttributePresent = existing.RepeatCountAttributePresent,
                     SectionLetter = existing.SectionLetter,
                     SectionText = existing.SectionText,
                     Jump = existing.Jump,
@@ -497,7 +530,8 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                     KeyMode = existing.KeyMode,
                     KeyTransposeAs = existing.KeyTransposeAs,
                     Fermatas = existing.Fermatas,
-                    XProperties = existing.XProperties
+                    XProperties = existing.XProperties,
+                    XPropertiesXml = existing.XPropertiesXml
                 };
             }
         }
@@ -613,6 +647,11 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
 
     private static (int? StringNumber, int? Fret) ResolveStringAndFret(NoteModel note, TrackModel track, int staffIndex)
     {
+        if (ShouldPreserveSourceStringAndFret(note, track, staffIndex))
+        {
+            return (note.SourceStringNumber ?? note.StringNumber, note.SourceFret);
+        }
+
         if (!note.MidiPitch.HasValue)
         {
             return (note.StringNumber, null);
@@ -673,6 +712,82 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
         return track.Metadata.TuningPitches;
     }
 
+    private static bool ShouldPreserveSourceStringAndFret(NoteModel note, TrackModel track, int staffIndex)
+    {
+        if (!note.SourceFret.HasValue && !note.SourceStringNumber.HasValue)
+        {
+            return false;
+        }
+
+        if (note.MidiPitch != note.SourceMidiPitch
+            || note.StringNumber != note.SourceStringNumber
+            || ResolveTransposedMidiPitch(note, track) != note.SourceTransposedMidiPitch)
+        {
+            return false;
+        }
+
+        return SourceStringContextMatches(track, staffIndex);
+    }
+
+    private static bool SourceStringContextMatches(TrackModel track, int staffIndex)
+    {
+        var source = ResolveSourceStringContext(track.Metadata, staffIndex);
+        if (source is null)
+        {
+            return true;
+        }
+
+        return ResolveTuningPitches(track, staffIndex).SequenceEqual(source.TuningPitches)
+               && ResolveCapoFret(track, staffIndex) == source.CapoFret;
+    }
+
+    private static SourceStringContext? ResolveSourceStringContext(TrackMetadata metadata, int staffIndex)
+    {
+        if (staffIndex >= 0 && staffIndex < metadata.Staffs.Count)
+        {
+            var staff = metadata.Staffs[staffIndex];
+            var staffTuning = ParseTuningPitches(staff.Properties);
+            var staffCapo = ParseCapoFret(staff.Properties);
+            if (staffTuning.Length > 0 || staffCapo.HasValue)
+            {
+                return new SourceStringContext(staffTuning, staffCapo);
+            }
+        }
+
+        var trackTuning = ParseTuningPitches(metadata.Properties);
+        var trackCapo = ParseCapoFret(metadata.Properties);
+        if (trackTuning.Length > 0 || trackCapo.HasValue)
+        {
+            return new SourceStringContext(trackTuning, trackCapo);
+        }
+
+        return null;
+    }
+
+    private static int[] ParseTuningPitches(IReadOnlyDictionary<string, string> properties)
+        => properties.TryGetValue("Tuning", out var tuningRaw)
+            ? SplitInts(tuningRaw)
+            : Array.Empty<int>();
+
+    private static int? ParseCapoFret(IReadOnlyDictionary<string, string> properties)
+        => properties.TryGetValue("CapoFret", out var capoRaw)
+            ? TryParseNullableInt(capoRaw)
+            : null;
+
+    private static int? ResolveCapoFret(TrackModel track, int staffIndex)
+    {
+        if (staffIndex >= 0 && staffIndex < track.Metadata.Staffs.Count)
+        {
+            var staffCapo = track.Metadata.Staffs[staffIndex].CapoFret;
+            if (staffCapo.HasValue)
+            {
+                return staffCapo;
+            }
+        }
+
+        return ParseCapoFret(track.Metadata.Properties);
+    }
+
     private static string ResolveStavesXml(TrackMetadata metadata)
         => ShouldPreserveSourceStavesXml(metadata)
             ? metadata.StavesXml
@@ -716,6 +831,27 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
         var chromatic = track.Metadata.Transpose.Chromatic ?? 0;
         var octave = track.Metadata.Transpose.Octave ?? 0;
         return note.MidiPitch.Value - (octave * 12) + chromatic;
+    }
+
+    private static int? ResolveTrillSpeedXPropertyValue(NoteModel note)
+    {
+        var encodedTrillSpeed = ArticulationDecoders.EncodeTrillSpeed(note.Articulation.TrillSpeed);
+        if (!encodedTrillSpeed.HasValue)
+        {
+            return null;
+        }
+
+        if (note.XProperties.TryGetValue("688062467", out var sourceValue)
+            && ArticulationDecoders.DecodeTrillSpeed(
+                new Dictionary<string, int>
+                {
+                    ["688062467"] = sourceValue
+                }) == note.Articulation.TrillSpeed)
+        {
+            return sourceValue;
+        }
+
+        return encodedTrillSpeed.Value;
     }
 
     private static bool ShouldPreserveSourceConcertPitch(NoteModel note)
@@ -846,6 +982,8 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 SourceBarId = measure.SourceBarId,
                 Clef = measure.Clef,
                 BarProperties = measure.BarProperties,
+                BarXProperties = measure.BarXProperties,
+                BarXPropertiesXml = measure.BarXPropertiesXml,
                 Voices = measure.Voices,
                 Beats = measure.Beats
             }
@@ -959,6 +1097,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             VoicesReferenceList = bar.VoicesReferenceList,
             Clef = bar.Clef,
             XProperties = bar.XProperties,
+            XPropertiesXml = bar.XPropertiesXml,
             Properties = bar.Properties
         };
 
@@ -982,6 +1121,12 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             TransposedPitchStemOrientation = beat.TransposedPitchStemOrientation,
             UserTransposedPitchStemOrientation = beat.UserTransposedPitchStemOrientation,
             ConcertPitchStemOrientation = beat.ConcertPitchStemOrientation,
+            Hairpin = beat.Hairpin,
+            Variation = beat.Variation,
+            Ottavia = beat.Ottavia,
+            LegatoOrigin = beat.LegatoOrigin,
+            LegatoDestination = beat.LegatoDestination,
+            LyricsXml = beat.LyricsXml,
             PickStrokeDirection = beat.PickStrokeDirection,
             VibratoWithTremBarStrength = beat.VibratoWithTremBarStrength,
             Slapped = beat.Slapped,
@@ -990,6 +1135,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             BrushIsUp = beat.BrushIsUp,
             Arpeggio = beat.Arpeggio,
             BrushDurationTicks = beat.BrushDurationTicks,
+            BrushDurationXPropertyId = beat.BrushDurationXPropertyId,
             Rasgueado = beat.Rasgueado,
             DeadSlapped = beat.DeadSlapped,
             Tremolo = beat.Tremolo,
@@ -1005,8 +1151,11 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             WhammyBarMiddleOffset1 = beat.WhammyBarMiddleOffset1,
             WhammyBarMiddleOffset2 = beat.WhammyBarMiddleOffset2,
             WhammyBarDestinationOffset = beat.WhammyBarDestinationOffset,
+            WhammyUsesElement = beat.WhammyUsesElement,
+            WhammyExtendUsesElement = beat.WhammyExtendUsesElement,
             Properties = beat.Properties,
-            XProperties = beat.XProperties
+            XProperties = beat.XProperties,
+            XPropertiesXml = beat.XPropertiesXml
         };
 
     private static GpifNote WithNoteId(GpifNote note, int id)
@@ -1017,9 +1166,12 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             TransposedMidiPitch = note.TransposedMidiPitch,
             ConcertPitch = note.ConcertPitch,
             TransposedPitch = note.TransposedPitch,
+            SourceFret = note.SourceFret,
+            SourceStringNumber = note.SourceStringNumber,
             Properties = note.Properties,
             Articulation = note.Articulation,
-            XProperties = note.XProperties
+            XProperties = note.XProperties,
+            XPropertiesXml = note.XPropertiesXml
         };
 
     private static GpifRhythm WithRhythmId(GpifRhythm rhythm, int id)
@@ -1037,6 +1189,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
         => string.Equals(a.VoicesReferenceList, b.VoicesReferenceList, StringComparison.Ordinal)
            && string.Equals(a.Clef, b.Clef, StringComparison.Ordinal)
            && DictionariesEqual(a.XProperties, b.XProperties)
+           && string.Equals(a.XPropertiesXml, b.XPropertiesXml, StringComparison.Ordinal)
            && DictionariesEqual(a.Properties, b.Properties);
 
     private static bool VoicesEqual(GpifVoice a, GpifVoice b)
@@ -1052,6 +1205,12 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
            && string.Equals(a.TransposedPitchStemOrientation, b.TransposedPitchStemOrientation, StringComparison.Ordinal)
            && string.Equals(a.UserTransposedPitchStemOrientation, b.UserTransposedPitchStemOrientation, StringComparison.Ordinal)
            && string.Equals(a.ConcertPitchStemOrientation, b.ConcertPitchStemOrientation, StringComparison.Ordinal)
+           && string.Equals(a.Hairpin, b.Hairpin, StringComparison.Ordinal)
+           && string.Equals(a.Variation, b.Variation, StringComparison.Ordinal)
+           && string.Equals(a.Ottavia, b.Ottavia, StringComparison.Ordinal)
+           && a.LegatoOrigin == b.LegatoOrigin
+           && a.LegatoDestination == b.LegatoDestination
+           && string.Equals(a.LyricsXml, b.LyricsXml, StringComparison.Ordinal)
            && string.Equals(a.PickStrokeDirection, b.PickStrokeDirection, StringComparison.Ordinal)
            && string.Equals(a.VibratoWithTremBarStrength, b.VibratoWithTremBarStrength, StringComparison.Ordinal)
            && a.Slapped == b.Slapped
@@ -1060,6 +1219,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
            && a.BrushIsUp == b.BrushIsUp
            && a.Arpeggio == b.Arpeggio
            && a.BrushDurationTicks == b.BrushDurationTicks
+           && string.Equals(a.BrushDurationXPropertyId, b.BrushDurationXPropertyId, StringComparison.Ordinal)
            && a.Rasgueado == b.Rasgueado
            && a.DeadSlapped == b.DeadSlapped
            && a.Tremolo == b.Tremolo
@@ -1075,8 +1235,11 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
            && a.WhammyBarMiddleOffset1 == b.WhammyBarMiddleOffset1
            && a.WhammyBarMiddleOffset2 == b.WhammyBarMiddleOffset2
            && a.WhammyBarDestinationOffset == b.WhammyBarDestinationOffset
+           && a.WhammyUsesElement == b.WhammyUsesElement
+           && a.WhammyExtendUsesElement == b.WhammyExtendUsesElement
            && DictionariesEqual(a.Properties, b.Properties)
-           && DictionariesEqual(a.XProperties, b.XProperties);
+           && DictionariesEqual(a.XProperties, b.XProperties)
+           && string.Equals(a.XPropertiesXml, b.XPropertiesXml, StringComparison.Ordinal);
 
     private static bool RhythmsEqual(GpifRhythm a, GpifRhythm b)
         => string.Equals(a.NoteValue, b.NoteValue, StringComparison.Ordinal)
@@ -1090,9 +1253,12 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
            && a.TransposedMidiPitch == b.TransposedMidiPitch
            && PitchValuesEqual(a.ConcertPitch, b.ConcertPitch)
            && PitchValuesEqual(a.TransposedPitch, b.TransposedPitch)
+           && a.SourceFret == b.SourceFret
+           && a.SourceStringNumber == b.SourceStringNumber
            && PropertiesEqual(a.Properties, b.Properties)
            && ArticulationsEqual(a.Articulation, b.Articulation)
-           && DictionariesEqual(a.XProperties, b.XProperties);
+           && DictionariesEqual(a.XProperties, b.XProperties)
+           && string.Equals(a.XPropertiesXml, b.XPropertiesXml, StringComparison.Ordinal);
 
     private static bool PitchValuesEqual(GpifPitchValue? a, GpifPitchValue? b)
         => ReferenceEquals(a, b)
@@ -1209,6 +1375,10 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
         int[] TuningPitches,
         int? CapoFret,
         IReadOnlyDictionary<string, string> Properties);
+
+    private sealed record SourceStringContext(
+        int[] TuningPitches,
+        int? CapoFret);
 
     private static decimal ResolveRhythmDuration(GpifRhythm rhythm)
     {

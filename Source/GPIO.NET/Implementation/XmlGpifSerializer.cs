@@ -289,13 +289,19 @@ public sealed class XmlGpifSerializer : IGpifSerializer
             new XElement("Time", m.Time),
             new XElement("Bars", m.BarsReferenceList ?? string.Empty));
 
+        if (m.DoubleBar)
+        {
+            el.Add(new XElement("DoubleBar"));
+        }
+
+        AddTextElement(el, "TripletFeel", m.TripletFeel);
         if (!string.IsNullOrWhiteSpace(m.AlternateEndings)) el.Add(new XElement("AlternateEndings", m.AlternateEndings));
-        if (m.RepeatStart || m.RepeatEnd || m.RepeatCount > 0)
+        if (m.RepeatStart || m.RepeatEnd || m.RepeatCount > 0 || m.RepeatStartAttributePresent || m.RepeatEndAttributePresent || m.RepeatCountAttributePresent)
         {
             var repeat = new XElement("Repeat");
-            if (m.RepeatStart) repeat.SetAttributeValue("start", "true");
-            if (m.RepeatEnd) repeat.SetAttributeValue("end", "true");
-            if (m.RepeatCount > 0) repeat.SetAttributeValue("count", m.RepeatCount);
+            if (m.RepeatStart || m.RepeatStartAttributePresent) repeat.SetAttributeValue("start", m.RepeatStart.ToString().ToLowerInvariant());
+            if (m.RepeatEnd || m.RepeatEndAttributePresent) repeat.SetAttributeValue("end", m.RepeatEnd.ToString().ToLowerInvariant());
+            if (m.RepeatCount > 0 || m.RepeatCountAttributePresent) repeat.SetAttributeValue("count", m.RepeatCount);
             el.Add(repeat);
         }
 
@@ -340,7 +346,11 @@ public sealed class XmlGpifSerializer : IGpifSerializer
                 f.Length.HasValue ? new XElement("Length", f.Length.Value) : null))));
         }
 
-        if (m.XProperties.Count > 0)
+        if (CanPreserveSourceXPropertiesXml(m.XPropertiesXml, m.XProperties))
+        {
+            AddRawElementXml(el, m.XPropertiesXml);
+        }
+        else if (m.XProperties.Count > 0)
         {
             el.Add(new XElement("XProperties", m.XProperties.Select(kv =>
                 new XElement("XProperty", new XAttribute("id", kv.Key), new XElement("Int", kv.Value)))));
@@ -593,7 +603,11 @@ public sealed class XmlGpifSerializer : IGpifSerializer
             bar.Add(new XElement("Properties", b.Properties.Select(kv => new XElement("Property", new XAttribute("name", kv.Key), new XElement("Value", kv.Value)))));
         }
 
-        if (b.XProperties.Count > 0)
+        if (CanPreserveSourceXPropertiesXml(b.XPropertiesXml, b.XProperties))
+        {
+            AddRawElementXml(bar, b.XPropertiesXml);
+        }
+        else if (b.XProperties.Count > 0)
         {
             bar.Add(new XElement("XProperties", b.XProperties.Select(kv => new XElement("XProperty", new XAttribute("id", kv.Key), new XElement("Int", kv.Value)))));
         }
@@ -636,10 +650,30 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         AddTextElement(el, "TransposedPitchStemOrientation", b.TransposedPitchStemOrientation);
         AddTextElement(el, "UserTransposedPitchStemOrientation", b.UserTransposedPitchStemOrientation);
         AddTextElement(el, "ConcertPitchStemOrientation", b.ConcertPitchStemOrientation);
+        AddTextElement(el, "Hairpin", b.Hairpin);
+        AddTextElement(el, "Ottavia", b.Ottavia);
+        if (b.WhammyUsesElement)
+        {
+            var whammy = BuildWhammyElement(b);
+            if (whammy is not null)
+            {
+                el.Add(whammy);
+            }
+        }
+        if (b.WhammyExtendUsesElement && b.WhammyBarExtended)
+        {
+            el.Add(new XElement("WhammyExtend"));
+        }
+        AddTextElement(el, "Variation", b.Variation);
         if (b.DeadSlapped) el.Add(new XElement("DeadSlapped"));
         if (b.Tremolo) el.Add(new XElement("Tremolo", b.TremoloValue));
         AddTextElement(el, "Chord", b.ChordId);
         AddTextElement(el, "FreeText", b.FreeText);
+        var legato = BuildLegatoElement(b);
+        if (legato is not null)
+        {
+            el.Add(legato);
+        }
         if (b.Arpeggio) el.Add(new XElement("Arpeggio", b.BrushIsUp ? "Up" : "Down"));
         if (!string.IsNullOrWhiteSpace(b.NotesReferenceList)) el.Add(new XElement("Notes", b.NotesReferenceList));
 
@@ -654,15 +688,24 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         }
 
         UpsertBeatProperty(beatPropertyValues, "Rasgueado", b.Rasgueado);
-        UpsertBeatProperty(beatPropertyValues, "WhammyBar", b.WhammyBar);
-        UpsertBeatProperty(beatPropertyValues, "WhammyBarExtend", b.WhammyBarExtended);
-        UpsertBeatProperty(beatPropertyValues, "WhammyBarOriginValue", b.WhammyBarOriginValue);
-        UpsertBeatProperty(beatPropertyValues, "WhammyBarMiddleValue", b.WhammyBarMiddleValue);
-        UpsertBeatProperty(beatPropertyValues, "WhammyBarDestinationValue", b.WhammyBarDestinationValue);
-        UpsertBeatProperty(beatPropertyValues, "WhammyBarOriginOffset", b.WhammyBarOriginOffset);
-        UpsertBeatProperty(beatPropertyValues, "WhammyBarMiddleOffset1", b.WhammyBarMiddleOffset1);
-        UpsertBeatProperty(beatPropertyValues, "WhammyBarMiddleOffset2", b.WhammyBarMiddleOffset2);
-        UpsertBeatProperty(beatPropertyValues, "WhammyBarDestinationOffset", b.WhammyBarDestinationOffset);
+        if (!b.WhammyUsesElement)
+        {
+            if (ShouldEmitWhammyBarProperty(b))
+            {
+                UpsertBeatProperty(beatPropertyValues, "WhammyBar", b.WhammyBar);
+            }
+            UpsertBeatProperty(beatPropertyValues, "WhammyBarOriginValue", b.WhammyBarOriginValue);
+            UpsertBeatProperty(beatPropertyValues, "WhammyBarMiddleValue", b.WhammyBarMiddleValue);
+            UpsertBeatProperty(beatPropertyValues, "WhammyBarDestinationValue", b.WhammyBarDestinationValue);
+            UpsertBeatProperty(beatPropertyValues, "WhammyBarOriginOffset", b.WhammyBarOriginOffset);
+            UpsertBeatProperty(beatPropertyValues, "WhammyBarMiddleOffset1", b.WhammyBarMiddleOffset1);
+            UpsertBeatProperty(beatPropertyValues, "WhammyBarMiddleOffset2", b.WhammyBarMiddleOffset2);
+            UpsertBeatProperty(beatPropertyValues, "WhammyBarDestinationOffset", b.WhammyBarDestinationOffset);
+        }
+        if (!b.WhammyExtendUsesElement)
+        {
+            UpsertBeatProperty(beatPropertyValues, "WhammyBarExtend", b.WhammyBarExtended);
+        }
 
         var beatProperties = new XElement("Properties");
         foreach (var (name, value) in beatPropertyValues.OrderBy(kv => kv.Key, StringComparer.Ordinal))
@@ -679,7 +722,13 @@ public sealed class XmlGpifSerializer : IGpifSerializer
             el.Add(beatProperties);
         }
 
-        if (b.XProperties.Count > 0)
+        AddRawElementXml(el, b.LyricsXml);
+
+        if (CanPreserveSourceXPropertiesXml(b.XPropertiesXml, b.XProperties))
+        {
+            AddRawElementXml(el, b.XPropertiesXml);
+        }
+        else if (b.XProperties.Count > 0)
         {
             el.Add(new XElement("XProperties", b.XProperties.Select(kv =>
                 new XElement("XProperty", new XAttribute("id", kv.Key), new XElement("Int", kv.Value)))));
@@ -860,7 +909,11 @@ public sealed class XmlGpifSerializer : IGpifSerializer
 
         if (props.HasElements) el.Add(props);
 
-        if (n.XProperties.Count > 0)
+        if (CanPreserveSourceXPropertiesXml(n.XPropertiesXml, n.XProperties))
+        {
+            AddRawElementXml(el, n.XPropertiesXml);
+        }
+        else if (n.XProperties.Count > 0)
         {
             el.Add(new XElement("XProperties", n.XProperties.Select(kv =>
                 new XElement("XProperty", new XAttribute("id", kv.Key), new XElement("Int", kv.Value)))));
@@ -1004,6 +1057,142 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         {
             // ignore malformed passthrough chunks
         }
+    }
+
+    private static bool CanPreserveSourceXPropertiesXml(string xml, IReadOnlyDictionary<string, int> currentValues)
+    {
+        if (string.IsNullOrWhiteSpace(xml))
+        {
+            return false;
+        }
+
+        try
+        {
+            var sourceValues = XElement.Parse(xml)
+                .Elements("XProperty")
+                .Where(x => x.Attribute("id") is not null)
+                .Select(x => new { Id = x.Attribute("id")!.Value, Value = TryParseInt(x.Element("Int")?.Value) })
+                .Where(x => x.Value.HasValue)
+                .ToDictionary(x => x.Id, x => x.Value!.Value);
+
+            return DictionariesEqual(sourceValues, currentValues);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static XElement? BuildLegatoElement(GpifBeat beat)
+    {
+        if (!beat.LegatoOrigin.HasValue && !beat.LegatoDestination.HasValue)
+        {
+            return null;
+        }
+
+        var legato = new XElement("Legato");
+        if (beat.LegatoOrigin.HasValue)
+        {
+            legato.SetAttributeValue("origin", beat.LegatoOrigin.Value.ToString().ToLowerInvariant());
+        }
+
+        if (beat.LegatoDestination.HasValue)
+        {
+            legato.SetAttributeValue("destination", beat.LegatoDestination.Value.ToString().ToLowerInvariant());
+        }
+
+        return legato;
+    }
+
+    private static XElement? BuildWhammyElement(GpifBeat beat)
+    {
+        if (!beat.WhammyBar && !beat.WhammyBarExtended
+            && !beat.WhammyBarOriginValue.HasValue
+            && !beat.WhammyBarMiddleValue.HasValue
+            && !beat.WhammyBarDestinationValue.HasValue
+            && !beat.WhammyBarOriginOffset.HasValue
+            && !beat.WhammyBarMiddleOffset1.HasValue
+            && !beat.WhammyBarMiddleOffset2.HasValue
+            && !beat.WhammyBarDestinationOffset.HasValue)
+        {
+            return null;
+        }
+
+        var element = new XElement("Whammy");
+        SetDecimalAttribute(element, "originValue", beat.WhammyBarOriginValue);
+        SetDecimalAttribute(element, "middleValue", beat.WhammyBarMiddleValue);
+        SetDecimalAttribute(element, "destinationValue", beat.WhammyBarDestinationValue);
+        SetDecimalAttribute(element, "originOffset", beat.WhammyBarOriginOffset);
+        SetDecimalAttribute(element, "middleOffset1", beat.WhammyBarMiddleOffset1);
+        SetDecimalAttribute(element, "middleOffset2", beat.WhammyBarMiddleOffset2);
+        SetDecimalAttribute(element, "destinationOffset", beat.WhammyBarDestinationOffset);
+        return element;
+    }
+
+    private static bool ShouldEmitWhammyBarProperty(GpifBeat beat)
+    {
+        if (!beat.WhammyBar)
+        {
+            return false;
+        }
+
+        if (beat.Properties.ContainsKey("WhammyBar"))
+        {
+            return true;
+        }
+
+        if (beat.WhammyExtendUsesElement
+            && !beat.WhammyUsesElement
+            && !HasWhammyCurveData(beat))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool HasWhammyCurveData(GpifBeat beat)
+        => beat.WhammyBarOriginValue.HasValue
+           || beat.WhammyBarMiddleValue.HasValue
+           || beat.WhammyBarDestinationValue.HasValue
+           || beat.WhammyBarOriginOffset.HasValue
+           || beat.WhammyBarMiddleOffset1.HasValue
+           || beat.WhammyBarMiddleOffset2.HasValue
+           || beat.WhammyBarDestinationOffset.HasValue;
+
+    private static void SetDecimalAttribute(XElement element, string name, decimal? value)
+    {
+        if (!value.HasValue)
+        {
+            return;
+        }
+
+        element.SetAttributeValue(name, value.Value.ToString("0.000000", CultureInfo.InvariantCulture));
+    }
+
+    private static int? TryParseInt(string? value)
+        => int.TryParse(value, out var parsed) ? parsed : null;
+
+    private static bool DictionariesEqual<TKey, TValue>(
+        IReadOnlyDictionary<TKey, TValue> left,
+        IReadOnlyDictionary<TKey, TValue> right)
+        where TKey : notnull
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        foreach (var (key, value) in left)
+        {
+            if (!right.TryGetValue(key, out var otherValue)
+                || !EqualityComparer<TValue>.Default.Equals(value, otherValue))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static void AddBoolProperty(XElement parent, string name, bool value)

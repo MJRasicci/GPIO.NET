@@ -455,15 +455,25 @@ public sealed class MeasureModel
 
     public string TimeSignature { get; init; } = string.Empty;
 
+    public bool DoubleBar { get; init; }
+
+    public string TripletFeel { get; init; } = string.Empty;
+
     public int SourceBarId { get; init; }
 
     public string Clef { get; init; } = string.Empty;
 
     public bool RepeatStart { get; init; }
 
+    public bool RepeatStartAttributePresent { get; init; }
+
     public bool RepeatEnd { get; init; }
 
+    public bool RepeatEndAttributePresent { get; init; }
+
     public int RepeatCount { get; init; }
+
+    public bool RepeatCountAttributePresent { get; init; }
 
     public string AlternateEndings { get; init; } = string.Empty;
 
@@ -487,7 +497,13 @@ public sealed class MeasureModel
 
     public IReadOnlyDictionary<string, int> XProperties { get; init; } = new Dictionary<string, int>();
 
+    public string MasterBarXPropertiesXml { get; init; } = string.Empty;
+
     public IReadOnlyDictionary<string, string> BarProperties { get; init; } = new Dictionary<string, string>();
+
+    public IReadOnlyDictionary<string, int> BarXProperties { get; init; } = new Dictionary<string, int>();
+
+    public string BarXPropertiesXml { get; init; } = string.Empty;
 
     public IReadOnlyList<MeasureStaffModel> AdditionalStaffBars { get; init; } = Array.Empty<MeasureStaffModel>();
 
@@ -505,6 +521,10 @@ public sealed class MeasureStaffModel
     public string Clef { get; init; } = string.Empty;
 
     public IReadOnlyDictionary<string, string> BarProperties { get; init; } = new Dictionary<string, string>();
+
+    public IReadOnlyDictionary<string, int> BarXProperties { get; init; } = new Dictionary<string, int>();
+
+    public string BarXPropertiesXml { get; init; } = string.Empty;
 
     public IReadOnlyList<MeasureVoiceModel> Voices { get; init; } = Array.Empty<MeasureVoiceModel>();
 
@@ -571,6 +591,18 @@ public sealed class BeatModel
 
     public string ConcertPitchStemOrientation { get; init; } = string.Empty;
 
+    public string Hairpin { get; init; } = string.Empty;
+
+    public string Variation { get; init; } = string.Empty;
+
+    public string Ottavia { get; init; } = string.Empty;
+
+    public bool? LegatoOrigin { get; init; }
+
+    public bool? LegatoDestination { get; init; }
+
+    public string LyricsXml { get; init; } = string.Empty;
+
     public string PickStrokeDirection { get; init; } = string.Empty;
 
     public string VibratoWithTremBarStrength { get; init; } = string.Empty;
@@ -589,6 +621,8 @@ public sealed class BeatModel
 
     public int? BrushDurationTicks { get; init; }
 
+    public string BrushDurationXPropertyId { get; init; } = string.Empty;
+
     public bool Rasgueado { get; init; }
 
     public bool DeadSlapped { get; init; }
@@ -603,7 +637,15 @@ public sealed class BeatModel
 
     public WhammyBarModel? WhammyBar { get; init; }
 
+    public bool WhammyUsesElement { get; init; }
+
+    public bool WhammyExtendUsesElement { get; init; }
+
     public IReadOnlyDictionary<string, string> Properties { get; init; } = new Dictionary<string, string>();
+
+    public IReadOnlyDictionary<string, int> XProperties { get; init; } = new Dictionary<string, int>();
+
+    public string XPropertiesXml { get; init; } = string.Empty;
 
     public IReadOnlyDictionary<string, string> VoiceProperties { get; init; } = new Dictionary<string, string>();
 
@@ -632,7 +674,15 @@ public sealed class NoteModel
 
     public PitchValueModel? TransposedPitch { get; init; }
 
+    public int? SourceFret { get; init; }
+
+    public int? SourceStringNumber { get; init; }
+
     public int? StringNumber { get; init; }
+
+    public IReadOnlyDictionary<string, int> XProperties { get; init; } = new Dictionary<string, int>();
+
+    public string XPropertiesXml { get; init; } = string.Empty;
 
     public decimal Duration { get; set; }
 

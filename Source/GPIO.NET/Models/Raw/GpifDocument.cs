@@ -192,15 +192,25 @@ public sealed class GpifMasterBar
 
     public string Time { get; init; } = string.Empty;
 
+    public bool DoubleBar { get; init; }
+
+    public string TripletFeel { get; init; } = string.Empty;
+
     public string BarsReferenceList { get; init; } = string.Empty;
 
     public string AlternateEndings { get; init; } = string.Empty;
 
     public bool RepeatStart { get; init; }
 
+    public bool RepeatStartAttributePresent { get; init; }
+
     public bool RepeatEnd { get; init; }
 
+    public bool RepeatEndAttributePresent { get; init; }
+
     public int RepeatCount { get; init; }
+
+    public bool RepeatCountAttributePresent { get; init; }
 
     public string SectionLetter { get; init; } = string.Empty;
 
@@ -221,6 +231,8 @@ public sealed class GpifMasterBar
     public IReadOnlyList<GpifFermata> Fermatas { get; init; } = Array.Empty<GpifFermata>();
 
     public IReadOnlyDictionary<string, int> XProperties { get; init; } = new Dictionary<string, int>();
+
+    public string XPropertiesXml { get; init; } = string.Empty;
 }
 
 public sealed class GpifFermata
@@ -241,6 +253,8 @@ public sealed class GpifBar
     public string Clef { get; init; } = string.Empty;
 
     public IReadOnlyDictionary<string, int> XProperties { get; init; } = new Dictionary<string, int>();
+
+    public string XPropertiesXml { get; init; } = string.Empty;
 
     public IReadOnlyDictionary<string, string> Properties { get; init; } = new Dictionary<string, string>();
 }
@@ -274,6 +288,18 @@ public sealed class GpifBeat
 
     public string ConcertPitchStemOrientation { get; init; } = string.Empty;
 
+    public string Hairpin { get; init; } = string.Empty;
+
+    public string Variation { get; init; } = string.Empty;
+
+    public string Ottavia { get; init; } = string.Empty;
+
+    public bool? LegatoOrigin { get; init; }
+
+    public bool? LegatoDestination { get; init; }
+
+    public string LyricsXml { get; init; } = string.Empty;
+
     public string PickStrokeDirection { get; init; } = string.Empty;
 
     public string VibratoWithTremBarStrength { get; init; } = string.Empty;
@@ -289,6 +315,8 @@ public sealed class GpifBeat
     public bool Arpeggio { get; init; }
 
     public int? BrushDurationTicks { get; init; }
+
+    public string BrushDurationXPropertyId { get; init; } = string.Empty;
 
     public bool Rasgueado { get; init; }
 
@@ -306,6 +334,8 @@ public sealed class GpifBeat
 
     public bool WhammyBarExtended { get; init; }
 
+    public bool WhammyExtendUsesElement { get; init; }
+
     public decimal? WhammyBarOriginValue { get; init; }
 
     public decimal? WhammyBarMiddleValue { get; init; }
@@ -320,9 +350,13 @@ public sealed class GpifBeat
 
     public decimal? WhammyBarDestinationOffset { get; init; }
 
+    public bool WhammyUsesElement { get; init; }
+
     public IReadOnlyDictionary<string, string> Properties { get; init; } = new Dictionary<string, string>();
 
     public IReadOnlyDictionary<string, int> XProperties { get; init; } = new Dictionary<string, int>();
+
+    public string XPropertiesXml { get; init; } = string.Empty;
 }
 
 public sealed class GpifNote
@@ -337,11 +371,17 @@ public sealed class GpifNote
 
     public GpifPitchValue? TransposedPitch { get; init; }
 
+    public int? SourceFret { get; init; }
+
+    public int? SourceStringNumber { get; init; }
+
     public IReadOnlyList<GpifNoteProperty> Properties { get; init; } = Array.Empty<GpifNoteProperty>();
 
     public GpifNoteArticulation Articulation { get; init; } = new();
 
     public IReadOnlyDictionary<string, int> XProperties { get; init; } = new Dictionary<string, int>();
+
+    public string XPropertiesXml { get; init; } = string.Empty;
 }
 
 public sealed class GpifPitchValue

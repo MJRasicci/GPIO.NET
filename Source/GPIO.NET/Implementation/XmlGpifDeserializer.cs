@@ -125,11 +125,8 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                         Length = TryParseNullableDecimal(f.Element("Length")?.Value)
                     })
                     .ToArray();
-                var xprops = (mb.Element("XProperties")?.Elements("XProperty") ?? Enumerable.Empty<XElement>())
-                    .Where(x => x.Attribute("id") is not null)
-                    .Select(x => new { Id = x.Attribute("id")!.Value, Int = ParseInt(x.Element("Int")?.Value) })
-                    .Where(x => x.Int >= 0)
-                    .ToDictionary(x => x.Id, x => x.Int);
+                var masterBarXProperties = mb.Element("XProperties");
+                var xprops = ParseXPropertyInts(masterBarXProperties);
 
                 var directionProps = (directions?.Elements() ?? Enumerable.Empty<XElement>())
                     .GroupBy(e => e.Name.LocalName, StringComparer.OrdinalIgnoreCase)
@@ -139,11 +136,16 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                 {
                     Index = index,
                     Time = mb.Element("Time")?.Value ?? string.Empty,
+                    DoubleBar = mb.Element("DoubleBar") is not null,
+                    TripletFeel = mb.Element("TripletFeel")?.Value ?? string.Empty,
                     BarsReferenceList = mb.Element("Bars")?.Value ?? string.Empty,
                     AlternateEndings = mb.Element("AlternateEndings")?.Value ?? string.Empty,
                     RepeatStart = ParseBool(repeat?.Attribute("start")?.Value),
+                    RepeatStartAttributePresent = repeat?.Attribute("start") is not null,
                     RepeatEnd = ParseBool(repeat?.Attribute("end")?.Value),
+                    RepeatEndAttributePresent = repeat?.Attribute("end") is not null,
                     RepeatCount = ParseInt(repeat?.Attribute("count")?.Value),
+                    RepeatCountAttributePresent = repeat?.Attribute("count") is not null,
                     SectionLetter = section?.Element("Letter")?.Value ?? string.Empty,
                     SectionText = section?.Element("Text")?.Value ?? string.Empty,
                     Jump = directions?.Element("Jump")?.Value ?? string.Empty,
@@ -153,7 +155,8 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     KeyMode = key?.Element("Mode")?.Value ?? string.Empty,
                     KeyTransposeAs = key?.Element("TransposeAs")?.Value ?? string.Empty,
                     Fermatas = fermatas,
-                    XProperties = xprops
+                    XProperties = xprops,
+                    XPropertiesXml = masterBarXProperties?.ToString(SaveOptions.DisableFormatting) ?? string.Empty
                 };
             })
             .ToArray();
@@ -162,11 +165,8 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
             .Select(b =>
             {
                 var props = ParsePropertyDictionary(b.Element("Properties"));
-                var xprops = (b.Element("XProperties")?.Elements("XProperty") ?? Enumerable.Empty<XElement>())
-                    .Where(x => x.Attribute("id") is not null)
-                    .Select(x => new { Id = x.Attribute("id")!.Value, Int = ParseInt(x.Element("Int")?.Value) })
-                    .Where(x => x.Int >= 0)
-                    .ToDictionary(x => x.Id, x => x.Int);
+                var barXProperties = b.Element("XProperties");
+                var xprops = ParseXPropertyInts(barXProperties);
 
                 return new GpifBar
                 {
@@ -174,6 +174,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     VoicesReferenceList = b.Element("Voices")?.Value ?? string.Empty,
                     Clef = b.Element("Clef")?.Value ?? string.Empty,
                     XProperties = xprops,
+                    XPropertiesXml = barXProperties?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                     Properties = props
                 };
             })
@@ -219,11 +220,8 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
             .Select(n =>
             {
                 var properties = ParseNoteProperties(n);
-                var noteXprops = (n.Element("XProperties")?.Elements("XProperty") ?? Enumerable.Empty<XElement>())
-                    .Where(x => x.Attribute("id") is not null)
-                    .Select(x => new { Id = x.Attribute("id")!.Value, Int = ParseInt(x.Element("Int")?.Value) })
-                    .Where(x => x.Int >= 0)
-                    .ToDictionary(x => x.Id, x => x.Int);
+                var noteXProperties = n.Element("XProperties");
+                var noteXprops = ParseXPropertyInts(noteXProperties);
 
                 return new GpifNote
                 {
@@ -232,9 +230,12 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     TransposedMidiPitch = ParseNamedMidiPitch(n, "TransposedPitch"),
                     ConcertPitch = ParseNamedPitchValue(n, "ConcertPitch"),
                     TransposedPitch = ParseNamedPitchValue(n, "TransposedPitch"),
+                    SourceFret = ParseNamedFretProperty(n),
+                    SourceStringNumber = ParseNamedStringProperty(n),
                     Properties = properties,
                     Articulation = ParseArticulation(n, properties),
-                    XProperties = noteXprops
+                    XProperties = noteXprops,
+                    XPropertiesXml = noteXProperties?.ToString(SaveOptions.DisableFormatting) ?? string.Empty
                 };
             })
             .ToDictionary(n => n.Id);
@@ -243,6 +244,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
             .Select(b =>
             {
                 var properties = ParsePropertyDictionary(b.Element("Properties"));
+                var whammyElement = b.Element("Whammy");
                 properties.TryGetValue("PickStroke", out var pickStrokeDirection);
                 properties.TryGetValue("VibratoWTremBar", out var vibratoWithTremBarStrength);
                 properties.TryGetValue("Slapped", out var slappedRaw);
@@ -255,20 +257,20 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                 var hasArpeggio = b.Element("Arpeggio") is not null;
                 var arpeggioDirection = b.Element("Arpeggio")?.Value ?? string.Empty;
 
-                var xprops = (b.Element("XProperties")?.Elements("XProperty") ?? Enumerable.Empty<XElement>())
-                    .Where(x => x.Attribute("id") is not null)
-                    .Select(x => new { Id = x.Attribute("id")!.Value, Int = ParseInt(x.Element("Int")?.Value) })
-                    .Where(x => x.Int >= 0)
-                    .ToDictionary(x => x.Id, x => x.Int);
+                var beatXProperties = b.Element("XProperties");
+                var xprops = ParseXPropertyInts(beatXProperties);
 
                 int? brushDurationTicks = null;
+                var brushDurationXPropertyId = string.Empty;
                 if (xprops.TryGetValue("687935489", out var bd1))
                 {
                     brushDurationTicks = bd1;
+                    brushDurationXPropertyId = "687935489";
                 }
                 else if (xprops.TryGetValue("687931393", out var bd2))
                 {
                     brushDurationTicks = bd2;
+                    brushDurationXPropertyId = "687931393";
                 }
                 else if (!string.IsNullOrWhiteSpace(brushRaw))
                 {
@@ -286,6 +288,14 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     return decimal.TryParse(raw, out var v) ? v : null;
                 }
 
+                decimal? GetWhammyAttribute(string attributeName)
+                {
+                    var raw = whammyElement?.Attribute(attributeName)?.Value;
+                    return decimal.TryParse(raw, out var value) ? value : null;
+                }
+
+                var legato = b.Element("Legato");
+
                 return new GpifBeat
                 {
                     Id = ParseInt(b.Attribute("id")?.Value),
@@ -296,6 +306,12 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     TransposedPitchStemOrientation = b.Element("TransposedPitchStemOrientation")?.Value ?? string.Empty,
                     UserTransposedPitchStemOrientation = b.Element("UserTransposedPitchStemOrientation")?.Value ?? string.Empty,
                     ConcertPitchStemOrientation = b.Element("ConcertPitchStemOrientation")?.Value ?? string.Empty,
+                    Hairpin = b.Element("Hairpin")?.Value ?? string.Empty,
+                    Variation = b.Element("Variation")?.Value ?? string.Empty,
+                    Ottavia = b.Element("Ottavia")?.Value ?? string.Empty,
+                    LegatoOrigin = TryParseNullableBool(legato?.Attribute("origin")?.Value),
+                    LegatoDestination = TryParseNullableBool(legato?.Attribute("destination")?.Value),
+                    LyricsXml = b.Element("Lyrics")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                     PickStrokeDirection = pickStrokeDirection ?? string.Empty,
                     VibratoWithTremBarStrength = vibratoWithTremBarStrength ?? string.Empty,
                     Slapped = string.Equals(slappedRaw, "true", StringComparison.OrdinalIgnoreCase),
@@ -305,23 +321,29 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                         || string.Equals(arpeggioDirection, "Up", StringComparison.OrdinalIgnoreCase),
                     Arpeggio = hasArpeggio,
                     BrushDurationTicks = brushDurationTicks,
+                    BrushDurationXPropertyId = brushDurationXPropertyId,
                     Rasgueado = string.Equals(rasgueadoRaw, "true", StringComparison.OrdinalIgnoreCase),
                     DeadSlapped = b.Element("DeadSlapped") is not null,
                     Tremolo = b.Element("Tremolo") is not null,
                     TremoloValue = b.Element("Tremolo")?.Value ?? string.Empty,
                     ChordId = b.Element("Chord")?.Value ?? string.Empty,
                     FreeText = b.Element("FreeText")?.Value ?? string.Empty,
-                    WhammyBar = string.Equals(whammyBarRaw, "true", StringComparison.OrdinalIgnoreCase),
-                    WhammyBarExtended = string.Equals(whammyBarExtendRaw, "true", StringComparison.OrdinalIgnoreCase),
-                    WhammyBarOriginValue = GetBeatPropertyFloat("WhammyBarOriginValue"),
-                    WhammyBarMiddleValue = GetBeatPropertyFloat("WhammyBarMiddleValue"),
-                    WhammyBarDestinationValue = GetBeatPropertyFloat("WhammyBarDestinationValue"),
-                    WhammyBarOriginOffset = GetBeatPropertyFloat("WhammyBarOriginOffset"),
-                    WhammyBarMiddleOffset1 = GetBeatPropertyFloat("WhammyBarMiddleOffset1"),
-                    WhammyBarMiddleOffset2 = GetBeatPropertyFloat("WhammyBarMiddleOffset2"),
-                    WhammyBarDestinationOffset = GetBeatPropertyFloat("WhammyBarDestinationOffset"),
+                    WhammyBar = string.Equals(whammyBarRaw, "true", StringComparison.OrdinalIgnoreCase)
+                        || whammyElement is not null,
+                    WhammyBarExtended = string.Equals(whammyBarExtendRaw, "true", StringComparison.OrdinalIgnoreCase)
+                        || b.Element("WhammyExtend") is not null,
+                    WhammyExtendUsesElement = b.Element("WhammyExtend") is not null,
+                    WhammyBarOriginValue = GetBeatPropertyFloat("WhammyBarOriginValue") ?? GetWhammyAttribute("originValue"),
+                    WhammyBarMiddleValue = GetBeatPropertyFloat("WhammyBarMiddleValue") ?? GetWhammyAttribute("middleValue"),
+                    WhammyBarDestinationValue = GetBeatPropertyFloat("WhammyBarDestinationValue") ?? GetWhammyAttribute("destinationValue"),
+                    WhammyBarOriginOffset = GetBeatPropertyFloat("WhammyBarOriginOffset") ?? GetWhammyAttribute("originOffset"),
+                    WhammyBarMiddleOffset1 = GetBeatPropertyFloat("WhammyBarMiddleOffset1") ?? GetWhammyAttribute("middleOffset1"),
+                    WhammyBarMiddleOffset2 = GetBeatPropertyFloat("WhammyBarMiddleOffset2") ?? GetWhammyAttribute("middleOffset2"),
+                    WhammyBarDestinationOffset = GetBeatPropertyFloat("WhammyBarDestinationOffset") ?? GetWhammyAttribute("destinationOffset"),
+                    WhammyUsesElement = whammyElement is not null,
                     Properties = properties,
-                    XProperties = xprops
+                    XProperties = xprops,
+                    XPropertiesXml = beatXProperties?.ToString(SaveOptions.DisableFormatting) ?? string.Empty
                 };
             })
             .ToDictionary(b => b.Id);
@@ -381,6 +403,19 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
 
     private static int ParseInt(string? value)
         => int.TryParse(value, out var result) ? result : -1;
+
+    private static Dictionary<string, int> ParseXPropertyInts(XElement? xPropertiesElement)
+        => (xPropertiesElement?.Elements("XProperty") ?? Enumerable.Empty<XElement>())
+            .Where(x => x.Attribute("id") is not null)
+            .Select(x => new { Id = x.Attribute("id")!.Value, Int = TryParseXPropertyIntValue(x) })
+            .Where(x => x.Int.HasValue)
+            .ToDictionary(x => x.Id, x => x.Int!.Value);
+
+    private static int? TryParseXPropertyIntValue(XElement xProperty)
+    {
+        var raw = xProperty.Element("Int")?.Value;
+        return int.TryParse(raw, out var value) ? value : null;
+    }
 
     private static string[] ParseExplicitEmptyOptionalScoreElements(XElement? score)
     {
@@ -470,6 +505,24 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                 .FirstOrDefault(p => string.Equals(p.Attribute("name")?.Value, propertyName, StringComparison.OrdinalIgnoreCase))
                 ?.Element("Number")
                 ?.Value);
+
+    private static int? ParseNamedFretProperty(XElement note)
+        => TryParseNullableInt(
+            note.Element("Properties")?
+                .Elements("Property")
+                .FirstOrDefault(p => string.Equals(p.Attribute("name")?.Value, "Fret", StringComparison.OrdinalIgnoreCase))
+                ?.Element("Fret")
+                ?.Value);
+
+    private static int? ParseNamedStringProperty(XElement note)
+    {
+        var property = note.Element("Properties")?
+            .Elements("Property")
+            .FirstOrDefault(p => string.Equals(p.Attribute("name")?.Value, "String", StringComparison.OrdinalIgnoreCase));
+
+        return TryParseNullableInt(property?.Element("String")?.Value)
+            ?? TryParseNullableInt(property?.Element("Number")?.Value);
+    }
 
     private static int? ParsePitchElementToMidi(XElement pitch)
     {
