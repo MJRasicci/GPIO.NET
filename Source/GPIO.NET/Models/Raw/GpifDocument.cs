@@ -100,6 +100,8 @@ public sealed class GpifTrack
 
     public string SystemsLayout { get; init; } = string.Empty;
 
+    public bool HasExplicitEmptySystemsLayout { get; init; }
+
     public decimal? PalmMute { get; init; }
 
     public decimal? AutoAccentuation { get; init; }
@@ -122,6 +124,8 @@ public sealed class GpifTrack
 
     public bool? TuningLabelVisible { get; init; }
 
+    public bool HasTrackTuningProperty { get; init; }
+
     public IReadOnlyDictionary<string, string> Properties { get; init; } = new Dictionary<string, string>();
 
     public string InstrumentSetXml { get; init; } = string.Empty;
@@ -131,6 +135,8 @@ public sealed class GpifTrack
     public string SoundsXml { get; init; } = string.Empty;
 
     public string RseXml { get; init; } = string.Empty;
+
+    public string NotationPatchXml { get; init; } = string.Empty;
 
     public GpifInstrumentSet InstrumentSet { get; init; } = new();
 
@@ -327,11 +333,24 @@ public sealed class GpifNote
 
     public int? TransposedMidiPitch { get; init; }
 
+    public GpifPitchValue? ConcertPitch { get; init; }
+
+    public GpifPitchValue? TransposedPitch { get; init; }
+
     public IReadOnlyList<GpifNoteProperty> Properties { get; init; } = Array.Empty<GpifNoteProperty>();
 
     public GpifNoteArticulation Articulation { get; init; } = new();
 
     public IReadOnlyDictionary<string, int> XProperties { get; init; } = new Dictionary<string, int>();
+}
+
+public sealed class GpifPitchValue
+{
+    public string Step { get; init; } = string.Empty;
+
+    public string Accidental { get; init; } = string.Empty;
+
+    public int? Octave { get; init; }
 }
 
 public sealed class GpifNoteProperty

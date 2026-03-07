@@ -126,7 +126,7 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         AddTextElement(el, "ShortName", t.ShortName);
         AddTextElement(el, "Color", t.Color);
         AddTextElement(el, "SystemsDefautLayout", t.SystemsDefaultLayout);
-        AddTextElement(el, "SystemsLayout", t.SystemsLayout);
+        AddOptionalEmptyTextElement(el, "SystemsLayout", t.SystemsLayout, t.HasExplicitEmptySystemsLayout);
         if (t.AutoBrush) el.Add(new XElement("AutoBrush"));
         if (t.PalmMute.HasValue) el.Add(new XElement("PalmMute", t.PalmMute.Value));
         if (t.AutoAccentuation.HasValue) el.Add(new XElement("AutoAccentuation", t.AutoAccentuation.Value));
@@ -135,16 +135,10 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         if (t.IconId.HasValue) el.Add(new XElement("IconId", t.IconId.Value));
         if (t.ForcedSound.HasValue) el.Add(new XElement("ForcedSound", t.ForcedSound.Value));
 
-        if (t.TuningPitches.Length > 0)
+        var trackProperties = BuildTrackProperties(t);
+        if (trackProperties is not null)
         {
-            var props = new XElement("Properties",
-                new XElement("Property",
-                    new XAttribute("name", "Tuning"),
-                    new XElement("Pitches", string.Join(' ', t.TuningPitches)),
-                    new XElement("Instrument", t.TuningInstrument ?? string.Empty),
-                    new XElement("Label", t.TuningLabel ?? string.Empty),
-                    t.TuningLabelVisible.HasValue ? new XElement("LabelVisible", t.TuningLabelVisible.Value.ToString().ToLowerInvariant()) : null));
-            el.Add(props);
+            el.Add(trackProperties);
         }
 
         if (!string.IsNullOrWhiteSpace(t.InstrumentSetXml))
@@ -154,6 +148,11 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         else if (!string.IsNullOrWhiteSpace(t.InstrumentSet.Name) || !string.IsNullOrWhiteSpace(t.InstrumentSet.Type) || t.InstrumentSet.LineCount.HasValue)
         {
             el.Add(BuildInstrumentSet(t.InstrumentSet));
+        }
+
+        if (!string.IsNullOrWhiteSpace(t.NotationPatchXml))
+        {
+            AddRawElementXml(el, t.NotationPatchXml);
         }
 
         if (!string.IsNullOrWhiteSpace(t.StavesXml))
@@ -244,6 +243,45 @@ public sealed class XmlGpifSerializer : IGpifSerializer
 
         return el;
     }
+
+    private static XElement? BuildTrackProperties(GpifTrack track)
+    {
+        var properties = new XElement("Properties");
+        var propertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (name, value) in track.Properties.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+        {
+            if (string.Equals(name, "Tuning", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            properties.Add(new XElement(
+                "Property",
+                new XAttribute("name", name),
+                new XElement("Value", value)));
+            propertyNames.Add(name);
+        }
+
+        if (ShouldEmitTrackTuningProperty(track) && !propertyNames.Contains("Tuning"))
+        {
+            properties.Add(new XElement(
+                "Property",
+                new XAttribute("name", "Tuning"),
+                new XElement("Pitches", string.Join(' ', track.TuningPitches)),
+                new XElement("Instrument", track.TuningInstrument ?? string.Empty),
+                new XElement("Label", track.TuningLabel ?? string.Empty),
+                track.TuningLabelVisible.HasValue
+                    ? new XElement("LabelVisible", track.TuningLabelVisible.Value.ToString().ToLowerInvariant())
+                    : null));
+        }
+
+        return properties.HasElements ? properties : null;
+    }
+
+    private static bool ShouldEmitTrackTuningProperty(GpifTrack track)
+        => track.TuningPitches.Length > 0
+           && (track.HasTrackTuningProperty || string.IsNullOrWhiteSpace(track.StavesXml));
 
     private static XElement BuildMasterBar(GpifMasterBar m)
     {
@@ -759,7 +797,7 @@ public sealed class XmlGpifSerializer : IGpifSerializer
 
         if (n.MidiPitch.HasValue)
         {
-            AddPitchProperty(props, propertyNames, "ConcertPitch", n.MidiPitch.Value);
+            AddPitchProperty(props, propertyNames, "ConcertPitch", n.ConcertPitch, n.MidiPitch.Value);
         }
 
         foreach (var property in n.Properties)
@@ -777,7 +815,7 @@ public sealed class XmlGpifSerializer : IGpifSerializer
 
         if (n.TransposedMidiPitch.HasValue)
         {
-            AddPitchProperty(props, propertyNames, "TransposedPitch", n.TransposedMidiPitch.Value);
+            AddPitchProperty(props, propertyNames, "TransposedPitch", n.TransposedPitch, n.TransposedMidiPitch.Value);
         }
 
         AddBoolProperty(props, "PalmMuted", n.Articulation.PalmMuted);
@@ -831,14 +869,21 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         return el;
     }
 
-    private static void AddPitchProperty(XElement parent, HashSet<string> propertyNames, string propertyName, int midi)
+    private static void AddPitchProperty(
+        XElement parent,
+        HashSet<string> propertyNames,
+        string propertyName,
+        GpifPitchValue? pitch,
+        int midi)
     {
         if (propertyNames.Contains(propertyName))
         {
             return;
         }
 
-        var (step, accidental, octave) = FromMidi(midi);
+        var (step, accidental, octave) = pitch is null
+            ? FromMidi(midi)
+            : (pitch.Step, pitch.Accidental, pitch.Octave ?? FromMidi(midi).octave);
         parent.Add(new XElement(
             "Property",
             new XAttribute("name", propertyName),
@@ -912,6 +957,20 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         }
 
         parent.Add(new XElement(name, value));
+    }
+
+    private static void AddOptionalEmptyTextElement(XElement parent, string name, string value, bool preserveExplicitEmpty)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            parent.Add(new XElement(name, value));
+            return;
+        }
+
+        if (preserveExplicitEmpty)
+        {
+            parent.Add(new XElement(name, string.Empty));
+        }
     }
 
     private static void AddScoreTextElement(XElement parent, ScoreInfo score, string name, string value)

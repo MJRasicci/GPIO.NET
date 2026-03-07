@@ -69,6 +69,8 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     Color = t.Element("Color")?.Value ?? string.Empty,
                     SystemsDefaultLayout = t.Element("SystemsDefautLayout")?.Value ?? string.Empty,
                     SystemsLayout = t.Element("SystemsLayout")?.Value ?? string.Empty,
+                    HasExplicitEmptySystemsLayout = t.Element("SystemsLayout") is not null
+                        && string.IsNullOrWhiteSpace(t.Element("SystemsLayout")?.Value),
                     PalmMute = TryParseNullableDecimal(t.Element("PalmMute")?.Value),
                     AutoAccentuation = TryParseNullableDecimal(t.Element("AutoAccentuation")?.Value),
                     AutoBrush = t.Element("AutoBrush") is not null,
@@ -80,11 +82,13 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     TuningInstrument = tuningInstrument,
                     TuningLabel = tuningLabel,
                     TuningLabelVisible = tuningLabelVisible,
+                    HasTrackTuningProperty = tuningProperty is not null,
                     Properties = trackProperties,
                     InstrumentSetXml = t.Element("InstrumentSet")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                     StavesXml = stavesElement?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                     SoundsXml = t.Element("Sounds")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                     RseXml = t.Element("RSE")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
+                    NotationPatchXml = t.Element("NotationPatch")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                     InstrumentSet = ParseInstrumentSet(t.Element("InstrumentSet")),
                     Sounds = ParseSounds(t.Element("Sounds")),
                     ChannelRse = ParseRse(t.Element("RSE")),
@@ -226,6 +230,8 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     Id = ParseInt(n.Attribute("id")?.Value),
                     MidiPitch = ParseNamedNumberProperty(n, "Midi") ?? ParseMidiPitch(n),
                     TransposedMidiPitch = ParseNamedMidiPitch(n, "TransposedPitch"),
+                    ConcertPitch = ParseNamedPitchValue(n, "ConcertPitch"),
+                    TransposedPitch = ParseNamedPitchValue(n, "TransposedPitch"),
                     Properties = properties,
                     Articulation = ParseArticulation(n, properties),
                     XProperties = noteXprops
@@ -425,10 +431,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
 
     private static int? ParseNamedMidiPitch(XElement note, string propertyName)
     {
-        var pitch = note.Element("Properties")?
-            .Elements("Property")
-            .FirstOrDefault(p => string.Equals(p.Attribute("name")?.Value, propertyName, StringComparison.OrdinalIgnoreCase))
-            ?.Element("Pitch");
+        var pitch = GetNamedPitchElement(note, propertyName);
 
         if (pitch is null)
         {
@@ -437,6 +440,28 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
 
         return ParsePitchElementToMidi(pitch);
     }
+
+    private static GpifPitchValue? ParseNamedPitchValue(XElement note, string propertyName)
+    {
+        var pitch = GetNamedPitchElement(note, propertyName);
+        if (pitch is null)
+        {
+            return null;
+        }
+
+        return new GpifPitchValue
+        {
+            Step = pitch.Element("Step")?.Value ?? string.Empty,
+            Accidental = pitch.Element("Accidental")?.Value ?? string.Empty,
+            Octave = TryParseNullableInt(pitch.Element("Octave")?.Value)
+        };
+    }
+
+    private static XElement? GetNamedPitchElement(XElement note, string propertyName)
+        => note.Element("Properties")?
+            .Elements("Property")
+            .FirstOrDefault(p => string.Equals(p.Attribute("name")?.Value, propertyName, StringComparison.OrdinalIgnoreCase))
+            ?.Element("Pitch");
 
     private static int? ParseNamedNumberProperty(XElement note, string propertyName)
         => TryParseNullableInt(

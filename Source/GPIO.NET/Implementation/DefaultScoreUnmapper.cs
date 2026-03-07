@@ -5,6 +5,7 @@ using GPIO.NET.Models;
 using GPIO.NET.Models.Raw;
 using GPIO.NET.Models.Write;
 using GPIO.NET.Utilities;
+using System.Xml.Linq;
 
 public sealed class DefaultScoreUnmapper : IScoreUnmapper
 {
@@ -25,6 +26,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 Color = t.Metadata.Color,
                 SystemsDefaultLayout = t.Metadata.SystemsDefaultLayout,
                 SystemsLayout = t.Metadata.SystemsLayout,
+                HasExplicitEmptySystemsLayout = t.Metadata.HasExplicitEmptySystemsLayout,
                 PalmMute = t.Metadata.PalmMute,
                 AutoAccentuation = t.Metadata.AutoAccentuation,
                 AutoBrush = t.Metadata.AutoBrush,
@@ -36,11 +38,13 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 TuningInstrument = t.Metadata.TuningInstrument,
                 TuningLabel = t.Metadata.TuningLabel,
                 TuningLabelVisible = t.Metadata.TuningLabelVisible,
+                HasTrackTuningProperty = t.Metadata.HasTrackTuningProperty,
                 Properties = t.Metadata.Properties,
                 InstrumentSetXml = t.Metadata.InstrumentSetXml,
-                StavesXml = t.Metadata.StavesXml,
+                StavesXml = ResolveStavesXml(t.Metadata),
                 SoundsXml = t.Metadata.SoundsXml,
                 RseXml = t.Metadata.RseXml,
+                NotationPatchXml = t.Metadata.NotationPatchXml,
                 InstrumentSet = new GpifInstrumentSet
                 {
                     Name = t.Metadata.InstrumentSet.Name,
@@ -215,6 +219,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                     var bend = ArticulationDecoders.EncodeBend(note.Articulation.Bend);
                                     var harmonic = ArticulationDecoders.EncodeHarmonic(note.Articulation.Harmonic);
                                     var (resolvedStringNumber, resolvedFret) = ResolveStringAndFret(note, track, staffBar.StaffIndex);
+                                    var transposedMidiPitch = ResolveTransposedMidiPitch(note, track);
                                     var noteXProperties = new Dictionary<string, int>();
                                     var encodedTrillSpeed = ArticulationDecoders.EncodeTrillSpeed(note.Articulation.TrillSpeed);
                                     if (encodedTrillSpeed.HasValue)
@@ -226,7 +231,13 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                     {
                                         Id = 0,
                                         MidiPitch = note.MidiPitch,
-                                        TransposedMidiPitch = ResolveTransposedMidiPitch(note, track),
+                                        TransposedMidiPitch = transposedMidiPitch,
+                                        ConcertPitch = ShouldPreserveSourceConcertPitch(note)
+                                            ? ToRawPitchValue(note.ConcertPitch)
+                                            : null,
+                                        TransposedPitch = ShouldPreserveSourceTransposedPitch(note, transposedMidiPitch)
+                                            ? ToRawPitchValue(note.TransposedPitch)
+                                            : null,
                                         Properties = BuildCoreNoteProperties(note.MidiPitch, resolvedStringNumber, resolvedFret),
                                         XProperties = noteXProperties,
                                         Articulation = new GpifNoteArticulation
@@ -662,6 +673,39 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
         return track.Metadata.TuningPitches;
     }
 
+    private static string ResolveStavesXml(TrackMetadata metadata)
+        => ShouldPreserveSourceStavesXml(metadata)
+            ? metadata.StavesXml
+            : string.Empty;
+
+    private static bool ShouldPreserveSourceStavesXml(TrackMetadata metadata)
+    {
+        if (string.IsNullOrWhiteSpace(metadata.StavesXml))
+        {
+            return false;
+        }
+
+        try
+        {
+            var sourceRoot = XElement.Parse(metadata.StavesXml);
+            var sourceStaffs = sourceRoot.Elements("Staff")
+                .Select(ParseSourceStaff)
+                .ToArray();
+
+            if (sourceStaffs.Length != metadata.Staffs.Count)
+            {
+                return false;
+            }
+
+            return sourceStaffs.Zip(metadata.Staffs)
+                .All(pair => StaffMatchesSource(pair.Second, pair.First));
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private static int? ResolveTransposedMidiPitch(NoteModel note, TrackModel track)
     {
         if (!note.MidiPitch.HasValue)
@@ -673,6 +717,103 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
         var octave = track.Metadata.Transpose.Octave ?? 0;
         return note.MidiPitch.Value - (octave * 12) + chromatic;
     }
+
+    private static bool ShouldPreserveSourceConcertPitch(NoteModel note)
+        => note.ConcertPitch is not null
+           && note.MidiPitch == note.SourceMidiPitch;
+
+    private static bool ShouldPreserveSourceTransposedPitch(NoteModel note, int? transposedMidiPitch)
+        => note.TransposedPitch is not null
+           && transposedMidiPitch == note.SourceTransposedMidiPitch;
+
+    private static GpifPitchValue? ToRawPitchValue(PitchValueModel? pitch)
+        => pitch is null
+            ? null
+            : new GpifPitchValue
+            {
+                Step = pitch.Step,
+                Accidental = pitch.Accidental,
+                Octave = pitch.Octave
+            };
+
+    private static bool StaffMatchesSource(StaffMetadata staff, SourceStaffShape source)
+        => staff.Id == source.Id
+           && string.Equals(staff.Cref, source.Cref, StringComparison.Ordinal)
+           && staff.CapoFret == source.CapoFret
+           && staff.TuningPitches.SequenceEqual(source.TuningPitches)
+           && DictionariesEqual(staff.Properties, source.Properties);
+
+    private static SourceStaffShape ParseSourceStaff(XElement staff)
+    {
+        var properties = ParseSourcePropertyDictionary(staff.Element("Properties"));
+        properties.TryGetValue("Tuning", out var tuningRaw);
+        properties.TryGetValue("CapoFret", out var capoRaw);
+
+        return new SourceStaffShape(
+            Id: TryParseNullableInt(staff.Attribute("id")?.Value),
+            Cref: staff.Attribute("cref")?.Value ?? string.Empty,
+            TuningPitches: SplitInts(tuningRaw),
+            CapoFret: TryParseNullableInt(capoRaw),
+            Properties: properties);
+    }
+
+    private static Dictionary<string, string> ParseSourcePropertyDictionary(XElement? propertiesElement)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (propertiesElement is null)
+        {
+            return values;
+        }
+
+        foreach (var property in propertiesElement.Elements("Property"))
+        {
+            var name = property.Attribute("name")?.Value;
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            values[name] = ParseSourcePropertyValue(property);
+        }
+
+        return values;
+    }
+
+    private static string ParseSourcePropertyValue(XElement property)
+    {
+        var preferred = property.Element("Value")?.Value
+            ?? property.Element("Pitches")?.Value
+            ?? property.Element("Number")?.Value
+            ?? property.Element("Fret")?.Value
+            ?? property.Element("Direction")?.Value
+            ?? property.Element("Strength")?.Value
+            ?? property.Element("Float")?.Value
+            ?? property.Element("Bitset")?.Value
+            ?? property.Element("String")?.Value;
+
+        if (!string.IsNullOrWhiteSpace(preferred))
+        {
+            return preferred.Trim();
+        }
+
+        if (property.Element("Enable") is not null)
+        {
+            return "true";
+        }
+
+        return property.Value?.Trim() ?? string.Empty;
+    }
+
+    private static int[] SplitInts(string? value)
+        => string.IsNullOrWhiteSpace(value)
+            ? Array.Empty<int>()
+            : value.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Select(v => int.TryParse(v, out var i) ? i : int.MinValue)
+                .Where(i => i != int.MinValue)
+                .ToArray();
+
+    private static int? TryParseNullableInt(string? value)
+        => int.TryParse(value, out var parsed) ? parsed : null;
 
     private static string ResolveDirectionValue(
         string explicitValue,
@@ -874,6 +1015,8 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             Id = id,
             MidiPitch = note.MidiPitch,
             TransposedMidiPitch = note.TransposedMidiPitch,
+            ConcertPitch = note.ConcertPitch,
+            TransposedPitch = note.TransposedPitch,
             Properties = note.Properties,
             Articulation = note.Articulation,
             XProperties = note.XProperties
@@ -945,9 +1088,19 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
     private static bool NotesEqual(GpifNote a, GpifNote b)
         => a.MidiPitch == b.MidiPitch
            && a.TransposedMidiPitch == b.TransposedMidiPitch
+           && PitchValuesEqual(a.ConcertPitch, b.ConcertPitch)
+           && PitchValuesEqual(a.TransposedPitch, b.TransposedPitch)
            && PropertiesEqual(a.Properties, b.Properties)
            && ArticulationsEqual(a.Articulation, b.Articulation)
            && DictionariesEqual(a.XProperties, b.XProperties);
+
+    private static bool PitchValuesEqual(GpifPitchValue? a, GpifPitchValue? b)
+        => ReferenceEquals(a, b)
+           || (a is not null
+               && b is not null
+               && string.Equals(a.Step, b.Step, StringComparison.Ordinal)
+               && string.Equals(a.Accidental, b.Accidental, StringComparison.Ordinal)
+               && a.Octave == b.Octave);
 
     private static bool PropertiesEqual(IReadOnlyList<GpifNoteProperty> a, IReadOnlyList<GpifNoteProperty> b)
         => a.Count == b.Count && a.Zip(b).All(pair => NotePropertiesEqual(pair.First, pair.Second));
@@ -1049,6 +1202,13 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 Numerator = tuplet.Numerator,
                 Denominator = tuplet.Denominator
             };
+
+    private sealed record SourceStaffShape(
+        int? Id,
+        string Cref,
+        int[] TuningPitches,
+        int? CapoFret,
+        IReadOnlyDictionary<string, string> Properties);
 
     private static decimal ResolveRhythmDuration(GpifRhythm rhythm)
     {

@@ -92,6 +92,8 @@ public sealed class TrackMetadata
 
     public string SystemsLayout { get; init; } = string.Empty;
 
+    public bool HasExplicitEmptySystemsLayout { get; init; }
+
     public decimal? PalmMute { get; init; }
 
     public decimal? AutoAccentuation { get; init; }
@@ -114,6 +116,8 @@ public sealed class TrackMetadata
 
     public bool? TuningLabelVisible { get; init; }
 
+    public bool HasTrackTuningProperty { get; init; }
+
     public IReadOnlyDictionary<string, string> Properties { get; init; } = new Dictionary<string, string>();
 
     public string InstrumentSetXml { get; init; } = string.Empty;
@@ -123,6 +127,8 @@ public sealed class TrackMetadata
     public string SoundsXml { get; init; } = string.Empty;
 
     public string RseXml { get; init; } = string.Empty;
+
+    public string NotationPatchXml { get; init; } = string.Empty;
 
     public InstrumentSetMetadata InstrumentSet { get; init; } = new();
 
@@ -618,6 +624,14 @@ public sealed class NoteModel
 
     public int? MidiPitch { get; init; }
 
+    public int? SourceMidiPitch { get; init; }
+
+    public int? SourceTransposedMidiPitch { get; init; }
+
+    public PitchValueModel? ConcertPitch { get; init; }
+
+    public PitchValueModel? TransposedPitch { get; init; }
+
     public int? StringNumber { get; init; }
 
     public decimal Duration { get; set; }
@@ -625,6 +639,15 @@ public sealed class NoteModel
     public bool TieExtendedFromPrevious { get; set; }
 
     public NoteArticulationModel Articulation { get; init; } = new();
+}
+
+public sealed class PitchValueModel
+{
+    public string Step { get; init; } = string.Empty;
+
+    public string Accidental { get; init; } = string.Empty;
+
+    public int? Octave { get; init; }
 }
 
 public sealed class NoteArticulationModel

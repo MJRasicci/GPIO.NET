@@ -35,6 +35,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                 var isStringedTrack = IsStringedTrack(track);
                 var measures = MapMeasures(
                     source,
+                    track,
                     barSlotStartByTrackId[track.Id],
                     GetTrackStaffCount(track),
                     isStringedTrack);
@@ -50,6 +51,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                         Color = track.Color,
                         SystemsDefaultLayout = track.SystemsDefaultLayout,
                         SystemsLayout = track.SystemsLayout,
+                        HasExplicitEmptySystemsLayout = track.HasExplicitEmptySystemsLayout,
                         PalmMute = track.PalmMute,
                         AutoAccentuation = track.AutoAccentuation,
                         AutoBrush = track.AutoBrush,
@@ -61,11 +63,13 @@ public sealed class DefaultScoreMapper : IScoreMapper
                         TuningInstrument = track.TuningInstrument,
                         TuningLabel = track.TuningLabel,
                         TuningLabelVisible = track.TuningLabelVisible,
+                        HasTrackTuningProperty = track.HasTrackTuningProperty,
                         Properties = track.Properties,
                         InstrumentSetXml = track.InstrumentSetXml,
                         StavesXml = track.StavesXml,
                         SoundsXml = track.SoundsXml,
                         RseXml = track.RseXml,
+                        NotationPatchXml = track.NotationPatchXml,
                         InstrumentSet = new InstrumentSetMetadata
                         {
                             Name = track.InstrumentSet.Name,
@@ -275,7 +279,12 @@ public sealed class DefaultScoreMapper : IScoreMapper
     private static int GetTrackStaffCount(GpifTrack track)
         => Math.Max(1, track.Staffs.Count);
 
-    private static List<MeasureModel> MapMeasures(GpifDocument source, int trackBarSlotStart, int staffCount, bool isStringedTrack)
+    private static List<MeasureModel> MapMeasures(
+        GpifDocument source,
+        GpifTrack track,
+        int trackBarSlotStart,
+        int staffCount,
+        bool isStringedTrack)
     {
         var measures = new List<MeasureModel>(source.MasterBars.Count);
 
@@ -283,7 +292,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
         {
             var barRefs = ReferenceListParser.SplitRefs(masterBar.BarsReferenceList);
             var primaryStaff = trackBarSlotStart < barRefs.Count
-                ? MapStaffBar(source, barRefs[trackBarSlotStart], staffIndex: 0, isStringedTrack)
+                ? MapStaffBar(source, track, barRefs[trackBarSlotStart], staffIndex: 0, isStringedTrack)
                 : null;
             var additionalStaffBars = new List<MeasureStaffModel>(Math.Max(0, staffCount - 1));
             for (var staffIndex = 1; staffIndex < staffCount; staffIndex++)
@@ -294,7 +303,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                     continue;
                 }
 
-                var additionalStaff = MapStaffBar(source, barRefs[barSlot], staffIndex, isStringedTrack);
+                var additionalStaff = MapStaffBar(source, track, barRefs[barSlot], staffIndex, isStringedTrack);
                 if (additionalStaff is not null)
                 {
                     additionalStaffBars.Add(additionalStaff);
@@ -339,7 +348,12 @@ public sealed class DefaultScoreMapper : IScoreMapper
         return measures;
     }
 
-    private static MeasureStaffModel? MapStaffBar(GpifDocument source, int barId, int staffIndex, bool isStringedTrack)
+    private static MeasureStaffModel? MapStaffBar(
+        GpifDocument source,
+        GpifTrack track,
+        int barId,
+        int staffIndex,
+        bool isStringedTrack)
     {
         if (!source.BarsById.TryGetValue(barId, out var bar))
         {
@@ -356,7 +370,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                 continue;
             }
 
-            var mappedBeats = MapVoiceBeats(source, voice, isStringedTrack);
+            var mappedBeats = MapVoiceBeats(source, track, voice, isStringedTrack);
             voices.Add(new MeasureVoiceModel
             {
                 VoiceIndex = voiceIndex,
@@ -382,7 +396,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
         };
     }
 
-    private static IReadOnlyList<BeatModel> MapVoiceBeats(GpifDocument source, GpifVoice voice, bool isStringedTrack)
+    private static IReadOnlyList<BeatModel> MapVoiceBeats(GpifDocument source, GpifTrack track, GpifVoice voice, bool isStringedTrack)
     {
         var beatRefs = ReferenceListParser.SplitRefs(voice.BeatsReferenceList);
         var voiceProps = voice.Properties.ToDictionary(kv => kv.Key, kv => kv.Value);
@@ -423,6 +437,10 @@ public sealed class DefaultScoreMapper : IScoreMapper
                     {
                         Id = n.Id,
                         MidiPitch = n.MidiPitch,
+                        SourceMidiPitch = n.MidiPitch,
+                        SourceTransposedMidiPitch = ResolveSourceTransposedMidiPitch(n.MidiPitch, track.Transpose),
+                        ConcertPitch = MapPitchValue(n.ConcertPitch),
+                        TransposedPitch = MapPitchValue(n.TransposedPitch),
                         StringNumber = stringNumber,
                         Duration = duration,
                         Articulation = new NoteArticulationModel
@@ -850,6 +868,28 @@ public sealed class DefaultScoreMapper : IScoreMapper
             : null;
 
         return (numericValue, referenceHint);
+    }
+
+    private static PitchValueModel? MapPitchValue(GpifPitchValue? pitch)
+        => pitch is null
+            ? null
+            : new PitchValueModel
+            {
+                Step = pitch.Step,
+                Accidental = pitch.Accidental,
+                Octave = pitch.Octave
+            };
+
+    private static int? ResolveSourceTransposedMidiPitch(int? midiPitch, GpifTranspose transpose)
+    {
+        if (!midiPitch.HasValue)
+        {
+            return null;
+        }
+
+        var chromatic = transpose.Chromatic ?? 0;
+        var octave = transpose.Octave ?? 0;
+        return midiPitch.Value - (octave * 12) + chromatic;
     }
 
     private static void ApplyTieDurationStitching(List<MeasureModel> measures)
