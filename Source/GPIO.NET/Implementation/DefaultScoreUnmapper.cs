@@ -324,6 +324,9 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 NotesReferenceList = ReferenceListFormatter.JoinRefs(noteRefs),
                                 GraceType = beat.GraceType,
                                 Dynamic = beat.Dynamic,
+                                TransposedPitchStemOrientation = beat.TransposedPitchStemOrientation,
+                                UserTransposedPitchStemOrientation = beat.UserTransposedPitchStemOrientation,
+                                ConcertPitchStemOrientation = beat.ConcertPitchStemOrientation,
                                 PickStrokeDirection = beat.PickStrokeDirection,
                                 VibratoWithTremBarStrength = beat.VibratoWithTremBarStrength,
                                 Slapped = beat.Slapped,
@@ -818,6 +821,9 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             NotesReferenceList = beat.NotesReferenceList,
             GraceType = beat.GraceType,
             Dynamic = beat.Dynamic,
+            TransposedPitchStemOrientation = beat.TransposedPitchStemOrientation,
+            UserTransposedPitchStemOrientation = beat.UserTransposedPitchStemOrientation,
+            ConcertPitchStemOrientation = beat.ConcertPitchStemOrientation,
             PickStrokeDirection = beat.PickStrokeDirection,
             VibratoWithTremBarStrength = beat.VibratoWithTremBarStrength,
             Slapped = beat.Slapped,
@@ -881,6 +887,9 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
            && string.Equals(a.NotesReferenceList, b.NotesReferenceList, StringComparison.Ordinal)
            && string.Equals(a.GraceType, b.GraceType, StringComparison.Ordinal)
            && string.Equals(a.Dynamic, b.Dynamic, StringComparison.Ordinal)
+           && string.Equals(a.TransposedPitchStemOrientation, b.TransposedPitchStemOrientation, StringComparison.Ordinal)
+           && string.Equals(a.UserTransposedPitchStemOrientation, b.UserTransposedPitchStemOrientation, StringComparison.Ordinal)
+           && string.Equals(a.ConcertPitchStemOrientation, b.ConcertPitchStemOrientation, StringComparison.Ordinal)
            && string.Equals(a.PickStrokeDirection, b.PickStrokeDirection, StringComparison.Ordinal)
            && string.Equals(a.VibratoWithTremBarStrength, b.VibratoWithTremBarStrength, StringComparison.Ordinal)
            && a.Slapped == b.Slapped

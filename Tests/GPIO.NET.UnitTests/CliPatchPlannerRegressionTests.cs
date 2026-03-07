@@ -135,6 +135,55 @@ public class CliPatchPlannerRegressionTests
         }
     }
 
+    [Fact]
+    public async Task No_edit_full_write_from_json_preserves_stem_orientation_for_test_fixture()
+    {
+        var sourceGp = FixturePath("test.gp");
+        File.Exists(sourceGp).Should().BeTrue();
+
+        var repoRoot = FindRepositoryRoot();
+        var toolProject = Path.Combine(repoRoot, "Source", "GPIO.NET.Tool", "GPIO.NET.Tool.csproj");
+        Directory.Exists(Path.GetDirectoryName(toolProject)!).Should().BeTrue();
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"gpio-cli-stem-rt-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        var jsonPath = Path.Combine(tempDir, "test.json");
+        var outputGp = Path.Combine(tempDir, "test.roundtrip.gp");
+
+        try
+        {
+            await RunDotNetAsync(
+                $"run --project \"{toolProject}\" -- \"{sourceGp}\" \"{jsonPath}\" --format json",
+                repoRoot);
+
+            await RunDotNetAsync(
+                $"run --project \"{toolProject}\" -- \"{jsonPath}\" \"{outputGp}\" --from-json --source-gp \"{sourceGp}\" --format json",
+                repoRoot);
+
+            var doc = XDocument.Parse(Encoding.UTF8.GetString(await ReadScoreGpifBytesAsync(outputGp, TestContext.Current.CancellationToken)));
+            var beats = doc.Root?
+                .Element("Beats")?
+                .Elements("Beat")
+                .ToDictionary(
+                    beat => int.Parse(beat.Attribute("id")!.Value, System.Globalization.CultureInfo.InvariantCulture),
+                    beat => beat);
+
+            beats.Should().NotBeNull();
+            beats![0].Element("TransposedPitchStemOrientation")?.Value.Should().Be("Downward");
+            beats[0].Element("ConcertPitchStemOrientation")?.Value.Should().Be("Undefined");
+            beats[8].Element("TransposedPitchStemOrientation")?.Value.Should().Be("Upward");
+            beats[8].Element("ConcertPitchStemOrientation")?.Value.Should().Be("Undefined");
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
     private static GuitarProScore CreateZeroBasedPatchPlannerSourceScore()
         => new()
         {

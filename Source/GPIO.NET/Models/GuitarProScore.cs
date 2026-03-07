@@ -557,6 +557,12 @@ public sealed class BeatModel
 
     public string Dynamic { get; init; } = string.Empty;
 
+    public string TransposedPitchStemOrientation { get; init; } = string.Empty;
+
+    public string UserTransposedPitchStemOrientation { get; init; } = string.Empty;
+
+    public string ConcertPitchStemOrientation { get; init; } = string.Empty;
+
     public string PickStrokeDirection { get; init; } = string.Empty;
 
     public string VibratoWithTremBarStrength { get; init; } = string.Empty;
