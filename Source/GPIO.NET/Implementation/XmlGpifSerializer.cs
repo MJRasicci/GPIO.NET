@@ -25,7 +25,12 @@ public sealed class XmlGpifSerializer : IGpifSerializer
             BuildGpRevision(document.GpRevision),
             new XElement("Encoding", new XElement("EncodingDescription", ResolveOrDefault(document.EncodingDescription, DefaultEncodingDescription))),
             BuildScore(document.Score),
-            BuildMasterTrack(document.MasterTrack),
+            BuildMasterTrack(document.MasterTrack));
+
+        AddRawElementXml(root, document.BackingTrackXml);
+        AddRawElementXml(root, document.AudioTracksXml);
+
+        root.Add(
             new XElement("Tracks", document.Tracks.OrderBy(t => t.Id).Select(BuildTrack)),
             new XElement("MasterBars", document.MasterBars.OrderBy(m => m.Index).Select(BuildMasterBar)),
             new XElement("Bars", document.BarsById.OrderBy(kv => kv.Key).Select(kv => BuildBar(kv.Value))),
@@ -33,6 +38,8 @@ public sealed class XmlGpifSerializer : IGpifSerializer
             new XElement("Beats", document.BeatsById.OrderBy(kv => kv.Key).Select(kv => BuildBeat(kv.Value))),
             new XElement("Notes", document.NotesById.OrderBy(kv => kv.Key).Select(kv => BuildNote(kv.Value))),
             new XElement("Rhythms", document.RhythmsById.OrderBy(kv => kv.Key).Select(kv => BuildRhythm(kv.Value))));
+
+        AddRawElementXml(root, document.AssetsXml);
 
         AddRawElementXml(root, document.ScoreViewsXml);
 
@@ -117,7 +124,11 @@ public sealed class XmlGpifSerializer : IGpifSerializer
             el.Add(new XElement("Anacrusis"));
         }
 
-        if (master.Automations.Count > 0)
+        if (!string.IsNullOrWhiteSpace(master.AutomationsXml))
+        {
+            AddRawElementXml(el, master.AutomationsXml);
+        }
+        else if (master.Automations.Count > 0)
         {
             el.Add(BuildAutomations(master.Automations));
         }

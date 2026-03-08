@@ -84,6 +84,12 @@ public sealed class ScoreMetadata
     public string PageSetupXml { get; init; } = string.Empty;
 
     public string MultiVoice { get; init; } = string.Empty;
+
+    public string BackingTrackXml { get; init; } = string.Empty;
+
+    public string AudioTracksXml { get; init; } = string.Empty;
+
+    public string AssetsXml { get; init; } = string.Empty;
 }
 
 public sealed class TrackMetadata
@@ -348,6 +354,8 @@ public sealed class AutomationMetadata
 public sealed class MasterTrackMetadata
 {
     public int[] TrackIds { get; init; } = Array.Empty<int>();
+
+    public string AutomationsXml { get; init; } = string.Empty;
 
     public IReadOnlyList<AutomationMetadata> Automations { get; init; } = Array.Empty<AutomationMetadata>();
 
@@ -652,6 +660,8 @@ public sealed class BeatModel
     public int? BrushDurationTicks { get; init; }
 
     public string BrushDurationXPropertyId { get; init; } = string.Empty;
+
+    public bool HasExplicitBrushDurationXProperty { get; init; }
 
     public bool Rasgueado { get; init; }
 

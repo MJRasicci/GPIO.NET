@@ -214,6 +214,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
             MasterTrack = new MasterTrackMetadata
             {
                 TrackIds = source.MasterTrack.TrackIds,
+                AutomationsXml = source.MasterTrack.AutomationsXml,
                 Automations = masterAutomations,
                 AutomationTimeline = BuildAutomationTimeline(source),
                 DynamicMap = BuildDynamicMap(tracks),
@@ -257,7 +258,10 @@ public sealed class DefaultScoreMapper : IScoreMapper
                 ScoreZoomPolicy = source.Score.ScoreZoomPolicy,
                 ScoreZoom = source.Score.ScoreZoom,
                 PageSetupXml = source.Score.PageSetupXml,
-                MultiVoice = source.Score.MultiVoice
+                MultiVoice = source.Score.MultiVoice,
+                BackingTrackXml = source.BackingTrackXml,
+                AudioTracksXml = source.AudioTracksXml,
+                AssetsXml = source.AssetsXml
             },
             Tracks = tracks,
             PlaybackMasterBarSequence = navigationResolver.BuildPlaybackSequence(source.MasterBars, source.MasterTrack.Anacrusis)
@@ -537,6 +541,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                 Arpeggio = beat.Arpeggio,
                 BrushDurationTicks = beat.BrushDurationTicks,
                 BrushDurationXPropertyId = beat.BrushDurationXPropertyId,
+                HasExplicitBrushDurationXProperty = beat.HasExplicitBrushDurationXProperty,
                 Rasgueado = beat.Rasgueado,
                 RasgueadoPattern = beat.RasgueadoPattern,
                 DeadSlapped = beat.DeadSlapped,

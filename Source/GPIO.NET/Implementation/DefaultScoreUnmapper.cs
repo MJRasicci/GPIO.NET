@@ -223,12 +223,20 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
 
                             if (beat.BrushDurationTicks.HasValue)
                             {
-                                var brushDurationXPropertyId = !string.IsNullOrWhiteSpace(beat.BrushDurationXPropertyId)
-                                    ? beat.BrushDurationXPropertyId
-                                    : beat.Arpeggio
-                                        ? "687931393"
-                                        : "687935489";
-                                beatXProperties[brushDurationXPropertyId] = beat.BrushDurationTicks.Value;
+                                var shouldWriteBrushDurationXProperty = beat.HasExplicitBrushDurationXProperty
+                                    || beat.XProperties.ContainsKey("687931393")
+                                    || beat.XProperties.ContainsKey("687935489")
+                                    || beat.BrushDurationTicks.Value != 60;
+
+                                if (shouldWriteBrushDurationXProperty)
+                                {
+                                    var brushDurationXPropertyId = !string.IsNullOrWhiteSpace(beat.BrushDurationXPropertyId)
+                                        ? beat.BrushDurationXPropertyId
+                                        : beat.Arpeggio
+                                            ? "687931393"
+                                            : "687935489";
+                                    beatXProperties[brushDurationXPropertyId] = beat.BrushDurationTicks.Value;
+                                }
                             }
                             if (beat.Notes.Count > 0)
                             {
@@ -387,6 +395,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 Arpeggio = beat.Arpeggio,
                                 BrushDurationTicks = beat.BrushDurationTicks,
                                 BrushDurationXPropertyId = beat.BrushDurationXPropertyId,
+                                HasExplicitBrushDurationXProperty = beat.HasExplicitBrushDurationXProperty,
                                 Rasgueado = beat.Rasgueado,
                                 RasgueadoPattern = beat.RasgueadoPattern,
                                 DeadSlapped = beat.DeadSlapped,
@@ -601,6 +610,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             MasterTrack = new GpifMasterTrack
             {
                 TrackIds = score.MasterTrack.TrackIds,
+                AutomationsXml = score.MasterTrack.AutomationsXml,
                 Automations = score.MasterTrack.Automations.Select(a => new GpifAutomation
                 {
                     Type = a.Type,
@@ -629,6 +639,9 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             BeatsById = beats,
             NotesById = notes,
             RhythmsById = rhythms,
+            BackingTrackXml = score.Metadata.BackingTrackXml,
+            AudioTracksXml = score.Metadata.AudioTracksXml,
+            AssetsXml = score.Metadata.AssetsXml,
             ScoreViewsXml = score.Metadata.ScoreViewsXml
         };
 
@@ -1274,6 +1287,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             Arpeggio = beat.Arpeggio,
             BrushDurationTicks = beat.BrushDurationTicks,
             BrushDurationXPropertyId = beat.BrushDurationXPropertyId,
+            HasExplicitBrushDurationXProperty = beat.HasExplicitBrushDurationXProperty,
             Rasgueado = beat.Rasgueado,
             RasgueadoPattern = beat.RasgueadoPattern,
             DeadSlapped = beat.DeadSlapped,
@@ -1368,6 +1382,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
            && a.Arpeggio == b.Arpeggio
            && a.BrushDurationTicks == b.BrushDurationTicks
            && string.Equals(a.BrushDurationXPropertyId, b.BrushDurationXPropertyId, StringComparison.Ordinal)
+           && a.HasExplicitBrushDurationXProperty == b.HasExplicitBrushDurationXProperty
            && a.Rasgueado == b.Rasgueado
            && string.Equals(a.RasgueadoPattern, b.RasgueadoPattern, StringComparison.Ordinal)
            && a.DeadSlapped == b.DeadSlapped

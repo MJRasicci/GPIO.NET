@@ -29,6 +29,12 @@ public sealed class GpifDocument
 
     public IReadOnlyDictionary<int, GpifRhythm> RhythmsById { get; init; } = new Dictionary<int, GpifRhythm>();
 
+    public string BackingTrackXml { get; init; } = string.Empty;
+
+    public string AudioTracksXml { get; init; } = string.Empty;
+
+    public string AssetsXml { get; init; } = string.Empty;
+
     public string ScoreViewsXml { get; init; } = string.Empty;
 }
 
@@ -343,6 +349,8 @@ public sealed class GpifBeat
     public int? BrushDurationTicks { get; init; }
 
     public string BrushDurationXPropertyId { get; init; } = string.Empty;
+
+    public bool HasExplicitBrushDurationXProperty { get; init; }
 
     public bool Rasgueado { get; init; }
 

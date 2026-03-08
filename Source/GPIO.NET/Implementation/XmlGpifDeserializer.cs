@@ -348,6 +348,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     Arpeggio = hasArpeggio,
                     BrushDurationTicks = brushDurationTicks,
                     BrushDurationXPropertyId = brushDurationXPropertyId,
+                    HasExplicitBrushDurationXProperty = !string.IsNullOrWhiteSpace(brushDurationXPropertyId),
                     Rasgueado = IsBeatBooleanTrue(rasgueadoRaw) || !string.IsNullOrWhiteSpace(rasgueadoPattern),
                     RasgueadoPattern = rasgueadoPattern,
                     DeadSlapped = b.Element("DeadSlapped") is not null,
@@ -414,6 +415,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
             MasterTrack = new GpifMasterTrack
             {
                 TrackIds = SplitInts(masterTrack?.Element("Tracks")?.Value),
+                AutomationsXml = masterTrack?.Element("Automations")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                 Automations = ParseAutomations(masterTrack?.Element("Automations")),
                 Anacrusis = masterTrack?.Element("Anacrusis") is not null,
                 RseXml = masterTrack?.Element("RSE")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
@@ -426,6 +428,9 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
             BeatsById = beats,
             NotesById = notes,
             RhythmsById = rhythms,
+            BackingTrackXml = root.Element("BackingTrack")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
+            AudioTracksXml = root.Element("AudioTracks")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
+            AssetsXml = root.Element("Assets")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
             ScoreViewsXml = root.Element("ScoreViews")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty
         });
     }

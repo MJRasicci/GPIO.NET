@@ -164,6 +164,125 @@ public class WriterRemainingFidelityTests
     }
 
     [Fact]
+    public async Task Master_track_automation_and_top_level_media_passthrough_round_trip_through_json()
+    {
+        const string gpif = """
+        <GPIF>
+          <Score><Title>T</Title><Artist>A</Artist><Album>B</Album></Score>
+          <MasterTrack>
+            <Tracks>0</Tracks>
+            <Automations>
+              <Automation>
+                <Type>Tempo</Type>
+                <Linear>false</Linear>
+                <Bar>0</Bar>
+                <Position>0.333333</Position>
+                <Visible>true</Visible>
+                <Text><![CDATA[Lento]]></Text>
+                <Value>110 2</Value>
+              </Automation>
+              <Automation>
+                <Type>SyncPoint</Type>
+                <Linear>false</Linear>
+                <Bar>1</Bar>
+                <Position>0.6625</Position>
+                <Visible>true</Visible>
+                <Value>
+                  <BarIndex>3</BarIndex>
+                  <BarOccurrence>1</BarOccurrence>
+                  <ModifiedTempo>112.118645</ModifiedTempo>
+                  <OriginalTempo>110</OriginalTempo>
+                  <FrameOffset>70800</FrameOffset>
+                </Value>
+              </Automation>
+            </Automations>
+          </MasterTrack>
+          <BackingTrack>
+            <Name><![CDATA[Audio Track]]></Name>
+            <ShortName><![CDATA[a.track]]></ShortName>
+          </BackingTrack>
+          <AudioTracks>
+            <AudioTrack id="0">
+              <Name><![CDATA[Mix]]></Name>
+            </AudioTrack>
+          </AudioTracks>
+          <Tracks><Track id="0"><Name>Track</Name></Track></Tracks>
+          <MasterBars><MasterBar><Time>4/4</Time><Bars>1</Bars></MasterBar></MasterBars>
+          <Bars><Bar id="1"><Voices>10</Voices></Bar></Bars>
+          <Voices><Voice id="10"><Beats>100</Beats></Voice></Voices>
+          <Rhythms><Rhythm id="1000"><NoteValue>Quarter</NoteValue></Rhythm></Rhythms>
+          <Beats><Beat id="100"><Rhythm ref="1000" /></Beat></Beats>
+          <Notes />
+          <Assets>
+            <Asset id="0">
+              <OriginalFilePath><![CDATA[a.ogg]]></OriginalFilePath>
+            </Asset>
+          </Assets>
+        </GPIF>
+        """;
+
+        var score = await DeserializeAndMap(gpif);
+        score.MasterTrack.AutomationsXml.Should().Contain("<Text><![CDATA[Lento]]></Text>");
+        score.MasterTrack.AutomationsXml.Should().Contain("<BarIndex>3</BarIndex>");
+        score.Metadata.BackingTrackXml.Should().Contain("<BackingTrack>");
+        score.Metadata.AudioTracksXml.Should().Contain("<AudioTrack id=\"0\">");
+        score.Metadata.AssetsXml.Should().Contain("<Asset id=\"0\">");
+
+        var roundTrip = await RoundTripThroughJsonAndWrite(gpif);
+        var root = roundTrip.Root!;
+        var automations = root.Element("MasterTrack")!.Element("Automations")!.Elements("Automation").ToArray();
+
+        automations[0].Element("Position")!.Value.Should().Be("0.333333");
+        automations[0].Element("Text")!.Value.Should().Be("Lento");
+        automations[1].Element("Position")!.Value.Should().Be("0.6625");
+        automations[1].Element("Value")!.Element("BarIndex")!.Value.Should().Be("3");
+        automations[1].Element("Value")!.Element("FrameOffset")!.Value.Should().Be("70800");
+        root.Element("BackingTrack")!.Element("Name")!.Value.Should().Be("Audio Track");
+        root.Element("AudioTracks")!.Element("AudioTrack")!.Element("Name")!.Value.Should().Be("Mix");
+        root.Element("Assets")!.Element("Asset")!.Element("OriginalFilePath")!.Value.Should().Be("a.ogg");
+    }
+
+    [Fact]
+    public async Task Brush_direction_without_explicit_xproperty_does_not_gain_brush_duration_xproperties()
+    {
+        const string gpif = """
+        <GPIF>
+          <Score><Title>T</Title><Artist>A</Artist><Album>B</Album></Score>
+          <MasterTrack><Tracks>0</Tracks></MasterTrack>
+          <Tracks><Track id="0"><Name>Track</Name></Track></Tracks>
+          <MasterBars><MasterBar><Time>4/4</Time><Bars>1</Bars></MasterBar></MasterBars>
+          <Bars><Bar id="1"><Voices>10</Voices></Bar></Bars>
+          <Voices><Voice id="10"><Beats>100</Beats></Voice></Voices>
+          <Rhythms><Rhythm id="1000"><NoteValue>Quarter</NoteValue></Rhythm></Rhythms>
+          <Beats>
+            <Beat id="100">
+              <Rhythm ref="1000" />
+              <Properties>
+                <Property name="Brush"><Direction>Down</Direction></Property>
+              </Properties>
+            </Beat>
+          </Beats>
+          <Notes />
+        </GPIF>
+        """;
+
+        var score = await DeserializeAndMap(gpif);
+        var beat = score.Tracks[0].Measures[0].Beats[0];
+
+        beat.Brush.Should().BeTrue();
+        beat.BrushDurationTicks.Should().Be(60);
+        beat.HasExplicitBrushDurationXProperty.Should().BeFalse();
+
+        var roundTrip = await RoundTripThroughJsonAndWrite(gpif);
+        var outputBeat = roundTrip.Root!.Element("Beats")!.Element("Beat")!;
+
+        outputBeat.Element("XProperties").Should().BeNull();
+        outputBeat.Element("Properties")!
+            .ToString(SaveOptions.DisableFormatting)
+            .Should().Contain("<Property name=\"Brush\"><Direction>Down</Direction></Property>");
+    }
+
+    [Fact]
     public async Task Note_show_string_number_round_trips_through_json_and_write()
     {
         var gpif = """

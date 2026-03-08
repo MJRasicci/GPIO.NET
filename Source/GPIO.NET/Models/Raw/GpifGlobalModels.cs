@@ -4,6 +4,8 @@ public sealed class GpifMasterTrack
 {
     public int[] TrackIds { get; init; } = Array.Empty<int>();
 
+    public string AutomationsXml { get; init; } = string.Empty;
+
     public IReadOnlyList<GpifAutomation> Automations { get; init; } = Array.Empty<GpifAutomation>();
 
     public bool Anacrusis { get; init; }
