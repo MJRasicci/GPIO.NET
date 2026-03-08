@@ -37,6 +37,8 @@ public sealed class ScoreMetadata
 
     public string GpVersion { get; init; } = string.Empty;
 
+    public string GpRevisionXml { get; init; } = string.Empty;
+
     public string GpRevisionRequired { get; init; } = string.Empty;
 
     public string GpRevisionRecommended { get; init; } = string.Empty;
@@ -79,6 +81,8 @@ public sealed class ScoreMetadata
 
     public string ScoreZoom { get; init; } = string.Empty;
 
+    public string PageSetupXml { get; init; } = string.Empty;
+
     public string MultiVoice { get; init; } = string.Empty;
 }
 
@@ -101,6 +105,8 @@ public sealed class TrackMetadata
     public decimal? AutoAccentuation { get; init; }
 
     public bool AutoBrush { get; init; }
+
+    public bool LetRingThroughout { get; init; }
 
     public string PlayingStyle { get; init; } = string.Empty;
 
@@ -459,11 +465,15 @@ public sealed class MeasureModel
 
     public bool DoubleBar { get; init; }
 
+    public bool FreeTime { get; init; }
+
     public string TripletFeel { get; init; } = string.Empty;
 
     public int SourceBarId { get; init; }
 
     public string Clef { get; init; } = string.Empty;
+
+    public string SimileMark { get; init; } = string.Empty;
 
     public bool RepeatStart { get; init; }
 
@@ -483,11 +493,15 @@ public sealed class MeasureModel
 
     public string SectionText { get; init; } = string.Empty;
 
+    public bool HasExplicitEmptySection { get; init; }
+
     public string Jump { get; init; } = string.Empty;
 
     public string Target { get; init; } = string.Empty;
 
     public IReadOnlyDictionary<string, string> DirectionProperties { get; init; } = new Dictionary<string, string>();
+
+    public string DirectionsXml { get; init; } = string.Empty;
 
     public int? KeyAccidentalCount { get; init; }
 
@@ -521,6 +535,8 @@ public sealed class MeasureStaffModel
     public int SourceBarId { get; init; }
 
     public string Clef { get; init; } = string.Empty;
+
+    public string SimileMark { get; init; } = string.Empty;
 
     public IReadOnlyDictionary<string, string> BarProperties { get; init; } = new Dictionary<string, string>();
 
@@ -695,6 +711,8 @@ public sealed class NoteModel
     public int? SourceFret { get; init; }
 
     public int? SourceStringNumber { get; init; }
+
+    public bool ShowStringNumber { get; init; }
 
     public int? StringNumber { get; init; }
 

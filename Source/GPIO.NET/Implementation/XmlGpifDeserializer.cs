@@ -76,6 +76,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     PalmMute = TryParseNullableDecimal(t.Element("PalmMute")?.Value),
                     AutoAccentuation = TryParseNullableDecimal(t.Element("AutoAccentuation")?.Value),
                     AutoBrush = t.Element("AutoBrush") is not null,
+                    LetRingThroughout = t.Element("LetRingThroughout") is not null,
                     PlayingStyle = t.Element("PlayingStyle")?.Value ?? string.Empty,
                     UseOneChannelPerString = t.Element("UseOneChannelPerString") is not null,
                     IconId = TryParseNullableInt(t.Element("IconId")?.Value),
@@ -139,6 +140,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     Index = index,
                     Time = mb.Element("Time")?.Value ?? string.Empty,
                     DoubleBar = mb.Element("DoubleBar") is not null,
+                    FreeTime = mb.Element("FreeTime") is not null,
                     TripletFeel = mb.Element("TripletFeel")?.Value ?? string.Empty,
                     BarsReferenceList = mb.Element("Bars")?.Value ?? string.Empty,
                     AlternateEndings = mb.Element("AlternateEndings")?.Value ?? string.Empty,
@@ -150,9 +152,13 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     RepeatCountAttributePresent = repeat?.Attribute("count") is not null,
                     SectionLetter = section?.Element("Letter")?.Value ?? string.Empty,
                     SectionText = section?.Element("Text")?.Value ?? string.Empty,
+                    HasExplicitEmptySection = section is not null
+                        && section.Elements().Any()
+                        && section.Elements().All(child => child.Value.Length == 0),
                     Jump = directions?.Element("Jump")?.Value ?? string.Empty,
                     Target = directions?.Element("Target")?.Value ?? string.Empty,
                     DirectionProperties = directionProps,
+                    DirectionsXml = directions?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                     KeyAccidentalCount = TryParseNullableInt(key?.Element("AccidentalCount")?.Value),
                     KeyMode = key?.Element("Mode")?.Value ?? string.Empty,
                     KeyTransposeAs = key?.Element("TransposeAs")?.Value ?? string.Empty,
@@ -175,6 +181,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     Id = ParseInt(b.Attribute("id")?.Value),
                     VoicesReferenceList = b.Element("Voices")?.Value ?? string.Empty,
                     Clef = b.Element("Clef")?.Value ?? string.Empty,
+                    SimileMark = b.Element("SimileMark")?.Value ?? string.Empty,
                     XProperties = xprops,
                     XPropertiesXml = barXProperties?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                     Properties = props
@@ -240,6 +247,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                     TransposedPitch = ParseNamedPitchValue(n, "TransposedPitch"),
                     SourceFret = ParseNamedFretProperty(n),
                     SourceStringNumber = ParseNamedStringProperty(n),
+                    ShowStringNumber = HasEnabledNoteProperty(properties, "ShowStringNumber"),
                     Properties = properties,
                     Articulation = ParseArticulation(n, properties),
                     XProperties = noteXprops,
@@ -372,6 +380,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
             GpVersion = root.Element("GPVersion")?.Value ?? string.Empty,
             GpRevision = new GpifRevisionInfo
             {
+                Xml = root.Element("GPRevision")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                 Required = root.Element("GPRevision")?.Attribute("required")?.Value ?? string.Empty,
                 Recommended = root.Element("GPRevision")?.Attribute("recommended")?.Value ?? string.Empty,
                 Value = root.Element("GPRevision")?.Value ?? string.Empty
@@ -399,6 +408,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
                 ScoreSystemsLayout = score?.Element("ScoreSystemsLayout")?.Value ?? string.Empty,
                 ScoreZoomPolicy = score?.Element("ScoreZoomPolicy")?.Value ?? string.Empty,
                 ScoreZoom = score?.Element("ScoreZoom")?.Value ?? string.Empty,
+                PageSetupXml = score?.Element("PageSetup")?.ToString(SaveOptions.DisableFormatting) ?? string.Empty,
                 MultiVoice = score?.Element("MultiVoice")?.Value ?? string.Empty
             },
             MasterTrack = new GpifMasterTrack
@@ -444,7 +454,7 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
         }
 
         return score.Elements()
-            .Where(element => IsOptionalScoreElement(element.Name.LocalName) && !element.HasElements && string.IsNullOrWhiteSpace(element.Value))
+            .Where(element => IsOptionalScoreElement(element.Name.LocalName) && !element.HasElements && element.Value.Length == 0)
             .Select(element => element.Name.LocalName)
             .Distinct(StringComparer.Ordinal)
             .ToArray();
@@ -594,11 +604,14 @@ public sealed class XmlGpifDeserializer : IGpifDeserializer
             })
             .ToArray();
 
+    private static bool HasEnabledNoteProperty(IReadOnlyList<GpifNoteProperty> properties, string propertyName)
+        => properties.Any(p => string.Equals(p.Name, propertyName, StringComparison.OrdinalIgnoreCase) && p.Enabled);
+
     private static GpifNoteArticulation ParseArticulation(XElement note, IReadOnlyList<GpifNoteProperty> properties)
     {
         var tie = note.Element("Tie");
         bool HasEnabledProperty(string name)
-            => properties.Any(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase) && p.Enabled);
+            => HasEnabledNoteProperty(properties, name);
 
         int? GetPropertyFlags(string name)
             => properties.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))?.Flags;

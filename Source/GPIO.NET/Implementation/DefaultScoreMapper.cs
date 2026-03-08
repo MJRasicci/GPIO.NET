@@ -56,6 +56,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                         PalmMute = track.PalmMute,
                         AutoAccentuation = track.AutoAccentuation,
                         AutoBrush = track.AutoBrush,
+                        LetRingThroughout = track.LetRingThroughout,
                         PlayingStyle = track.PlayingStyle,
                         UseOneChannelPerString = track.UseOneChannelPerString,
                         IconId = track.IconId,
@@ -233,6 +234,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
             {
                 ExplicitEmptyOptionalElements = source.Score.ExplicitEmptyOptionalElements,
                 GpVersion = source.GpVersion,
+                GpRevisionXml = source.GpRevision.Xml,
                 GpRevisionRequired = source.GpRevision.Required,
                 GpRevisionRecommended = source.GpRevision.Recommended,
                 GpRevisionValue = source.GpRevision.Value,
@@ -254,6 +256,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                 ScoreSystemsLayout = source.Score.ScoreSystemsLayout,
                 ScoreZoomPolicy = source.Score.ScoreZoomPolicy,
                 ScoreZoom = source.Score.ScoreZoom,
+                PageSetupXml = source.Score.PageSetupXml,
                 MultiVoice = source.Score.MultiVoice
             },
             Tracks = tracks,
@@ -319,9 +322,11 @@ public sealed class DefaultScoreMapper : IScoreMapper
                 Index = masterBar.Index,
                 TimeSignature = masterBar.Time,
                 DoubleBar = masterBar.DoubleBar,
+                FreeTime = masterBar.FreeTime,
                 TripletFeel = masterBar.TripletFeel,
                 SourceBarId = primaryStaff?.SourceBarId ?? -1,
                 Clef = primaryStaff?.Clef ?? string.Empty,
+                SimileMark = primaryStaff?.SimileMark ?? string.Empty,
                 RepeatStart = masterBar.RepeatStart,
                 RepeatStartAttributePresent = masterBar.RepeatStartAttributePresent,
                 RepeatEnd = masterBar.RepeatEnd,
@@ -331,9 +336,11 @@ public sealed class DefaultScoreMapper : IScoreMapper
                 AlternateEndings = masterBar.AlternateEndings,
                 SectionLetter = masterBar.SectionLetter,
                 SectionText = masterBar.SectionText,
+                HasExplicitEmptySection = masterBar.HasExplicitEmptySection,
                 Jump = masterBar.Jump,
                 Target = masterBar.Target,
                 DirectionProperties = masterBar.DirectionProperties,
+                DirectionsXml = masterBar.DirectionsXml,
                 KeyAccidentalCount = masterBar.KeyAccidentalCount,
                 KeyMode = masterBar.KeyMode,
                 KeyTransposeAs = masterBar.KeyTransposeAs,
@@ -370,7 +377,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
         }
 
         var voices = new List<MeasureVoiceModel>();
-        var voiceRefs = ReferenceListParser.SplitRefs(bar.VoicesReferenceList);
+        var voiceRefs = ReferenceListParser.SplitRefsPreservePlaceholders(bar.VoicesReferenceList);
 
         for (var voiceIndex = 0; voiceIndex < voiceRefs.Count; voiceIndex++)
         {
@@ -399,6 +406,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
             StaffIndex = staffIndex,
             SourceBarId = bar.Id,
             Clef = bar.Clef,
+            SimileMark = bar.SimileMark,
             BarProperties = bar.Properties.ToDictionary(kv => kv.Key, kv => kv.Value),
             BarXProperties = bar.XProperties.ToDictionary(kv => kv.Key, kv => kv.Value),
             BarXPropertiesXml = bar.XPropertiesXml,
@@ -455,6 +463,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                         TransposedPitch = MapPitchValue(n.TransposedPitch),
                         SourceFret = n.SourceFret,
                         SourceStringNumber = n.SourceStringNumber,
+                        ShowStringNumber = n.ShowStringNumber,
                         StringNumber = stringNumber,
                         XProperties = n.XProperties.ToDictionary(kv => kv.Key, kv => kv.Value),
                         XPropertiesXml = n.XPropertiesXml,

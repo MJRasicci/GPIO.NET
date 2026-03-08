@@ -53,11 +53,18 @@ public sealed class XmlGpifSerializer : IGpifSerializer
     }
 
     private static XElement BuildGpRevision(GpifRevisionInfo revision)
-        => new(
+    {
+        if (CanPreserveSourceGpRevisionXml(revision, out var rawRevision))
+        {
+            return rawRevision;
+        }
+
+        return new XElement(
             "GPRevision",
             new XAttribute("required", ResolveOrDefault(revision.Required, DefaultGpRevisionRequired)),
             new XAttribute("recommended", ResolveOrDefault(revision.Recommended, DefaultGpRevisionRecommended)),
             ResolveOrDefault(revision.Value, DefaultGpRevisionValue));
+    }
 
     private static string ResolveOrDefault(string value, string fallback)
         => string.IsNullOrWhiteSpace(value) ? fallback : value;
@@ -85,6 +92,7 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         AddScoreTextElement(el, s, "ScoreSystemsLayout", s.ScoreSystemsLayout);
         AddScoreTextElement(el, s, "ScoreZoomPolicy", s.ScoreZoomPolicy);
         AddScoreTextElement(el, s, "ScoreZoom", s.ScoreZoom);
+        AddRawElementXml(el, s.PageSetupXml);
         AddScoreTextElement(el, s, "MultiVoice", s.MultiVoice);
 
         return el;
@@ -128,6 +136,7 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         AddTextElement(el, "SystemsDefautLayout", t.SystemsDefaultLayout);
         AddOptionalEmptyTextElement(el, "SystemsLayout", t.SystemsLayout, t.HasExplicitEmptySystemsLayout);
         if (t.AutoBrush) el.Add(new XElement("AutoBrush"));
+        if (t.LetRingThroughout) el.Add(new XElement("LetRingThroughout"));
         if (t.PalmMute.HasValue) el.Add(new XElement("PalmMute", t.PalmMute.Value));
         if (t.AutoAccentuation.HasValue) el.Add(new XElement("AutoAccentuation", t.AutoAccentuation.Value));
         AddTextElement(el, "PlayingStyle", t.PlayingStyle);
@@ -294,6 +303,11 @@ public sealed class XmlGpifSerializer : IGpifSerializer
             el.Add(new XElement("DoubleBar"));
         }
 
+        if (m.FreeTime)
+        {
+            el.Add(new XElement("FreeTime"));
+        }
+
         AddTextElement(el, "TripletFeel", m.TripletFeel);
         if (!string.IsNullOrWhiteSpace(m.AlternateEndings)) el.Add(new XElement("AlternateEndings", m.AlternateEndings));
         if (m.RepeatStart || m.RepeatEnd || m.RepeatCount > 0 || m.RepeatStartAttributePresent || m.RepeatEndAttributePresent || m.RepeatCountAttributePresent)
@@ -305,7 +319,7 @@ public sealed class XmlGpifSerializer : IGpifSerializer
             el.Add(repeat);
         }
 
-        if (!string.IsNullOrWhiteSpace(m.SectionLetter) || !string.IsNullOrWhiteSpace(m.SectionText))
+        if (!string.IsNullOrWhiteSpace(m.SectionLetter) || !string.IsNullOrWhiteSpace(m.SectionText) || m.HasExplicitEmptySection)
         {
             el.Add(new XElement(
                 "Section",
@@ -313,7 +327,11 @@ public sealed class XmlGpifSerializer : IGpifSerializer
                 new XElement("Text", new XCData(m.SectionText))));
         }
 
-        if (!string.IsNullOrWhiteSpace(m.Jump) || !string.IsNullOrWhiteSpace(m.Target) || m.DirectionProperties.Count > 0)
+        if (CanPreserveSourceDirectionsXml(m))
+        {
+            AddRawElementXml(el, m.DirectionsXml);
+        }
+        else if (!string.IsNullOrWhiteSpace(m.Jump) || !string.IsNullOrWhiteSpace(m.Target) || m.DirectionProperties.Count > 0)
         {
             var dirs = new XElement("Directions");
             if (!string.IsNullOrWhiteSpace(m.Jump)) dirs.Add(new XElement("Jump", m.Jump));
@@ -597,6 +615,7 @@ public sealed class XmlGpifSerializer : IGpifSerializer
     {
         var bar = new XElement("Bar", new XAttribute("id", b.Id), new XElement("Voices", b.VoicesReferenceList));
         AddTextElement(bar, "Clef", b.Clef);
+        AddTextElement(bar, "SimileMark", b.SimileMark);
 
         if (b.Properties.Count > 0)
         {
@@ -917,6 +936,12 @@ public sealed class XmlGpifSerializer : IGpifSerializer
             AddPitchProperty(props, propertyNames, "TransposedPitch", n.TransposedPitch, n.TransposedMidiPitch.Value);
         }
 
+        if (n.ShowStringNumber && !propertyNames.Contains("ShowStringNumber"))
+        {
+            props.Add(new XElement("Property", new XAttribute("name", "ShowStringNumber"), new XElement("Enable")));
+            propertyNames.Add("ShowStringNumber");
+        }
+
         AddBoolProperty(props, "PalmMuted", n.Articulation.PalmMuted);
         AddBoolProperty(props, "Muted", n.Articulation.Muted);
         AddBoolProperty(props, "Tapped", n.Articulation.Tapped);
@@ -1078,7 +1103,7 @@ public sealed class XmlGpifSerializer : IGpifSerializer
 
     private static void AddScoreTextElement(XElement parent, ScoreInfo score, string name, string value)
     {
-        if (string.IsNullOrWhiteSpace(value))
+        if (value.Length == 0)
         {
             if (!score.ExplicitEmptyOptionalElements.Contains(name, StringComparer.Ordinal))
             {
@@ -1089,7 +1114,57 @@ public sealed class XmlGpifSerializer : IGpifSerializer
             return;
         }
 
-        parent.Add(new XElement(name, value));
+        parent.Add(string.IsNullOrWhiteSpace(value)
+            ? new XElement(name, new XCData(value))
+            : new XElement(name, value));
+    }
+
+    private static bool CanPreserveSourceGpRevisionXml(GpifRevisionInfo revision, out XElement rawRevision)
+    {
+        if (string.IsNullOrWhiteSpace(revision.Xml))
+        {
+            rawRevision = null!;
+            return false;
+        }
+
+        try
+        {
+            rawRevision = XElement.Parse(revision.Xml);
+            return string.Equals(rawRevision.Attribute("required")?.Value ?? string.Empty, revision.Required, StringComparison.Ordinal)
+                && string.Equals(rawRevision.Attribute("recommended")?.Value ?? string.Empty, revision.Recommended, StringComparison.Ordinal)
+                && string.Equals(rawRevision.Value ?? string.Empty, revision.Value, StringComparison.Ordinal);
+        }
+        catch
+        {
+            rawRevision = null!;
+            return false;
+        }
+    }
+
+    private static bool CanPreserveSourceDirectionsXml(GpifMasterBar masterBar)
+    {
+        if (string.IsNullOrWhiteSpace(masterBar.DirectionsXml))
+        {
+            return false;
+        }
+
+        try
+        {
+            var directions = XElement.Parse(masterBar.DirectionsXml);
+            var sourceJump = directions.Elements("Jump").FirstOrDefault()?.Value ?? string.Empty;
+            var sourceTarget = directions.Elements("Target").FirstOrDefault()?.Value ?? string.Empty;
+            var sourceProperties = directions.Elements()
+                .GroupBy(element => element.Name.LocalName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.Last().Value ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+
+            return string.Equals(sourceJump, masterBar.Jump, StringComparison.Ordinal)
+                && string.Equals(sourceTarget, masterBar.Target, StringComparison.Ordinal)
+                && DictionariesEqual(sourceProperties, masterBar.DirectionProperties);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static void AddRawElementXml(XElement parent, string xml)

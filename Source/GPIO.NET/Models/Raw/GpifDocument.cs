@@ -34,6 +34,8 @@ public sealed class GpifDocument
 
 public sealed class GpifRevisionInfo
 {
+    public string Xml { get; init; } = string.Empty;
+
     public string Required { get; init; } = string.Empty;
 
     public string Recommended { get; init; } = string.Empty;
@@ -83,6 +85,8 @@ public sealed class ScoreInfo
 
     public string ScoreZoom { get; init; } = string.Empty;
 
+    public string PageSetupXml { get; init; } = string.Empty;
+
     public string MultiVoice { get; init; } = string.Empty;
 }
 
@@ -109,6 +113,8 @@ public sealed class GpifTrack
     public decimal? AutoAccentuation { get; init; }
 
     public bool AutoBrush { get; init; }
+
+    public bool LetRingThroughout { get; init; }
 
     public string PlayingStyle { get; init; } = string.Empty;
 
@@ -196,6 +202,8 @@ public sealed class GpifMasterBar
 
     public bool DoubleBar { get; init; }
 
+    public bool FreeTime { get; init; }
+
     public string TripletFeel { get; init; } = string.Empty;
 
     public string BarsReferenceList { get; init; } = string.Empty;
@@ -218,11 +226,15 @@ public sealed class GpifMasterBar
 
     public string SectionText { get; init; } = string.Empty;
 
+    public bool HasExplicitEmptySection { get; init; }
+
     public string Jump { get; init; } = string.Empty;
 
     public string Target { get; init; } = string.Empty;
 
     public IReadOnlyDictionary<string, string> DirectionProperties { get; init; } = new Dictionary<string, string>();
+
+    public string DirectionsXml { get; init; } = string.Empty;
 
     public int? KeyAccidentalCount { get; init; }
 
@@ -253,6 +265,8 @@ public sealed class GpifBar
     public string VoicesReferenceList { get; init; } = string.Empty;
 
     public string Clef { get; init; } = string.Empty;
+
+    public string SimileMark { get; init; } = string.Empty;
 
     public IReadOnlyDictionary<string, int> XProperties { get; init; } = new Dictionary<string, int>();
 
@@ -390,6 +404,8 @@ public sealed class GpifNote
     public int? SourceFret { get; init; }
 
     public int? SourceStringNumber { get; init; }
+
+    public bool ShowStringNumber { get; init; }
 
     public IReadOnlyList<GpifNoteProperty> Properties { get; init; } = Array.Empty<GpifNoteProperty>();
 

@@ -31,6 +31,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 PalmMute = t.Metadata.PalmMute,
                 AutoAccentuation = t.Metadata.AutoAccentuation,
                 AutoBrush = t.Metadata.AutoBrush,
+                LetRingThroughout = t.Metadata.LetRingThroughout,
                 PlayingStyle = t.Metadata.PlayingStyle,
                 UseOneChannelPerString = t.Metadata.UseOneChannelPerString,
                 IconId = t.Metadata.IconId,
@@ -202,8 +203,8 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 foreach (var staffBar in staffBars)
                 {
                     var currentBarId = staffBar.SourceBarId;
-                    var measureVoiceIds = new List<int>();
                     var measureVoices = ResolveMeasureVoices(staffBar.Voices, staffBar.Beats);
+                    var voiceSlots = CreateVoiceSlots(measureVoices);
 
                     foreach (var measureVoice in measureVoices)
                     {
@@ -259,6 +260,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                             : null,
                                         SourceFret = note.SourceFret,
                                         SourceStringNumber = note.SourceStringNumber,
+                                        ShowStringNumber = note.ShowStringNumber,
                                         Properties = BuildCoreNoteProperties(note.MidiPitch, resolvedStringNumber, resolvedFret),
                                         XProperties = noteXProperties,
                                         XPropertiesXml = note.XPropertiesXml,
@@ -453,13 +455,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                             voices[currentVoiceId] = WithVoiceId(voiceCandidate, currentVoiceId);
                         }
 
-                        measureVoiceIds.Add(currentVoiceId);
-                    }
-
-                    var voiceSlots = measureVoiceIds.Take(4).ToList();
-                    while (voiceSlots.Count < 4)
-                    {
-                        voiceSlots.Add(-1);
+                        SetVoiceSlot(voiceSlots, measureVoice.VoiceIndex, currentVoiceId);
                     }
 
                     var barCandidate = new GpifBar
@@ -467,6 +463,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                         Id = 0,
                         VoicesReferenceList = ReferenceListFormatter.JoinRefs(voiceSlots),
                         Clef = staffBar.Clef,
+                        SimileMark = staffBar.SimileMark,
                         Properties = staffBar.BarProperties,
                         XProperties = staffBar.BarXProperties,
                         XPropertiesXml = staffBar.BarXPropertiesXml
@@ -499,6 +496,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                         Index = m,
                         Time = measure.TimeSignature,
                         DoubleBar = measure.DoubleBar,
+                        FreeTime = measure.FreeTime,
                         TripletFeel = measure.TripletFeel,
                         RepeatStart = measure.RepeatStart,
                         RepeatStartAttributePresent = measure.RepeatStartAttributePresent,
@@ -509,9 +507,11 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                         AlternateEndings = measure.AlternateEndings,
                         SectionLetter = measure.SectionLetter,
                         SectionText = measure.SectionText,
+                        HasExplicitEmptySection = measure.HasExplicitEmptySection,
                         Jump = jump,
                         Target = target,
                         DirectionProperties = measure.DirectionProperties,
+                        DirectionsXml = measure.DirectionsXml,
                         KeyAccidentalCount = measure.KeyAccidentalCount,
                         KeyMode = measure.KeyMode,
                         KeyTransposeAs = measure.KeyTransposeAs,
@@ -535,6 +535,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                     Index = existing.Index,
                     Time = existing.Time,
                     DoubleBar = existing.DoubleBar,
+                    FreeTime = existing.FreeTime,
                     TripletFeel = existing.TripletFeel,
                     BarsReferenceList = ReferenceListFormatter.JoinRefs(measureBarIds),
                     AlternateEndings = existing.AlternateEndings,
@@ -546,9 +547,11 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                     RepeatCountAttributePresent = existing.RepeatCountAttributePresent,
                     SectionLetter = existing.SectionLetter,
                     SectionText = existing.SectionText,
+                    HasExplicitEmptySection = existing.HasExplicitEmptySection,
                     Jump = existing.Jump,
                     Target = existing.Target,
                     DirectionProperties = existing.DirectionProperties,
+                    DirectionsXml = existing.DirectionsXml,
                     KeyAccidentalCount = existing.KeyAccidentalCount,
                     KeyMode = existing.KeyMode,
                     KeyTransposeAs = existing.KeyTransposeAs,
@@ -564,6 +567,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             GpVersion = score.Metadata.GpVersion,
             GpRevision = new GpifRevisionInfo
             {
+                Xml = score.Metadata.GpRevisionXml,
                 Required = score.Metadata.GpRevisionRequired,
                 Recommended = score.Metadata.GpRevisionRecommended,
                 Value = score.Metadata.GpRevisionValue
@@ -591,6 +595,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 ScoreSystemsLayout = score.Metadata.ScoreSystemsLayout,
                 ScoreZoomPolicy = score.Metadata.ScoreZoomPolicy,
                 ScoreZoom = score.Metadata.ScoreZoom,
+                PageSetupXml = score.Metadata.PageSetupXml,
                 MultiVoice = score.Metadata.MultiVoice
             },
             MasterTrack = new GpifMasterTrack
@@ -1040,6 +1045,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 StaffIndex = 0,
                 SourceBarId = measure.SourceBarId,
                 Clef = measure.Clef,
+                SimileMark = measure.SimileMark,
                 BarProperties = measure.BarProperties,
                 BarXProperties = measure.BarXProperties,
                 BarXPropertiesXml = measure.BarXPropertiesXml,
@@ -1102,6 +1108,26 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 Beats = measureBeats
             }
         ];
+    }
+
+    private static List<int> CreateVoiceSlots(IReadOnlyList<MeasureVoiceModel> measureVoices)
+    {
+        var highestSlotIndex = measureVoices.Count == 0
+            ? -1
+            : measureVoices.Max(voice => Math.Max(voice.VoiceIndex, 0));
+        var slotCount = Math.Max(4, highestSlotIndex + 1);
+        return Enumerable.Repeat(-1, slotCount).ToList();
+    }
+
+    private static void SetVoiceSlot(List<int> voiceSlots, int voiceIndex, int voiceId)
+    {
+        var slotIndex = Math.Max(voiceIndex, 0);
+        while (voiceSlots.Count <= slotIndex)
+        {
+            voiceSlots.Add(-1);
+        }
+
+        voiceSlots[slotIndex] = voiceId;
     }
 
     private static int NextIdAfter(IEnumerable<int> ids)
@@ -1202,6 +1228,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             Id = id,
             VoicesReferenceList = bar.VoicesReferenceList,
             Clef = bar.Clef,
+            SimileMark = bar.SimileMark,
             XProperties = bar.XProperties,
             XPropertiesXml = bar.XPropertiesXml,
             Properties = bar.Properties
@@ -1281,6 +1308,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             TransposedPitch = note.TransposedPitch,
             SourceFret = note.SourceFret,
             SourceStringNumber = note.SourceStringNumber,
+            ShowStringNumber = note.ShowStringNumber,
             Properties = note.Properties,
             Articulation = note.Articulation,
             XProperties = note.XProperties,
@@ -1302,6 +1330,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
     private static bool BarsEqual(GpifBar a, GpifBar b)
         => string.Equals(a.VoicesReferenceList, b.VoicesReferenceList, StringComparison.Ordinal)
            && string.Equals(a.Clef, b.Clef, StringComparison.Ordinal)
+           && string.Equals(a.SimileMark, b.SimileMark, StringComparison.Ordinal)
            && DictionariesEqual(a.XProperties, b.XProperties)
            && string.Equals(a.XPropertiesXml, b.XPropertiesXml, StringComparison.Ordinal)
            && DictionariesEqual(a.Properties, b.Properties);
@@ -1377,6 +1406,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
            && PitchValuesEqual(a.TransposedPitch, b.TransposedPitch)
            && a.SourceFret == b.SourceFret
            && a.SourceStringNumber == b.SourceStringNumber
+           && a.ShowStringNumber == b.ShowStringNumber
            && PropertiesEqual(a.Properties, b.Properties)
            && ArticulationsEqual(a.Articulation, b.Articulation)
            && DictionariesEqual(a.XProperties, b.XProperties)
