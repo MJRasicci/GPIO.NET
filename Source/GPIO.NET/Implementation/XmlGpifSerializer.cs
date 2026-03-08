@@ -51,6 +51,9 @@ public sealed class XmlGpifSerializer : IGpifSerializer
         {
             Async = true,
             Indent = true,
+            IndentChars = string.Empty,
+            NewLineChars = "\n",
+            NewLineHandling = NewLineHandling.Replace,
             OmitXmlDeclaration = false,
             Encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)
         };

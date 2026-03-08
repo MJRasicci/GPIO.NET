@@ -110,4 +110,58 @@ public class XmlGpifSerializerTests
         scoreElement.Element("ScoreSystemsDefaultLayout")!.Nodes().OfType<XCData>().Should().BeEmpty();
         scoreElement.Element("ScoreZoom")!.Nodes().OfType<XCData>().Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Serializer_emits_lf_delimited_xml_without_leading_indentation()
+    {
+        var score = new GuitarProScore
+        {
+            Title = "Formatting Test",
+            Tracks =
+            [
+                new TrackModel
+                {
+                    Id = 0,
+                    Name = "Guitar",
+                    Measures =
+                    [
+                        new MeasureModel
+                        {
+                            Index = 0,
+                            TimeSignature = "4/4",
+                            Voices =
+                            [
+                                new MeasureVoiceModel
+                                {
+                                    VoiceIndex = 0,
+                                    Beats =
+                                    [
+                                        new BeatModel
+                                        {
+                                            Id = 1,
+                                            Duration = 0.25m
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var unmapper = new DefaultScoreUnmapper();
+        var writeResult = await unmapper.UnmapAsync(score, TestContext.Current.CancellationToken);
+
+        var serializer = new XmlGpifSerializer();
+        await using var buffer = new MemoryStream();
+        await serializer.SerializeAsync(writeResult.RawDocument, buffer, TestContext.Current.CancellationToken);
+
+        var xml = Encoding.UTF8.GetString(buffer.ToArray());
+        xml.Should().NotContain("\r");
+        xml.Should().Contain("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<GPIF>\n");
+
+        var lines = xml.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        lines.Should().OnlyContain(line => line.Length == 0 || line[0] == '<');
+    }
 }
