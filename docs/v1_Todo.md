@@ -52,36 +52,53 @@ The following are explicitly out of scope for v1:
 
 # Step 0 — Resolve Design Decisions That Shape the Core Model
 
-These decisions must be resolved before the Core/extension split is finalized, because they directly determine the public model shape.
+These decisions define the target Core model shape. The design questions below are resolved enough to turn into implementation work, even if the codebase still reflects the pre-refactor model.
 
 ## 0.1 Mutation Model
 
-- [ ] Define whether the Motif domain model is mutable, immutable, or mixed
-- [ ] Define how extensions are attached, preserved, or invalidated during edits
-- [ ] Define how node identity behaves across structural edits
-- [ ] Define how navigation state behaves after edits
+### Decision
+
+- [x] `Motif.Core` should expose a mutable domain model optimized for direct, logical programmatic edits.
+- [x] Core musical data is authoritative. Extension data is supplemental fidelity/format state attached during import and consulted again during export.
+- [x] Importers attach extension data after they map the core model, so a later export can preserve format fidelity where possible.
+- [x] Exporters use existing extension data when it is present and still usable; otherwise they infer from the core model, infer from other available extensions, or fall back to sensible defaults so output remains valid.
+- [x] Motif should preserve extension data best-effort, but it does not guarantee semantic validation or preservation of arbitrary user-authored edits inside extension payloads. The responsibility is to emit a structurally valid file, not to police every extension-specific field.
+- [x] Exact source-node identity is secondary to preserving musical context, application compatibility, and reasonable output size. Structural edits may require reallocation of format-specific IDs on export.
+- [x] Public traversal should stay loop-friendly. Prefer collections that support straightforward `for` loops, and add helper enumerators only where they simplify the API without fighting the underlying model.
+- [x] Navigation state is derived state, not user-authored state. It includes cached playback-order sequences, resolved jump/coda targets, repeat-pass bookkeeping, and any cursor/snapshot objects derived from the current score structure.
+- [x] Edits that affect traversal invalidate derived navigation state and require recomputation before playback/export features depend on it.
+
+### Implementation Work
+
+- [ ] Replace the remaining init-only/Core model patterns with mutation-friendly APIs that are consistent across score, track, staff, measure, beat, and note nodes
+- [ ] Define the extension lifecycle explicitly: import attachment, edit-time preservation/invalidation rules, and export-time synthesis/defaulting
+- [ ] Document the exporter fallback order: preserve extension data -> infer from core model -> infer from other extensions -> apply defaults -> emit diagnostics if fidelity degraded
+- [ ] Decide whether v1 needs explicit stable Core node IDs, or whether positional context plus source-format IDs stored in extensions is sufficient
+- [ ] Define and implement invalidation/recompute rules for derived navigation state after structural edits
 
 ### Acceptance Criteria
 
-- [ ] The editing model is documented
+- [ ] The mutable editing model is documented
+- [ ] Exporters can still produce valid files when extension data must be inferred or defaulted
 - [ ] Mutation behavior does not leave extension state inconsistent
+- [ ] Derived navigation state is invalidated and recomputed predictably after traversal-affecting edits
 - [ ] The public API does not accidentally mix incompatible editing paradigms
 
 ## 0.2 Extension Granularity
 
-Validate whether every planned extension point is justified.
+The extension surface should stay as small as possible while still giving format packages a clean place to retain fidelity state.
 
-### Candidate Extension Points
+### Planned Extension Points
 
-- [ ] `Score`
-- [ ] `MeasurePosition`
-- [ ] `Track`
-- [ ] `Staff`
-- [ ] `StaffMeasure`
-- [ ] `Voice`
-- [ ] `Beat`
-- [ ] `Note`
-- [ ] `Rhythm`
+- [x] `Score`
+- [x] `MeasurePosition`
+- [x] `Track`
+- [x] `Staff`
+- [x] `StaffMeasure`
+- [x] `Voice`
+- [x] `Beat`
+- [x] `Note`
+- [ ] `Rhythm` — fold any rhythm-specific fidelity into `Beat`
 
 ### Review Criteria
 
@@ -90,28 +107,52 @@ Each extensible node must:
 - have a stable lifecycle/identity
 - justify independent format-specific state
 
-### Specific Concern
+### Decision
 
-- [ ] Decide whether `Rhythm` truly requires its own extension point or whether GP-specific fidelity concerns can be folded into `Beat`
+- [x] `Rhythm` is not an independent extension point for v1 planning
+- [x] GP-specific rhythm fidelity concerns belong on `Beat`
+- [x] The public extensibility surface should not add nodes solely to carry leftover GP transport data
+
+### Implementation Work
+
+- [ ] Remove `Rhythm` as a first-class extensibility concept from the API sketches and downstream planning docs
+- [ ] Fold planned `GpRhythmExtension` responsibilities into `GpBeatExtension`
+- [ ] Verify that each remaining extension point has a concrete import/export or fidelity-preservation responsibility before the public API is frozen
 
 ### Acceptance Criteria
 
 - [ ] Extension granularity is intentional
 - [ ] The public API does not introduce extension points solely to house GP leftovers
+- [ ] `Rhythm` does not require its own extension contract or retrieval API
 
 ## 0.3 Staff and Measure Hierarchy
 
 The current model inlines primary staff data onto `MeasureModel` and stores additional staves in an `AdditionalStaffBars` collection. This creates an asymmetry that does not reflect the musical domain — staves within a track are peers, not a privileged primary plus bolt-on extras.
 
-### Required Decisions
+### Decision
 
-- [ ] Adopt `Track → Staff[] → StaffMeasure[] → Voice[] → Beat[] → Note[]` so all staves are peer children of a track
-- [ ] Introduce a score-level `MeasurePosition` (or similar) state shared across tracks/staves at a given index to own shared timeline state (time signature, key signature, repeats, sections, jumps, targets, alternate endings, fermatas)
-- [ ] Define `StaffMeasure` as the staff-local container for clef, voices, and beats
-- [ ] Remove the primary/additional staff asymmetry from the Core model
-- [ ] Retire `MeasureStaffModel` as a migration artifact rather than preserving it
-- [ ] Define alignment invariants between Score.MeasurePositions and each staff’s StaffMeasure sequence, every StaffMeasure.MeasureIndex must correspond to a valid MeasurePosition and all staves in a track should align to the same measure-position structure unless intentionally modeling sparse/partial data
-- [ ] Define what happens when imported data is malformed or incomplete
+- [x] Adopt `Score → Track[] → Staff[] → StaffMeasure[] → Voice[] → Beat[] → Note[]` so all staves are peer children of a track
+- [x] Introduce score-level `MeasurePositions` aligned by index across the score to own timeline-global state (time signature, key signature, repeats, sections, jumps, targets, alternate endings, fermatas)
+- [x] Define `StaffMeasure` as the staff-local container for clef, voices, beats, and other staff-scoped notation content at a given measure position
+- [x] Remove the primary/additional-staff asymmetry from the Core model
+- [x] Treat `MeasureStaffModel` as a migration artifact rather than a permanent Core type
+- [x] Keep the public model loop-friendly through aligned collections and simple indexing rather than forcing consumers through complex traversal helpers for common operations
+- [x] Imported malformed or incomplete data should be normalized into the aligned structure when possible, with diagnostics emitted for gaps or repairs
+- [x] If imported data cannot be placed into deterministic musical order, strict import should fail and lenient import should surface diagnostics instead of inventing ambiguous structure
+
+### Alignment Rules
+
+- [x] Every `StaffMeasure.MeasureIndex` must correspond to a valid `Score.MeasurePositions[index]`
+- [x] All staves in a track should align to the same `MeasurePositions` sequence unless the importer is explicitly modeling sparse/incomplete data
+- [x] Missing staff-local content at a valid measure position should normalize to an empty `StaffMeasure` plus diagnostics rather than a broken graph
+
+### Implementation Work
+
+- [ ] Replace `Track.Measures` and `MeasureModel.AdditionalStaffBars` with `Track.Staves`
+- [ ] Introduce `Score.MeasurePositions` and move shared timeline state there
+- [ ] Define empty/placeholder `StaffMeasure` behavior for normalized malformed imports
+- [ ] Migrate GP mapping/unmapping to the new hierarchy while preserving source-ID reuse and avoiding unnecessary archive/XML bloat
+- [ ] Remove `MeasureStaffModel` from the public Core surface once mappers/writers no longer depend on it
 
 ### Acceptance Criteria
 
@@ -119,6 +160,7 @@ The current model inlines primary staff data onto `MeasureModel` and stores addi
 - [ ] Multi-staff tracks are modeled as peer staves
 - [ ] Timeline-global measure state has distinct ownership from staff-local content
 - [ ] Single-staff instruments still work naturally (one-element `Staves` collection)
+- [ ] Normalized imports preserve deterministic ordering, musical context, and acceptable re-export size characteristics
 - [ ] The model aligns with MusicXML's part/staff structure without forcing GP-specific serialization shape onto Core
 
 ## 0.4 Navigation Abstraction
@@ -129,16 +171,29 @@ Playback/navigation semantics are format-agnostic, but the current implementatio
 
 `DefaultNavigationResolver` implements generic musical traversal logic, but currently operates on `GpifMasterBar` input. The algorithm belongs in Core; the contract does not.
 
+### Clarification
+
+Navigation state means any derived traversal data that answers questions like:
+
+- what is the playback order of measure positions?
+- where does a jump, coda, segno, DS/DC, or alternate ending land?
+- what repeat pass is currently active?
+- what cursor/snapshot is needed to resume navigation after an edit or traversal step?
+
+This state should be derived from Core musical structure, not stored as user-authored authoritative data.
+
 ### Required Work
 
 - [ ] Define format-agnostic navigation input abstractions in `Motif.Core`
 - [ ] Refactor navigation logic to operate on Core musical structures rather than GPIF types
+- [ ] Define cache invalidation/recompute rules for derived navigation state after edits to repeats, jumps, targets, endings, or measure-position structure
 - [ ] Preserve repeat/jump/coda/alternate-ending behavior during the refactor
 
 ### Acceptance Criteria
 
 - [ ] Navigation concepts live in Core
 - [ ] Navigation logic no longer depends on GPIF model types
+- [ ] Derived navigation state is recomputed from Core structure rather than treated as authoritative mutable data
 - [ ] Guitar Pro package can populate/navigation inputs without owning the traversal algorithm
 
 ---
@@ -233,9 +288,8 @@ A property belongs in a format extension if it represents:
 | `GpStaffExtension`          | GP-specific staff metadata, staff-level source fragments and properties                                                    |
 | `GpStaffMeasureExtension`   | Bar source XML, SourceBarId, bar XProperties/properties, GP-specific clef/simile fidelity state                            |
 | `GpVoiceExtension`          | Voice source XML, source IDs, direction tags, GP-only properties                                                           |
-| `GpBeatExtension`           | Beat source XML, raw GP flags, source rhythm IDs, GP-only beat state such as golpe/fadding/rasgueado/slap/pop flags        |
+| `GpBeatExtension`           | Beat source XML, raw GP flags, source rhythm IDs, rhythm-source fidelity (including augmentation-dot preservation), GP-only beat state such as golpe/fadding/rasgueado/slap/pop flags        |
 | `GpNoteExtension`           | Source note XML, raw slide flags, source MIDI/transposed pitch/fret/string data, GP-specific articulation fidelity state   |
-| `GpRhythmExtension`         | Rhythm source XML and GP-specific augmentation-dot fidelity state, only if Rhythm remains independently extensible         |
 
 ## Acceptance Criteria
 
@@ -260,15 +314,16 @@ The raw XML/source-fragment preservation strategy is acceptable for v1, but it m
 
 For edits that invalidate cached source fragments, define whether the system will:
 
-* [ ] invalidate the affected cache(s)
-* [ ] regenerate the affected cache(s)
-* [ ] mark fidelity preservation as degraded for the affected region
+* [x] invalidate the affected cache(s)
+* [x] regenerate or synthesize the affected output from the Core model and any other usable extension data during export
+* [x] apply sensible defaults when required extension state cannot be inferred, while recording diagnostics when fidelity is necessarily degraded
 
 ## Acceptance Criteria
 
 * [ ] Raw source caches are not exposed from Core
 * [ ] Internal docs clearly define the purpose and limits of cached source data
 * [ ] The writer does not rely on stale caches after substantive model mutation
+* [ ] Export remains valid even when source caches must be replaced by inferred or defaulted extension data
 
 ---
 
