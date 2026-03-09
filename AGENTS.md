@@ -12,7 +12,7 @@ with a heavily reference-based structure. The library:
 1. Opens `.gp` archives and extracts `Content/score.gpif`
 2. Deserializes GPIF XML into a typed raw model
 3. Resolves all cross-references into a clean, navigable domain model
-4. Writes/patches `.gp` archives from an edited domain model
+4. Writes `.gp` archives from an edited domain model
 
 ---
 
@@ -54,16 +54,12 @@ GuitarProScore (edited)
   └─► IGpArchiveWriter      → writes ZIP archive
 ```
 
-Patch mode is a shortcut that diffs an edited `GuitarProScore` against a source `.gp` and
-produces a minimal `GpPatchDocument`, then applies it via `GuitarProPatcher`.
-
 ### Key entry points
 
 | Class | Purpose |
 |---|---|
 | `GuitarProReader` | Top-level read API |
 | `GuitarProWriter` | Top-level write API |
-| `GuitarProPatcher` | Applies a `GpPatchDocument` to an existing `.gp` |
 | `DefaultScoreMapper` | Raw GPIF → domain model |
 | `DefaultScoreUnmapper` | Domain model → raw GPIF |
 | `XmlGpifDeserializer` | XML → `GpifDocument` |
@@ -83,10 +79,6 @@ Hybrid fields use typed core + raw XML passthrough for elements not yet fully no
 Score → Tracks → Measures → Voices → Beats → Notes
 ```
 Consumers should never need to deal with GPIF reference mechanics.
-
-### Patch model (`Models/Patching/`)
-`GpPatchDocument` — a list of typed patch operations.
-`JsonPatchPlanResult` — output of the `JsonPatchPlanner` (planner result + unsupported changes).
 
 ---
 
@@ -120,7 +112,6 @@ Tests live in `Tests/GPIO.NET.UnitTests/` and cover:
 - Articulation and rhythm mapping
 - Navigation resolver (repeat/alternate ending sequences)
 - Write path (round-trip fidelity, writer diagnostics, articulation parity)
-- Patch path (note insertion, deletion, reorder, pitch/articulation updates)
 - Public API surface shape
 
 Run all tests:
@@ -149,8 +140,7 @@ See [docs/GPIF_COVERAGE_STATUS.md](docs/GPIF_COVERAGE_STATUS.md) for the detaile
 Highest-priority open areas:
 1. DS/DC/Coda/Fine full notation-engine semantics in `DefaultNavigationResolver`
 2. Deeper normalization of audio engine / MIDI connection / lyrics (currently passthrough)
-3. Advanced patch planner: new tracks/measures, structural diffs beyond note/beat edits
-4. Schema-driven coverage audit against the GPIF XSD
+3. Schema-driven coverage audit against the GPIF XSD
 
 ---
 
@@ -159,5 +149,4 @@ Highest-priority open areas:
 - Read `docs/GPIF_COVERAGE_STATUS.md` before touching mapping or write-path code
 - Keep the raw model and domain model in sync — changes to one typically require changes to both
 - The `DefaultScoreMapper` and `DefaultScoreUnmapper` are the most complex files; read them fully before editing
-- Patch operations are defined in `Models/Patching/GpPatchDocument.cs` — extend there first before touching the patcher
 - Boolean CLI flags support `--flag`, `--flag=true`, `--flag=false` — keep new flags consistent with this pattern

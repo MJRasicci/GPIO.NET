@@ -19,12 +19,9 @@ internal static class CliParser
         var jsonIgnoreNull = false;
         var jsonIgnoreDefaults = false;
         var fromJson = false;
-        var patchFromJson = false;
         string? sourceGpPath = null;
         string? diagnosticsOutPath = null;
         var diagnosticsAsJson = false;
-        var planOnly = false;
-        var strict = false;
         string? batchInputDir = null;
         string? batchOutputDir = null;
         var batchRoundTripDiagnostics = false;
@@ -87,10 +84,6 @@ internal static class CliParser
                     fromJson = ParseBoolOption(value, true);
                     break;
 
-                case "--patch-from-json":
-                    patchFromJson = ParseBoolOption(value, true);
-                    break;
-
                 case "--source-gp":
                     if (string.IsNullOrWhiteSpace(value) && i + 1 < args.Length)
                     {
@@ -111,14 +104,6 @@ internal static class CliParser
 
                 case "--diagnostics-json":
                     diagnosticsAsJson = ParseBoolOption(value, true);
-                    break;
-
-                case "--plan-only":
-                    planOnly = ParseBoolOption(value, true);
-                    break;
-
-                case "--strict":
-                    strict = ParseBoolOption(value, true);
                     break;
 
                 case "--batch-input-dir":
@@ -179,12 +164,9 @@ internal static class CliParser
             JsonIgnoreNull = jsonIgnoreNull,
             JsonIgnoreDefaults = jsonIgnoreDefaults,
             FromJson = fromJson,
-            PatchFromJson = patchFromJson,
             SourceGpPath = string.IsNullOrWhiteSpace(sourceGpPath) ? null : Path.GetFullPath(sourceGpPath),
             DiagnosticsOutPath = string.IsNullOrWhiteSpace(diagnosticsOutPath) ? null : Path.GetFullPath(diagnosticsOutPath),
             DiagnosticsAsJson = diagnosticsAsJson,
-            PlanOnly = planOnly,
-            Strict = strict,
             BatchInputDir = string.IsNullOrWhiteSpace(batchInputDir) ? null : Path.GetFullPath(batchInputDir),
             BatchOutputDir = string.IsNullOrWhiteSpace(batchOutputDir) ? null : Path.GetFullPath(batchOutputDir),
             BatchRoundTripDiagnostics = batchRoundTripDiagnostics,

@@ -1,68 +1,14 @@
 namespace GPIO.NET.UnitTests;
 
 using FluentAssertions;
-using GPIO.NET.Models;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using System.Xml.Linq;
 
-public class CliPatchPlannerRegressionTests
+public class CliRoundTripRegressionTests
 {
-    [Fact]
-    public async Task No_edit_patch_from_json_is_zero_op_for_zero_based_ids()
-    {
-        var repoRoot = FindRepositoryRoot();
-        var toolProject = Path.Combine(repoRoot, "Source", "GPIO.NET.Tool", "GPIO.NET.Tool.csproj");
-        Directory.Exists(Path.GetDirectoryName(toolProject)!).Should().BeTrue();
-
-        var tempDir = Path.Combine(Path.GetTempPath(), $"gpio-cli-regression-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
-
-        var sourceGp = Path.Combine(tempDir, "zero-based-source.gp");
-        var jsonPath = Path.Combine(tempDir, "zero-based-source.json");
-        var planPath = Path.Combine(tempDir, "zero-based-source.plan.json");
-        var outputGp = Path.Combine(tempDir, "zero-based-source.patched.gp");
-
-        try
-        {
-            var writer = new GPIO.NET.GuitarProWriter();
-            await writer.WriteAsync(CreateZeroBasedPatchPlannerSourceScore(), sourceGp, TestContext.Current.CancellationToken);
-
-            await RunDotNetAsync(
-                $"run --project \"{toolProject}\" -- \"{sourceGp}\" \"{jsonPath}\" --format json",
-                repoRoot);
-
-            await RunDotNetAsync(
-                $"run --project \"{toolProject}\" -- \"{jsonPath}\" \"{planPath}\" --from-json --patch-from-json --source-gp \"{sourceGp}\" --format json --plan-only",
-                repoRoot);
-
-            await RunDotNetAsync(
-                $"run --project \"{toolProject}\" -- \"{jsonPath}\" \"{outputGp}\" --from-json --patch-from-json --source-gp \"{sourceGp}\" --format json",
-                repoRoot);
-
-            using var planDocument = JsonDocument.Parse(await File.ReadAllTextAsync(planPath, TestContext.Current.CancellationToken));
-            var patchElement = planDocument.RootElement.GetProperty("Patch");
-            var operationCount = patchElement.EnumerateObject().Sum(property => property.Value.GetArrayLength());
-            var unsupportedCount = planDocument.RootElement.GetProperty("UnsupportedChanges").GetArrayLength();
-
-            operationCount.Should().Be(0);
-            unsupportedCount.Should().Be(0);
-
-            var sourceBytes = await ReadScoreGpifBytesAsync(sourceGp, TestContext.Current.CancellationToken);
-            var outputBytes = await ReadScoreGpifBytesAsync(outputGp, TestContext.Current.CancellationToken);
-            outputBytes.Should().Equal(sourceBytes);
-        }
-        finally
-        {
-            if (Directory.Exists(tempDir))
-            {
-                Directory.Delete(tempDir, recursive: true);
-            }
-        }
-    }
-
     [Fact]
     public async Task No_edit_full_write_from_json_preserves_triplet_rhythm_and_section_cdata_for_schema_reference_fixture()
     {
@@ -237,7 +183,6 @@ public class CliPatchPlannerRegressionTests
 
             using var fileResult = JsonDocument.Parse(fileResults[0]);
             fileResult.RootElement.GetProperty("RelativePath").GetString().Should().Be(Path.Combine("nested", "schema-reference.gp"));
-            fileResult.RootElement.GetProperty("PatchPlanIsNoOp").GetBoolean().Should().BeTrue();
             fileResult.RootElement.GetProperty("DiagnosticCount").GetInt32().Should().BeGreaterThan(0);
 
             var diagnostics = await File.ReadAllLinesAsync(diagnosticsPath, TestContext.Current.CancellationToken);
@@ -251,56 +196,6 @@ public class CliPatchPlannerRegressionTests
             }
         }
     }
-
-    private static GuitarProScore CreateZeroBasedPatchPlannerSourceScore()
-        => new()
-        {
-            Tracks =
-            [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Beats =
-                            [
-                                new BeatModel
-                                {
-                                    Id = 0,
-                                    Duration = 0.25m,
-                                    Notes =
-                                    [
-                                        new NoteModel
-                                        {
-                                            Id = 0,
-                                            MidiPitch = 60
-                                        }
-                                    ]
-                                },
-                                new BeatModel
-                                {
-                                    Id = 1,
-                                    Duration = 0.25m,
-                                    Notes =
-                                    [
-                                        new NoteModel
-                                        {
-                                            Id = 1,
-                                            MidiPitch = 64
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
-        };
 
     private static string FixturePath(string fixtureName)
         => Path.Combine(AppContext.BaseDirectory, "Fixtures", fixtureName);

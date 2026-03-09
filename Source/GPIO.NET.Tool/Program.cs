@@ -1,7 +1,6 @@
 using GPIO.NET;
 using GPIO.NET.Implementation;
 using GPIO.NET.Models;
-using GPIO.NET.Models.Patching;
 using GPIO.NET.Tool.Cli;
 using System.IO.Compression;
 using System.Text.Json;
@@ -83,7 +82,7 @@ try
         return 2;
     }
 
-    var outputPath = options.OutputPath ?? BuildDefaultOutputPath(options.InputPath, options.Format, options.FromJson, options.PlanOnly);
+    var outputPath = options.OutputPath ?? BuildDefaultOutputPath(options.InputPath, options.Format, options.FromJson);
 
     if (options.FromJson)
     {
@@ -100,65 +99,6 @@ try
         var json = await File.ReadAllTextAsync(options.InputPath).ConfigureAwait(false);
         var editedScore = JsonSerializer.Deserialize(json, CliJsonContext.Default.GuitarProScore)
                           ?? throw new InvalidDataException("Unable to deserialize mapped score JSON.");
-
-        if (options.PatchFromJson)
-        {
-            if (string.IsNullOrWhiteSpace(options.SourceGpPath) || !File.Exists(options.SourceGpPath))
-            {
-                throw new InvalidOperationException("--patch-from-json requires --source-gp <path-to-existing.gp>");
-            }
-
-            var reader = new GuitarProReader();
-            var patchSourceScore = await reader.ReadAsync(options.SourceGpPath).ConfigureAwait(false);
-            var plan = JsonPatchPlanner.BuildPatch(patchSourceScore, editedScore);
-
-            if (options.Strict && plan.UnsupportedChanges.Count > 0)
-            {
-                throw new InvalidOperationException($"Strict mode failed: {plan.UnsupportedChanges.Count} unsupported changes detected.");
-            }
-
-            if (options.PlanOnly)
-            {
-                var planJson = JsonSerializer.Serialize(plan, CliJsonContext.Default.JsonPatchPlanResult);
-                EnsureOutputDirectory(outputPath);
-                await File.WriteAllTextAsync(outputPath, planJson).ConfigureAwait(false);
-                Console.WriteLine($"Patch plan written: {outputPath}");
-                return 0;
-            }
-
-            var patcher = new GuitarProPatcher();
-            var patchResult = await patcher.PatchAsync(options.SourceGpPath, outputPath, plan.Patch).ConfigureAwait(false);
-
-            Console.WriteLine($"Patched GP archive written: {outputPath}");
-            Console.WriteLine($"Patch operations logged: {patchResult.Diagnostics.Entries.Count}");
-
-            if (!string.IsNullOrWhiteSpace(options.DiagnosticsOutPath))
-            {
-                EnsureOutputDirectory(options.DiagnosticsOutPath);
-                if (options.DiagnosticsAsJson)
-                {
-                    var jsonDiagnostics = JsonSerializer.Serialize(
-                        new PatchDiagnosticsOutput
-                        {
-                            UnsupportedChanges = plan.UnsupportedChanges,
-                            PatchDiagnostics = patchResult.Diagnostics.Entries
-                        },
-                        CliJsonContext.Default.PatchDiagnosticsOutput);
-                    await File.WriteAllTextAsync(options.DiagnosticsOutPath, jsonDiagnostics).ConfigureAwait(false);
-                }
-                else
-                {
-                    var lines = plan.UnsupportedChanges.Select(u => $"[planner] {u}")
-                        .Concat(patchResult.Diagnostics.Entries.Select(d => $"[{d.Operation}] {d.Message}"))
-                        .ToArray();
-                    await File.WriteAllLinesAsync(options.DiagnosticsOutPath, lines).ConfigureAwait(false);
-                }
-
-                Console.WriteLine($"Diagnostics written: {options.DiagnosticsOutPath}");
-            }
-
-            return 0;
-        }
 
         var sourceScore = default(GuitarProScore);
         if (!string.IsNullOrWhiteSpace(options.SourceGpPath))
@@ -292,13 +232,13 @@ catch (Exception ex)
     return 1;
 }
 
-static string BuildDefaultOutputPath(string inputPath, OutputFormat format, bool fromJson, bool planOnly)
+static string BuildDefaultOutputPath(string inputPath, OutputFormat format, bool fromJson)
 {
     if (fromJson)
     {
         var directory = Path.GetDirectoryName(inputPath) ?? Environment.CurrentDirectory;
         var baseName = Path.GetFileNameWithoutExtension(inputPath);
-        return Path.Combine(directory, baseName + (planOnly ? ".patch-plan.json" : ".gp"));
+        return Path.Combine(directory, baseName + ".gp");
     }
 
     var extension = format switch
@@ -336,21 +276,10 @@ static bool AreSamePath(string left, string right)
 
 static bool IsNoOpWrite(GuitarProScore sourceScore, GuitarProScore editedScore)
 {
-    var plan = JsonPatchPlanner.BuildPatch(sourceScore, editedScore);
-    return plan.UnsupportedChanges.Count == 0 && !HasPatchOperations(plan.Patch);
+    var sourceJson = JsonSerializer.Serialize(sourceScore, CliJsonContext.Default.GuitarProScore);
+    var editedJson = JsonSerializer.Serialize(editedScore, CliJsonContext.Default.GuitarProScore);
+    return string.Equals(sourceJson, editedJson, StringComparison.Ordinal);
 }
-
-static bool HasPatchOperations(GpPatchDocument patch)
-    => patch.AppendBars.Count > 0
-       || patch.AppendVoices.Count > 0
-       || patch.AppendNotes.Count > 0
-       || patch.InsertBeats.Count > 0
-       || patch.AddNotesToBeats.Count > 0
-       || patch.ReorderBeatNotes.Count > 0
-       || patch.UpdateNoteArticulations.Count > 0
-       || patch.UpdateNotePitches.Count > 0
-       || patch.DeleteNotes.Count > 0
-       || patch.DeleteBeats.Count > 0;
 
 static async Task<byte[]> ReadScoreGpifBytesAsync(string gpPath)
 {
@@ -406,20 +335,8 @@ WRITE MODES  (--from-json)
     copies original.gp and replaces only Content/score.gpif.
     Preserves stylesheets, score views, preferences, and other zip entries.
 
-  gpio song.mapped.json --from-json --patch-from-json --source-gp original.gp
-    Patch mode: diff the edited mapped JSON against an existing .gp file and
-    apply only the supported changes.
-    Output: song.gp
-
-  gpio song.mapped.json --from-json --patch-from-json --source-gp original.gp --plan-only
-    Generate a patch plan JSON without applying it.
-    Output: song.patch-plan.json
-
-  --strict
-    Fail if the planner detects any unsupported changes (default: off).
-
   --diagnostics-out <path>
-    Write write/patch diagnostics to a file.
+    Write writer diagnostics to a file.
 
   --diagnostics-json
     Write the diagnostics file as JSON instead of plain text.
@@ -447,16 +364,13 @@ OPTIONS
   --format <json|gpif|musicxml|midi>   Output format (default: json; musicxml and midi are planned)
   --out <path>                   Explicit output file path
   --from-json                    Input is mapped JSON; output is a .gp archive
-  --patch-from-json              Enable patch mode (requires --from-json and --source-gp)
-  --source-gp <path>             Source .gp for patch mode, or custom archive template for --from-json
-  --plan-only                    Write patch plan JSON without patching
-  --strict                       Fail on unsupported changes in patch mode
+  --source-gp <path>             Custom archive template for --from-json writes
   --batch-input-dir <dir>        Source directory for batch export
   --batch-output-dir <dir>       Destination directory for batch export
   --batch-roundtrip-diagnostics  In batch mode, run roundtrip diagnostics instead of JSON export
   --continue-on-error[=bool]     Skip failed files in batch mode (default: true)
   --failure-log <path>           Batch failure log path
-  --diagnostics-out <path>       Write diagnostics to a file (write/patch modes, or batch summary override)
+  --diagnostics-out <path>       Write diagnostics to a file (write mode, or batch summary override)
   --diagnostics-json             Emit diagnostics as JSON
   --json-indent[=bool]           Indent JSON output (default: true)
   --json-ignore-null[=bool]      Omit null fields from JSON (default: false)

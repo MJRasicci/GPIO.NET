@@ -2,7 +2,6 @@ namespace GPIO.NET.Tool.Cli;
 
 using GPIO.NET.Implementation;
 using GPIO.NET.Models;
-using GPIO.NET.Models.Patching;
 using GPIO.NET.Models.Raw;
 using GPIO.NET.Models.Write;
 using System.IO.Compression;
@@ -37,9 +36,9 @@ internal sealed class BatchRoundTripDiagnosticsRunner
             throw new InvalidOperationException("Batch roundtrip diagnostics requires --batch-output-dir.");
         }
 
-        if (options.FromJson || options.PatchFromJson || options.PlanOnly)
+        if (options.FromJson)
         {
-            throw new InvalidOperationException("Batch roundtrip diagnostics cannot be combined with --from-json, --patch-from-json, or --plan-only.");
+            throw new InvalidOperationException("Batch roundtrip diagnostics cannot be combined with --from-json.");
         }
 
         if (options.Format != OutputFormat.Json)
@@ -106,7 +105,7 @@ internal sealed class BatchRoundTripDiagnosticsRunner
                         .ConfigureAwait(false);
                 }
 
-                aggregate.Add(analyzed.FileResult, analyzed.Diagnostics, analyzed.Plan);
+                aggregate.Add(analyzed.FileResult, analyzed.Diagnostics);
             }
             catch (Exception ex)
             {
@@ -203,7 +202,6 @@ internal sealed class BatchRoundTripDiagnosticsRunner
         var jsonScore = JsonSerializer.Deserialize(mappedJson, CliJsonContext.Default.GuitarProScore)
             ?? throw new InvalidDataException("Unable to deserialize mapped score JSON during batch roundtrip diagnostics.");
 
-        var plan = JsonPatchPlanner.BuildPatch(sourceScore, jsonScore);
         var unmapResult = await unmapper.UnmapAsync(jsonScore, cancellationToken).ConfigureAwait(false);
 
         await using var gpifBuffer = new MemoryStream();
@@ -218,8 +216,6 @@ internal sealed class BatchRoundTripDiagnosticsRunner
             unmapResult.Diagnostics);
 
         var diagnostics = unmapResult.Diagnostics.Entries.ToArray();
-        var patchOperationCounts = BuildPatchOperationCounts(plan.Patch);
-        var patchPlanIsNoOp = plan.UnsupportedChanges.Count == 0 && patchOperationCounts.Length == 0;
         var diagnosticCodeCounts = BuildNamedCounts(diagnostics.GroupBy(entry => entry.Code), relativePath);
         var diagnosticSectionCounts = BuildNamedCounts(diagnostics.GroupBy(entry => GetTopLevelSection(entry.Path)), relativePath);
 
@@ -228,10 +224,6 @@ internal sealed class BatchRoundTripDiagnosticsRunner
             File = file,
             RelativePath = relativePath,
             GpifBytesIdentical = sourceGpifBytes.AsSpan().SequenceEqual(outputGpifBytes),
-            PatchPlanIsNoOp = patchPlanIsNoOp,
-            UnsupportedChangeCount = plan.UnsupportedChanges.Count,
-            UnsupportedChangesSample = plan.UnsupportedChanges.Take(SampleLimit).ToArray(),
-            PatchOperationCounts = patchOperationCounts,
             DiagnosticCount = diagnostics.Length,
             WarningCount = diagnostics.Count(entry => entry.Severity == WriteDiagnosticSeverity.Warning),
             InfoCount = diagnostics.Count(entry => entry.Severity == WriteDiagnosticSeverity.Info),
@@ -239,38 +231,7 @@ internal sealed class BatchRoundTripDiagnosticsRunner
             DiagnosticSectionCounts = diagnosticSectionCounts
         };
 
-        return new AnalyzedFile(fileResult, diagnostics, plan);
-    }
-
-    private static BatchNamedCount[] BuildPatchOperationCounts(GpPatchDocument patch)
-    {
-        var counts = new List<BatchNamedCount>();
-        AddPatchCount(counts, "AppendBars", patch.AppendBars.Count);
-        AddPatchCount(counts, "AppendVoices", patch.AppendVoices.Count);
-        AddPatchCount(counts, "AppendNotes", patch.AppendNotes.Count);
-        AddPatchCount(counts, "InsertBeats", patch.InsertBeats.Count);
-        AddPatchCount(counts, "AddNotesToBeats", patch.AddNotesToBeats.Count);
-        AddPatchCount(counts, "ReorderBeatNotes", patch.ReorderBeatNotes.Count);
-        AddPatchCount(counts, "UpdateNoteArticulations", patch.UpdateNoteArticulations.Count);
-        AddPatchCount(counts, "UpdateNotePitches", patch.UpdateNotePitches.Count);
-        AddPatchCount(counts, "DeleteNotes", patch.DeleteNotes.Count);
-        AddPatchCount(counts, "DeleteBeats", patch.DeleteBeats.Count);
-        return counts.ToArray();
-    }
-
-    private static void AddPatchCount(List<BatchNamedCount> counts, string name, int count)
-    {
-        if (count <= 0)
-        {
-            return;
-        }
-
-        counts.Add(new BatchNamedCount
-        {
-            Name = name,
-            Count = count,
-            FileCount = 1
-        });
+        return new AnalyzedFile(fileResult, diagnostics);
     }
 
     private static BatchNamedCount[] BuildNamedCounts<T>(
@@ -335,7 +296,6 @@ internal sealed class BatchRoundTripDiagnosticsRunner
         builder.AppendLine($"CleanFiles: {summary.CleanFiles}");
         builder.AppendLine($"FilesWithDiagnostics: {summary.FilesWithDiagnostics}");
         builder.AppendLine($"FilesWithByteDrift: {summary.FilesWithByteDrift}");
-        builder.AppendLine($"FilesWithNonNoOpPatchPlan: {summary.FilesWithNonNoOpPatchPlan}");
         builder.AppendLine($"TotalDiagnostics: {summary.TotalDiagnostics}");
         builder.AppendLine($"TotalWarnings: {summary.TotalWarnings}");
         builder.AppendLine($"TotalInfos: {summary.TotalInfos}");
@@ -345,8 +305,6 @@ internal sealed class BatchRoundTripDiagnosticsRunner
         AppendNamedCounts(builder, "AddedElements", summary.AddedElements);
         AppendNamedCounts(builder, "ValueDrifts", summary.ValueDrifts);
         AppendNamedCounts(builder, "AttributeDrifts", summary.AttributeDrifts);
-        AppendNamedCounts(builder, "PatchOperations", summary.PatchOperations);
-        AppendNamedCounts(builder, "UnsupportedChanges", summary.UnsupportedChanges);
         AppendPathCounts(builder, "TopNormalizedPaths", summary.TopNormalizedPaths);
         AppendTopFiles(builder, summary.MostChangedFiles);
         return builder.ToString();
@@ -398,15 +356,13 @@ internal sealed class BatchRoundTripDiagnosticsRunner
 
         foreach (var file in files)
         {
-            builder.AppendLine(
-                $"  {file.RelativePath}: diagnostics={file.DiagnosticCount} unsupported={file.UnsupportedChangeCount} patchPlanIsNoOp={file.PatchPlanIsNoOp}");
+            builder.AppendLine($"  {file.RelativePath}: diagnostics={file.DiagnosticCount}");
         }
     }
 
     private readonly record struct AnalyzedFile(
         BatchRoundTripFileResult FileResult,
-        IReadOnlyList<WriteDiagnosticEntry> Diagnostics,
-        JsonPatchPlanResult Plan);
+        IReadOnlyList<WriteDiagnosticEntry> Diagnostics);
 
     private sealed class BatchAggregateBuilder
     {
@@ -416,23 +372,19 @@ internal sealed class BatchRoundTripDiagnosticsRunner
         private readonly Dictionary<string, AggregateBucket> addedElements = new(StringComparer.Ordinal);
         private readonly Dictionary<string, AggregateBucket> valueDrifts = new(StringComparer.Ordinal);
         private readonly Dictionary<string, AggregateBucket> attributeDrifts = new(StringComparer.Ordinal);
-        private readonly Dictionary<string, AggregateBucket> patchOperations = new(StringComparer.Ordinal);
-        private readonly Dictionary<string, AggregateBucket> unsupportedChanges = new(StringComparer.Ordinal);
         private readonly Dictionary<(string Code, string Path), AggregateBucket> normalizedPaths = new();
         private readonly List<BatchFileHeadline> mostChangedFiles = [];
         private int succeededFiles;
         private int cleanFiles;
         private int filesWithDiagnostics;
         private int filesWithByteDrift;
-        private int filesWithNonNoOpPatchPlan;
         private int totalDiagnostics;
         private int totalWarnings;
         private int totalInfos;
 
         public void Add(
             BatchRoundTripFileResult fileResult,
-            IReadOnlyList<WriteDiagnosticEntry> diagnostics,
-            JsonPatchPlanResult plan)
+            IReadOnlyList<WriteDiagnosticEntry> diagnostics)
         {
             succeededFiles++;
             if (fileResult.DiagnosticCount == 0)
@@ -447,11 +399,6 @@ internal sealed class BatchRoundTripDiagnosticsRunner
             if (!fileResult.GpifBytesIdentical)
             {
                 filesWithByteDrift++;
-            }
-
-            if (!fileResult.PatchPlanIsNoOp)
-            {
-                filesWithNonNoOpPatchPlan++;
             }
 
             totalDiagnostics += fileResult.DiagnosticCount;
@@ -486,22 +433,10 @@ internal sealed class BatchRoundTripDiagnosticsRunner
                 }
             }
 
-            foreach (var patchOperation in fileResult.PatchOperationCounts)
-            {
-                AddBucket(patchOperations, patchOperation.Name, fileResult.RelativePath, patchOperation.Count);
-            }
-
-            foreach (var unsupported in plan.UnsupportedChanges)
-            {
-                AddBucket(unsupportedChanges, NormalizeUnsupportedChange(unsupported), fileResult.RelativePath);
-            }
-
             mostChangedFiles.Add(new BatchFileHeadline
             {
                 RelativePath = fileResult.RelativePath,
-                DiagnosticCount = fileResult.DiagnosticCount,
-                UnsupportedChangeCount = fileResult.UnsupportedChangeCount,
-                PatchPlanIsNoOp = fileResult.PatchPlanIsNoOp
+                DiagnosticCount = fileResult.DiagnosticCount
             });
         }
 
@@ -530,7 +465,6 @@ internal sealed class BatchRoundTripDiagnosticsRunner
                 CleanFiles = cleanFiles,
                 FilesWithDiagnostics = filesWithDiagnostics,
                 FilesWithByteDrift = filesWithByteDrift,
-                FilesWithNonNoOpPatchPlan = filesWithNonNoOpPatchPlan,
                 TotalDiagnostics = totalDiagnostics,
                 TotalWarnings = totalWarnings,
                 TotalInfos = totalInfos,
@@ -540,8 +474,6 @@ internal sealed class BatchRoundTripDiagnosticsRunner
                 AddedElements = ToNamedCounts(addedElements),
                 ValueDrifts = ToNamedCounts(valueDrifts),
                 AttributeDrifts = ToNamedCounts(attributeDrifts),
-                PatchOperations = ToNamedCounts(patchOperations),
-                UnsupportedChanges = ToNamedCounts(unsupportedChanges),
                 TopNormalizedPaths = normalizedPaths
                     .OrderByDescending(pair => pair.Value.Count)
                     .ThenBy(pair => pair.Key.Code, StringComparer.Ordinal)
@@ -558,7 +490,6 @@ internal sealed class BatchRoundTripDiagnosticsRunner
                     .ToArray(),
                 MostChangedFiles = mostChangedFiles
                     .OrderByDescending(file => file.DiagnosticCount)
-                    .ThenByDescending(file => file.UnsupportedChangeCount)
                     .ThenBy(file => file.RelativePath, StringComparer.Ordinal)
                     .Take(TopFileLimit)
                     .ToArray()
@@ -576,10 +507,6 @@ internal sealed class BatchRoundTripDiagnosticsRunner
             normalized = Regex.Replace(normalized, "\\[(\\d+)\\]", "[*]");
             return normalized;
         }
-
-        private static string NormalizeUnsupportedChange(string message)
-            => Regex.Replace(message, "\\d+", "*");
-
         private static string GetLeafName(string? path)
         {
             if (string.IsNullOrWhiteSpace(path))

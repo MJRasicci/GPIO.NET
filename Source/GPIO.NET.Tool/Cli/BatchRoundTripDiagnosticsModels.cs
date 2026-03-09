@@ -28,8 +28,6 @@ internal sealed class BatchRoundTripSummary
 
     public int FilesWithByteDrift { get; init; }
 
-    public int FilesWithNonNoOpPatchPlan { get; init; }
-
     public int TotalDiagnostics { get; init; }
 
     public int TotalWarnings { get; init; }
@@ -48,10 +46,6 @@ internal sealed class BatchRoundTripSummary
 
     public BatchNamedCount[] AttributeDrifts { get; init; } = Array.Empty<BatchNamedCount>();
 
-    public BatchNamedCount[] PatchOperations { get; init; } = Array.Empty<BatchNamedCount>();
-
-    public BatchNamedCount[] UnsupportedChanges { get; init; } = Array.Empty<BatchNamedCount>();
-
     public BatchPathSummary[] TopNormalizedPaths { get; init; } = Array.Empty<BatchPathSummary>();
 
     public BatchFileHeadline[] MostChangedFiles { get; init; } = Array.Empty<BatchFileHeadline>();
@@ -64,14 +58,6 @@ internal sealed class BatchRoundTripFileResult
     public required string RelativePath { get; init; }
 
     public bool GpifBytesIdentical { get; init; }
-
-    public bool PatchPlanIsNoOp { get; init; }
-
-    public int UnsupportedChangeCount { get; init; }
-
-    public string[] UnsupportedChangesSample { get; init; } = Array.Empty<string>();
-
-    public BatchNamedCount[] PatchOperationCounts { get; init; } = Array.Empty<BatchNamedCount>();
 
     public int DiagnosticCount { get; init; }
 
@@ -134,8 +120,4 @@ internal sealed class BatchFileHeadline
     public required string RelativePath { get; init; }
 
     public int DiagnosticCount { get; init; }
-
-    public int UnsupportedChangeCount { get; init; }
-
-    public bool PatchPlanIsNoOp { get; init; }
 }

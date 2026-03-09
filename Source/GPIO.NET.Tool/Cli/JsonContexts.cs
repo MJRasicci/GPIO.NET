@@ -1,7 +1,6 @@
 namespace GPIO.NET.Tool.Cli;
 
 using GPIO.NET.Models;
-using GPIO.NET.Models.Patching;
 using GPIO.NET.Models.Write;
 using System.Text.Json.Serialization;
 
@@ -10,11 +9,7 @@ using System.Text.Json.Serialization;
 [JsonSerializable(typeof(PitchValueModel))]
 [JsonSerializable(typeof(RhythmShapeModel))]
 [JsonSerializable(typeof(TupletRatioModel))]
-[JsonSerializable(typeof(JsonPatchPlanResult))]
-[JsonSerializable(typeof(GpPatchDocument))]
-[JsonSerializable(typeof(PatchDiagnosticEntry[]))]
 [JsonSerializable(typeof(WriteDiagnosticEntry[]))]
-[JsonSerializable(typeof(PatchDiagnosticsOutput))]
 [JsonSerializable(typeof(BatchFailure))]
 [JsonSerializable(typeof(BatchFailure[]))]
 [JsonSerializable(typeof(BatchRoundTripSummary))]
