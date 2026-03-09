@@ -1,9 +1,9 @@
-# GPIO.NET CLI Workflow
+# Motif CLI Workflow
 
 ## 1) Export a GP file to editable mapped JSON
 
 ```bash
-dotnet run --project Source/GPIO.NET.Tool -- input.gp score.json --format json
+dotnet run --project Source/Motif.CLI -- input.gp score.json --format json
 ```
 
 ## 2) Edit `score.json`
@@ -13,7 +13,7 @@ Edit the mapped score JSON and then write it back out through the full roundtrip
 ## 3) Full rewrite while preserving archive payload
 
 ```bash
-dotnet run --project Source/GPIO.NET.Tool -- score.json output.gp \
+dotnet run --project Source/Motif.CLI -- score.json output.gp \
   --from-json --source-gp input.gp --format json \
   --diagnostics-out write-diagnostics.json --diagnostics-json
 ```
@@ -27,6 +27,6 @@ Use this for non-GP-originated scores. The writer seeds a default empty archive 
 (`VERSION`, `meta.json`, preferences, stylesheets, score views) and replaces `Content/score.gpif`.
 
 ```bash
-dotnet run --project Source/GPIO.NET.Tool -- score.json output.gp \
+dotnet run --project Source/Motif.CLI -- score.json output.gp \
   --from-json --format json
 ```

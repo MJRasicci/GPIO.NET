@@ -1,6 +1,6 @@
 # Complete Before v1 Release
 
-GPIO.NET has proven the hard part already: it can read and write `.gp` files without data fidelity loss or file size bloat.
+Motif has proven the hard part already: it can read and write `.gp` files without data fidelity loss or file size bloat.
 
 That milestone validates the technical foundation. The remaining work before v1 is to align the project name, codebase, package structure, and public API with the actual product we are shipping:
 

@@ -6,7 +6,7 @@ using System.IO.Compression;
 public sealed class ZipGpArchiveWriter : IGpArchiveWriter
 {
     private const string ScoreEntryPath = "Content/score.gpif";
-    private const string DefaultTemplateResourceName = "GPIO.NET.Resources.DefaultTemplate.gp";
+    private const string DefaultTemplateResourceName = "Motif.Core.Resources.DefaultTemplate.gp";
     private static readonly byte[]? DefaultTemplateArchiveBytes = LoadDefaultTemplateArchiveBytes();
 
     public async ValueTask WriteArchiveAsync(Stream gpifContent, string filePath, CancellationToken cancellationToken = default)

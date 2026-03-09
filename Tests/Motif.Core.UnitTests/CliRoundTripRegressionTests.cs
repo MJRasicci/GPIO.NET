@@ -16,7 +16,7 @@ public class CliRoundTripRegressionTests
         File.Exists(sourceGp).Should().BeTrue();
 
         var repoRoot = FindRepositoryRoot();
-        var toolProject = Path.Combine(repoRoot, "Source", "GPIO.NET.Tool", "GPIO.NET.Tool.csproj");
+        var toolProject = Path.Combine(repoRoot, "Source", "Motif.CLI", "Motif.CLI.csproj");
         Directory.Exists(Path.GetDirectoryName(toolProject)!).Should().BeTrue();
 
         var tempDir = Path.Combine(Path.GetTempPath(), $"gpio-cli-roundtrip-{Guid.NewGuid():N}");
@@ -88,7 +88,7 @@ public class CliRoundTripRegressionTests
         File.Exists(sourceGp).Should().BeTrue();
 
         var repoRoot = FindRepositoryRoot();
-        var toolProject = Path.Combine(repoRoot, "Source", "GPIO.NET.Tool", "GPIO.NET.Tool.csproj");
+        var toolProject = Path.Combine(repoRoot, "Source", "Motif.CLI", "Motif.CLI.csproj");
         Directory.Exists(Path.GetDirectoryName(toolProject)!).Should().BeTrue();
 
         var tempDir = Path.Combine(Path.GetTempPath(), $"gpio-cli-stem-rt-{Guid.NewGuid():N}");
@@ -137,7 +137,7 @@ public class CliRoundTripRegressionTests
         File.Exists(sourceGp).Should().BeTrue();
 
         var repoRoot = FindRepositoryRoot();
-        var toolProject = Path.Combine(repoRoot, "Source", "GPIO.NET.Tool", "GPIO.NET.Tool.csproj");
+        var toolProject = Path.Combine(repoRoot, "Source", "Motif.CLI", "Motif.CLI.csproj");
         Directory.Exists(Path.GetDirectoryName(toolProject)!).Should().BeTrue();
 
         var tempDir = Path.Combine(Path.GetTempPath(), $"gpio-cli-batch-rt-{Guid.NewGuid():N}");
@@ -205,7 +205,7 @@ public class CliRoundTripRegressionTests
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            if (File.Exists(Path.Combine(directory.FullName, "Source", "GPIO.NET.Tool", "GPIO.NET.Tool.csproj")))
+            if (File.Exists(Path.Combine(directory.FullName, "Source", "Motif.CLI", "Motif.CLI.csproj")))
             {
                 return directory.FullName;
             }

@@ -1,12 +1,12 @@
-# AGENTS.md — GPIO.NET Guidance
+# AGENTS.md — Motif Guidance
 
-This is the canonical production repository for the GPIO.NET Guitar Pro I/O library and companion CLI.
+This is the canonical production repository for the Motif library and companion CLI.
 
 ---
 
 ## What This Repo Does
 
-GPIO.NET reads and writes Guitar Pro (`.gp`) files — ZIP archives containing a GPIF XML document
+Motif reads and writes Guitar Pro (`.gp`) files — ZIP archives containing a GPIF XML document
 with a heavily reference-based structure. The library:
 
 1. Opens `.gp` archives and extracts `Content/score.gpif`
@@ -20,16 +20,16 @@ with a heavily reference-based structure. The library:
 
 ```
 Source/
-  GPIO.NET/              Core library (no dependencies beyond .NET 10)
-  GPIO.NET.Tool/         CLI tool (published as GPIO executable)
-
+  Motif/                                   Package wrapping Motif.Core and Motif.Extensions.GuitarPro
+  Motif.Core/                              Core library (no dependencies beyond .NET 10)
+  Motif.Extensions.GuitarPro/              Guitar Pro file format support (depends on Motif.Core)
+  Motif.CLI/                               CLI tool (published as motif-cli executable)
 Tests/
-  GPIO.NET.UnitTests/    Fixture-based unit + integration tests
-
+  Motif.Core.UnitTests/                    Fixture-based unit + integration tests
+  Motif.Extensions.GuitarPro.UnitTests/    Fixture-based unit + integration tests
 docs/
-  GPIF_COVERAGE_STATUS.md   What is typed / hybrid / missing in the GPIF mapping
-  MAPPING_COVERAGE.md       Domain model coverage checklist
-  CLI_WORKFLOW.md           Common CLI workflows
+  CLI_WORKFLOW.md                          Common CLI workflows
+  v1_Todo.md                               Checklist for v1 release, use this to track your work and decide what to do next
 ```
 
 ---
@@ -84,29 +84,22 @@ Consumers should never need to deal with GPIF reference mechanics.
 
 ## CLI Tool
 
-The tool is published as a single-file self-contained executable named `GPIO`.
+The tool is published as a single-file self-contained executable named `motif-cli`.
 
 **Run during development:**
 ```
-dotnet run --project Source/GPIO.NET.Tool -- <args>
+dotnet run --project Source/Motif.CLI -- <args>
 ```
 
-**Publish (Windows x64):**
-```powershell
-dotnet publish Source/GPIO.NET.Tool -r win-x64 -c Release
-```
+For full CLI usage, use `--help` or see [docs/CLI_WORKFLOW.md](docs/CLI_WORKFLOW.md).
 
-Output: `artifacts/publish/GPIO.NET.Tool/release_win-x64/`
-
-For full CLI usage, run `gpio --help` or see [docs/CLI_WORKFLOW.md](docs/CLI_WORKFLOW.md).
-
-**Supported output formats:** `json`, `gpif`, `musicxml` (planned), `midi` (planned)
+**Supported output formats:** `json`, `gpif`, `gp`, `musicxml` (planned), `midi` (planned)
 
 ---
 
 ## Testing
 
-Tests live in `Tests/GPIO.NET.UnitTests/` and cover:
+Tests live in `Tests/Motif.Core.UnitTests/` and cover:
 
 - End-to-end reads against real `.gp` fixture files
 - Articulation and rhythm mapping
@@ -135,7 +128,7 @@ Always add or update tests alongside behavior changes.
 
 ## Current Status and Gaps
 
-See [docs/GPIF_COVERAGE_STATUS.md](docs/GPIF_COVERAGE_STATUS.md) for the detailed breakdown.
+See [docs/v1_Todo.md](docs/v1_Todo.md) for the v1 release plan and remaining work.
 
 Highest-priority open areas:
 1. DS/DC/Coda/Fine full notation-engine semantics in `DefaultNavigationResolver`
@@ -146,7 +139,6 @@ Highest-priority open areas:
 
 ## Working in This Repo
 
-- Read `docs/GPIF_COVERAGE_STATUS.md` before touching mapping or write-path code
 - Keep the raw model and domain model in sync — changes to one typically require changes to both
 - The `DefaultScoreMapper` and `DefaultScoreUnmapper` are the most complex files; read them fully before editing
 - Boolean CLI flags support `--flag`, `--flag=true`, `--flag=false` — keep new flags consistent with this pattern

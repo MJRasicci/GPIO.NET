@@ -5,7 +5,7 @@
     <OutputType>Exe</OutputType>
 
     <!-- Single-file trimmed executable -->
-    <AssemblyName>GPIO</AssemblyName>
+    <AssemblyName>motif-cli</AssemblyName>
     <PublishSingleFile>true</PublishSingleFile>
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>partial</TrimMode>
@@ -16,7 +16,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GPIO.NET\GPIO.NET.csproj" />
+    <ProjectReference Include="..\Motif\Motif.csproj" />
   </ItemGroup>
 
 </Project>

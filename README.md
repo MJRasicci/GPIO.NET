@@ -1,9 +1,10 @@
-# GPIO.NET
+# Motif
 
-**Guitar Pro I/O for .NET — precise parsing, deterministic mapping, and a clean domain model.**
+**A format-agnostic .NET music domain model and conversion library.**
 
-GPIO.NET is a production-grade .NET library for reading and transforming Guitar Pro (`.gp`) files.  
-It extracts and interprets GPIF (`score.gpif`) data and exposes a strongly-typed, traversal-friendly object model for working with musical structures.
+Motif provides a clean, strongly-typed domain model for representing and modifying musical data programmatically. Format-specific extension packages handle lossless or near-lossless round-tripping for supported formats.
+
+The initial release ships with Guitar Pro (`.gp`) support via `Motif.Extensions.GuitarPro`.
 
 A companion CLI tool is included for inspection, conversion, and round-trip workflows.
 
@@ -11,10 +12,10 @@ A companion CLI tool is included for inspection, conversion, and round-trip work
 
 ## Purpose
 
-Guitar Pro files are ZIP archives containing a GPIF XML document with a heavily reference-based structure.  
+Guitar Pro files are ZIP archives containing a GPIF XML document with a heavily reference-based structure.
 While flexible, this format is difficult to consume and modify directly.
 
-GPIO.NET provides:
+Motif provides:
 
 - **Deterministic parsing** of `.gp` archives and GPIF data
 - **Reference resolution** into a usable in-memory graph
@@ -42,10 +43,10 @@ GPIO.NET provides:
 
 GPIF uses cross-referenced IDs and indirect relationships.
 
-GPIO.NET transforms this into a natural object graph:
+Motif transforms this into a natural object graph:
 
 ```
-Score → Tracks → Measures → Voices → Beats → Notes
+Score -> Tracks -> Measures -> Voices -> Beats -> Notes
 ```
 
 - Eliminates manual reference resolution
@@ -78,6 +79,16 @@ This layer is the backbone of correctness.
 
 ---
 
+## Package Structure
+
+| Package | Description |
+|---|---|
+| `Motif.Core` | Format-agnostic domain model and abstractions |
+| `Motif.Extensions.GuitarPro` | Guitar Pro `.gp` read/write support |
+| `Motif` | Convenience wrapper referencing Core + GuitarPro |
+
+---
+
 ## CLI Tool
 
 A companion CLI is provided for file conversion and inspection.
@@ -85,39 +96,36 @@ A companion CLI is provided for file conversion and inspection.
 **Project:**
 
 ```
-Source/GPIO.NET.Tool
+Source/Motif.CLI
 ```
 
 **Run:**
 
 ```
-dotnet run --project Source/GPIO.NET.Tool -- <input> [output] [options]
+dotnet run --project Source/Motif.CLI -- <input> [output] [options]
 ```
 
 ---
 
 ## Supported Workflows
 
-### Convert `.gp` → JSON
+### Convert `.gp` -> JSON
 
 ```
-dotnet run --project Source/GPIO.NET.Tool -- input.gp score.json --format json
+dotnet run --project Source/Motif.CLI -- input.gp score.json --format json
 ```
 
 ### Extract raw GPIF
 
 ```
-dotnet run --project Source/GPIO.NET.Tool -- input.gp score.gpif --format gpif
+dotnet run --project Source/Motif.CLI -- input.gp score.gpif --format gpif
 ```
 
-### Edit JSON → Patch existing `.gp` (recommended)
+### Edit JSON -> Write back to `.gp`
 
 ```
-dotnet run --project Source/GPIO.NET.Tool -- score.json output.gp 
---from-json 
---patch-from-json 
---source-gp input.gp 
---format json
+dotnet run --project Source/Motif.CLI -- score.json output.gp \
+  --from-json --source-gp input.gp --format json
 ```
 
 ---
@@ -126,9 +134,9 @@ dotnet run --project Source/GPIO.NET.Tool -- score.json output.gp
 
 | Format | Description | Status |
 |------|--------|--------|
-| `json` | Mapped domain model | ✅ |
-| `gpif` | Raw GPIF XML | ✅ |
-| `midi` | MIDI export | 🚧 Planned |
+| `json` | Mapped domain model | Supported |
+| `gpif` | Raw GPIF XML | Supported |
+| `midi` | MIDI export | Planned |
 
 ---
 
@@ -148,8 +156,7 @@ dotnet run --project Source/GPIO.NET.Tool -- score.json output.gp
 ### Write Modes
 
 - `--from-json` — treat input as mapped JSON
-- `--patch-from-json` — patch an existing `.gp` file (preferred)
-- `--source-gp <path>` — original file for patching
+- `--source-gp <path>` — original file for preserving archive payload
 
 ### Diagnostics
 
@@ -179,8 +186,10 @@ The core library intentionally does **not** include:
 
 ## Repository Structure
 
-- `Source/GPIO.NET` — Core library
-- `Source/GPIO.NET.Tool` — CLI tool
+- `Source/Motif.Core` — Core library
+- `Source/Motif.Extensions.GuitarPro` — Guitar Pro format support
+- `Source/Motif` — Convenience wrapper package
+- `Source/Motif.CLI` — CLI tool
 
 ---
 
@@ -188,13 +197,14 @@ The core library intentionally does **not** include:
 
 This repository represents the **canonical, production-ready implementation**.
 
-Earlier experiments and migration notes are documented in `AGENTS.md`.
+See `docs/v1_Todo.md` for the v1 release plan.
 
 ---
 
 ## Roadmap
 
 - MIDI export support
+- MusicXML format support via `Motif.Extensions.MusicXml`
 - Improved write/round-trip fidelity
 - Expanded test corpus
 - Performance tuning for large scores
@@ -204,5 +214,3 @@ Earlier experiments and migration notes are documented in `AGENTS.md`.
 ## License
 
 MIT — see `LICENSE.md`.
-
-```

@@ -6,8 +6,12 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources/DefaultTemplate.gp">
-      <LogicalName>GPIO.NET.Resources.DefaultTemplate.gp</LogicalName>
+      <LogicalName>Motif.Extensions.GuitarPro.Resources.DefaultTemplate.gp</LogicalName>
     </EmbeddedResource>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\Motif.Core\Motif.Core.csproj" />
   </ItemGroup>
 
 </Project>

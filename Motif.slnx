@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="AGENTS.md" />
+    <File Path="Directory.Build.props" />
+    <File Path="global.json" />
+    <File Path="README.md" />
+    <File Path="LICENSE.md" />
+  </Folder>
+  <Folder Name="/Source/">
+    <Project Path="Source/Motif/Motif.csproj" />
+    <Project Path="Source/Motif.Core/Motif.Core.csproj" />
+    <Project Path="Source/Motif.Extensions.GuitarPro/Motif.Extensions.GuitarPro.csproj" />
+    <Project Path="Source/Motif.CLI/Motif.CLI.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/Motif.Core.UnitTests/Motif.Core.UnitTests.csproj" />
+    <Project Path="Tests/Motif.Extensions.GuitarPro.UnitTests/Motif.Extensions.GuitarPro.UnitTests.csproj" />
+  </Folder>
+</Solution>
