@@ -272,7 +272,6 @@ public class WriterNotationFidelityTests
                 {
                     Id = 0,
                     Name = "Lead",
-                    Metadata = sourceScore.Tracks[0].Metadata,
                     Measures =
                     [
                         new MeasureModel
@@ -305,6 +304,7 @@ public class WriterNotationFidelityTests
                 }
             ]
         };
+        score.Tracks[0].GetOrCreateGuitarPro().Metadata = sourceScore.Tracks[0].GetRequiredGuitarPro().Metadata;
 
         var roundTrip = await RoundTripThroughWrite(score);
         var outputNote = roundTrip.Root!.Element("Notes")!.Element("Note")!;

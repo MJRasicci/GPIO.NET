@@ -9,6 +9,15 @@ using System.Xml.Linq;
 
 public class WriterRemainingFidelityTests
 {
+    private static ScoreMetadata ScoreMetadataOf(GuitarProScore score)
+        => score.GetRequiredGuitarPro().Metadata;
+
+    private static MasterTrackMetadata MasterTrackMetadataOf(GuitarProScore score)
+        => score.GetRequiredGuitarPro().MasterTrack;
+
+    private static TrackMetadata TrackMetadataOf(TrackModel track)
+        => track.GetRequiredGuitarPro().Metadata;
+
     private static async Task<GuitarProScore> DeserializeAndMap(string gpif)
     {
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(gpif));
@@ -104,18 +113,19 @@ public class WriterRemainingFidelityTests
 
         var score = await DeserializeAndMap(gpif);
         var measure = score.Tracks[0].Measures[0];
+        var scoreMetadata = ScoreMetadataOf(score);
 
-        score.Metadata.GpRevisionXml.Should().Contain("<GPRevision>12015</GPRevision>");
-        score.Metadata.PageSetupXml.Should().Contain("<PageSetup>");
-        score.Metadata.SubTitle.Should().Be(" ");
-        score.Metadata.Copyright.Should().Be("   ");
-        score.Metadata.Tabber.Should().Be(" ");
+        scoreMetadata.GpRevisionXml.Should().Contain("<GPRevision>12015</GPRevision>");
+        scoreMetadata.PageSetupXml.Should().Contain("<PageSetup>");
+        scoreMetadata.SubTitle.Should().Be(" ");
+        scoreMetadata.Copyright.Should().Be("   ");
+        scoreMetadata.Tabber.Should().Be(" ");
         measure.FreeTime.Should().BeTrue();
         measure.HasExplicitEmptySection.Should().BeTrue();
         measure.DirectionsXml.Should().Contain("<Jump>DaCoda</Jump>");
         measure.DirectionsXml.Should().Contain("<Target>SegnoSegno</Target>");
 
-        var roundTrip = await RoundTripThroughJsonAndWrite(gpif);
+        var roundTrip = await RoundTripThroughWrite(score);
         var root = roundTrip.Root!;
         var gpRevision = root.Element("GPRevision")!;
         var scoreElement = root.Element("Score")!;
@@ -164,7 +174,8 @@ public class WriterRemainingFidelityTests
         </GPIF>
         """;
 
-        var roundTrip = await RoundTripThroughJsonAndWrite(gpif);
+        var score = await DeserializeAndMap(gpif);
+        var roundTrip = await RoundTripThroughWrite(score);
         var scoreElement = roundTrip.Root!.Element("Score")!;
 
         scoreElement.Element("Title")!.Nodes().OfType<XCData>().Select(node => node.Value).Should().ContainSingle("Song Title");
@@ -216,7 +227,7 @@ public class WriterRemainingFidelityTests
         measure.SectionText.Should().BeEmpty();
         measure.HasExplicitEmptySection.Should().BeTrue();
 
-        var roundTrip = await RoundTripThroughJsonAndWrite(gpif);
+        var roundTrip = await RoundTripThroughWrite(score);
         var section = roundTrip.Root!.Element("MasterBars")!.Element("MasterBar")!.Element("Section")!;
         section.Element("Letter")!.Value.Should().BeEmpty();
         section.Element("Text")!.Value.Should().BeEmpty();
@@ -247,16 +258,15 @@ public class WriterRemainingFidelityTests
         });
 
         fromJson.Should().NotBeNull();
-        score.Metadata.ScoreXml.Should().Contain("<Score><Title>T</Title><Artist>A</Artist><Album>B</Album></Score>");
-        score.MasterTrack.Xml.Should().Contain("<MasterTrack><Tracks>0</Tracks></MasterTrack>");
-        score.Tracks[0].Metadata.Xml.Should().Contain("<Track id=\"0\"><Name>Track</Name></Track>");
+        ScoreMetadataOf(score).ScoreXml.Should().Contain("<Score><Title>T</Title><Artist>A</Artist><Album>B</Album></Score>");
+        MasterTrackMetadataOf(score).Xml.Should().Contain("<MasterTrack><Tracks>0</Tracks></MasterTrack>");
+        TrackMetadataOf(score.Tracks[0]).Xml.Should().Contain("<Track id=\"0\"><Name>Track</Name></Track>");
         score.Tracks[0].Measures[0].MasterBarXml.Should().Contain("<MasterBar><Time>4/4</Time><FreeTime /><Bars>1</Bars></MasterBar>");
         score.Tracks[0].Measures[0].Voices[0].Xml.Should().Contain("<Voice id=\"10\"><Beats>100</Beats></Voice>");
         score.Tracks[0].Measures[0].Beats[0].Xml.Should().Contain("<Beat id=\"100\"><Rhythm ref=\"1000\" /><FreeText><![CDATA[Dist.]]></FreeText><Notes>200</Notes></Beat>");
         score.Tracks[0].Measures[0].Beats[0].SourceRhythm!.Xml.Should().Contain("<Rhythm id=\"1000\"><NoteValue>Eighth</NoteValue><AugmentationDot count=\"1\" /></Rhythm>");
-        fromJson!.Metadata.ScoreXml.Should().Contain("<Score><Title>T</Title><Artist>A</Artist><Album>B</Album></Score>");
-        fromJson.MasterTrack.Xml.Should().Contain("<MasterTrack><Tracks>0</Tracks></MasterTrack>");
-        fromJson.Tracks[0].Metadata.Xml.Should().Contain("<Track id=\"0\"><Name>Track</Name></Track>");
+        fromJson!.GetGuitarPro().Should().BeNull();
+        fromJson.Tracks[0].GetGuitarPro().Should().BeNull();
         fromJson!.Tracks[0].Measures[0].MasterBarXml.Should().Contain("<MasterBar><Time>4/4</Time><FreeTime /><Bars>1</Bars></MasterBar>");
         fromJson.Tracks[0].Measures[0].Voices[0].Xml.Should().Contain("<Voice id=\"10\"><Beats>100</Beats></Voice>");
         fromJson.Tracks[0].Measures[0].Beats[0].Xml.Should().Contain("<Beat id=\"100\"><Rhythm ref=\"1000\" /><FreeText><![CDATA[Dist.]]></FreeText><Notes>200</Notes></Beat>");
@@ -264,7 +274,7 @@ public class WriterRemainingFidelityTests
 
         var xml = await RoundTripThroughWriteText(fromJson);
 
-        xml.Should().Contain("<Score><Title>T</Title><Artist>A</Artist><Album>B</Album></Score>");
+        xml.Should().Contain("<Score><Title><![CDATA[T]]></Title><Artist><![CDATA[A]]></Artist><Album><![CDATA[B]]></Album></Score>");
         xml.Should().Contain("<MasterTrack><Tracks>0</Tracks></MasterTrack>");
         xml.Should().Contain("<Track id=\"0\"><Name>Track</Name></Track>");
         xml.Should().Contain("<MasterBar><Time>4/4</Time><FreeTime /><Bars>1</Bars></MasterBar>");
@@ -301,10 +311,10 @@ public class WriterRemainingFidelityTests
         """;
 
         var score = await DeserializeAndMap(gpif);
-        score.Tracks[0].Metadata.LetRingThroughout.Should().BeTrue();
+        TrackMetadataOf(score.Tracks[0]).LetRingThroughout.Should().BeTrue();
         score.Tracks[0].Measures[0].SimileMark.Should().Be("Simple");
 
-        var roundTrip = await RoundTripThroughJsonAndWrite(gpif);
+        var roundTrip = await RoundTripThroughWrite(score);
         var track = roundTrip.Root!.Element("Tracks")!.Element("Track")!;
         var bar = roundTrip.Root.Element("Bars")!.Element("Bar")!;
 
@@ -313,7 +323,7 @@ public class WriterRemainingFidelityTests
     }
 
     [Fact]
-    public async Task Master_track_automation_and_top_level_media_passthrough_round_trip_through_json()
+    public async Task Master_track_automation_and_top_level_media_passthrough_round_trip_write_path()
     {
         const string gpif = """
         <GPIF>
@@ -371,13 +381,13 @@ public class WriterRemainingFidelityTests
         """;
 
         var score = await DeserializeAndMap(gpif);
-        score.MasterTrack.AutomationsXml.Should().Contain("<Text><![CDATA[Lento]]></Text>");
-        score.MasterTrack.AutomationsXml.Should().Contain("<BarIndex>3</BarIndex>");
-        score.Metadata.BackingTrackXml.Should().Contain("<BackingTrack>");
-        score.Metadata.AudioTracksXml.Should().Contain("<AudioTrack id=\"0\">");
-        score.Metadata.AssetsXml.Should().Contain("<Asset id=\"0\">");
+        MasterTrackMetadataOf(score).AutomationsXml.Should().Contain("<Text><![CDATA[Lento]]></Text>");
+        MasterTrackMetadataOf(score).AutomationsXml.Should().Contain("<BarIndex>3</BarIndex>");
+        ScoreMetadataOf(score).BackingTrackXml.Should().Contain("<BackingTrack>");
+        ScoreMetadataOf(score).AudioTracksXml.Should().Contain("<AudioTrack id=\"0\">");
+        ScoreMetadataOf(score).AssetsXml.Should().Contain("<Asset id=\"0\">");
 
-        var roundTrip = await RoundTripThroughJsonAndWrite(gpif);
+        var roundTrip = await RoundTripThroughWrite(score);
         var root = roundTrip.Root!;
         var automations = root.Element("MasterTrack")!.Element("Automations")!.Elements("Automation").ToArray();
 

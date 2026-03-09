@@ -16,13 +16,10 @@ public class MutableDomainModelTests
 
         score.Title = "Motif";
         score.Artist = "Artist";
-        score.Metadata = new ScoreMetadata { SubTitle = "Initial subtitle" };
-        score.MasterTrack = new MasterTrackMetadata { Anacrusis = true };
         score.PlaybackMasterBarSequence = [0, 1];
 
         track.Id = 1;
         track.Name = "Lead";
-        track.Metadata = new TrackMetadata { ShortName = "Ld" };
 
         measure.Index = 0;
         measure.TimeSignature = "4/4";
@@ -55,12 +52,9 @@ public class MutableDomainModelTests
         score.Tracks = [track];
 
         score.Title = "Mutable Motif";
-        score.Metadata.SubTitle = "Updated subtitle";
-        score.MasterTrack.Anacrusis = false;
         score.PlaybackMasterBarSequence = [0, 1, 2];
 
         track.Name = "Rhythm";
-        track.Metadata.ShortName = "Rhy";
 
         measure.TimeSignature = "7/8";
         measure.AdditionalStaffBars =
@@ -88,13 +82,10 @@ public class MutableDomainModelTests
         };
 
         score.Title.Should().Be("Mutable Motif");
-        score.Metadata.SubTitle.Should().Be("Updated subtitle");
-        score.MasterTrack.Anacrusis.Should().BeFalse();
         score.PlaybackMasterBarSequence.Should().Equal(0, 1, 2);
         score.Tracks.Should().ContainSingle().Which.Should().BeSameAs(track);
 
         track.Name.Should().Be("Rhythm");
-        track.Metadata.ShortName.Should().Be("Rhy");
         track.Measures.Should().ContainSingle().Which.Should().BeSameAs(measure);
 
         measure.TimeSignature.Should().Be("7/8");

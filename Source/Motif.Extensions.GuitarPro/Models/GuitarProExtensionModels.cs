@@ -4,12 +4,12 @@ using Motif.Models;
 
 public sealed class GpScoreExtension : IModelExtension
 {
-    public required ScoreMetadata Metadata { get; init; }
+    public required ScoreMetadata Metadata { get; set; }
 
-    public required MasterTrackMetadata MasterTrack { get; init; }
+    public required MasterTrackMetadata MasterTrack { get; set; }
 }
 
 public sealed class GpTrackExtension : IModelExtension
 {
-    public required TrackMetadata Metadata { get; init; }
+    public required TrackMetadata Metadata { get; set; }
 }

@@ -83,18 +83,19 @@ public class WriterTrackMetadataFidelityTests
 
         var score = await DeserializeAndMap(gpif);
         var track = score.Tracks[0];
+        var trackMetadata = track.GetRequiredGuitarPro().Metadata;
 
-        track.Metadata.ShortName.Should().BeEmpty();
-        track.Metadata.HasExplicitEmptyShortName.Should().BeTrue();
-        track.Metadata.SystemsLayout.Should().BeEmpty();
-        track.Metadata.HasExplicitEmptySystemsLayout.Should().BeTrue();
-        track.Metadata.NotationPatchXml.Should().Contain("<NotationPatch>");
-        track.Metadata.HasTrackTuningProperty.Should().BeFalse();
-        track.Metadata.TuningPitches.Should().Equal(0, 0, 0, 0, 0, 0);
-        track.Metadata.TuningInstrument.Should().Be("Undefined");
-        track.Metadata.TuningLabelVisible.Should().BeTrue();
+        trackMetadata.ShortName.Should().BeEmpty();
+        trackMetadata.HasExplicitEmptyShortName.Should().BeTrue();
+        trackMetadata.SystemsLayout.Should().BeEmpty();
+        trackMetadata.HasExplicitEmptySystemsLayout.Should().BeTrue();
+        trackMetadata.NotationPatchXml.Should().Contain("<NotationPatch>");
+        trackMetadata.HasTrackTuningProperty.Should().BeFalse();
+        trackMetadata.TuningPitches.Should().Equal(0, 0, 0, 0, 0, 0);
+        trackMetadata.TuningInstrument.Should().Be("Undefined");
+        trackMetadata.TuningLabelVisible.Should().BeTrue();
 
-        var roundTrip = await RoundTripThroughJsonAndWrite(gpif);
+        var roundTrip = await RoundTripThroughWrite(score);
         var outputTrack = roundTrip.Root!.Element("Tracks")!.Element("Track")!;
 
         outputTrack.Element("ShortName").Should().NotBeNull();
@@ -118,6 +119,23 @@ public class WriterTrackMetadataFidelityTests
     }
 
     [Fact]
+    public async Task Core_json_round_trip_drops_track_guitar_pro_extension_metadata()
+    {
+        var gpif = BuildGpif("<ShortName>abbr</ShortName>");
+
+        var score = await DeserializeAndMap(gpif);
+        var json = score.ToJson(indented: false);
+        var fromJson = JsonSerializer.Deserialize<GuitarProScore>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        fromJson.Should().NotBeNull();
+        score.Tracks[0].GetGuitarPro().Should().NotBeNull();
+        fromJson!.Tracks[0].GetGuitarPro().Should().BeNull();
+    }
+
+    [Fact]
     public async Task Generated_track_without_raw_staves_emits_top_level_tuning_property_as_fallback()
     {
         var score = new GuitarProScore
@@ -127,16 +145,16 @@ public class WriterTrackMetadataFidelityTests
                 new TrackModel
                 {
                     Id = 0,
-                    Name = "Guitar",
-                    Metadata = new TrackMetadata
-                    {
-                        TuningPitches = [40, 45, 50, 55, 59, 64],
-                        TuningInstrument = "Guitar",
-                        TuningLabel = "Std",
-                        TuningLabelVisible = true
-                    }
+                    Name = "Guitar"
                 }
             ]
+        };
+        score.Tracks[0].GetOrCreateGuitarPro().Metadata = new TrackMetadata
+        {
+            TuningPitches = [40, 45, 50, 55, 59, 64],
+            TuningInstrument = "Guitar",
+            TuningLabel = "Std",
+            TuningLabelVisible = true
         };
 
         var roundTrip = await RoundTripThroughWrite(score);

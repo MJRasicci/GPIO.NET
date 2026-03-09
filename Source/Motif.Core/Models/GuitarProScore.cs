@@ -8,10 +8,6 @@ public sealed class GuitarProScore : ExtensibleModel
 
     public string Album { get; set; } = string.Empty;
 
-    public ScoreMetadata Metadata { get; set; } = new();
-
-    public MasterTrackMetadata MasterTrack { get; set; } = new();
-
     public IReadOnlyList<TrackModel> Tracks { get; set; } = Array.Empty<TrackModel>();
 
     /// <summary>
@@ -25,8 +21,6 @@ public sealed class TrackModel : ExtensibleModel
     public int Id { get; set; }
 
     public string Name { get; set; } = string.Empty;
-
-    public TrackMetadata Metadata { get; set; } = new();
 
     public IReadOnlyList<MeasureModel> Measures { get; set; } = Array.Empty<MeasureModel>();
 }

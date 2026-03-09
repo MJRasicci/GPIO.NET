@@ -203,6 +203,12 @@ internal sealed class BatchRoundTripDiagnosticsRunner
         var jsonScore = JsonSerializer.Deserialize(mappedJson, CliJsonContext.Default.GuitarProScore)
             ?? throw new InvalidDataException("Unable to deserialize mapped score JSON during batch roundtrip diagnostics.");
 
+        var isNoOpWrite = IsNoOpWrite(sourceScore, jsonScore);
+        if (isNoOpWrite)
+        {
+            jsonScore.ReattachGuitarProExtensionsFrom(sourceScore);
+        }
+
         var unmapResult = await unmapper.UnmapAsync(jsonScore, cancellationToken).ConfigureAwait(false);
 
         await using var gpifBuffer = new MemoryStream();
@@ -233,6 +239,13 @@ internal sealed class BatchRoundTripDiagnosticsRunner
         };
 
         return new AnalyzedFile(fileResult, diagnostics);
+    }
+
+    private static bool IsNoOpWrite(GuitarProScore sourceScore, GuitarProScore editedScore)
+    {
+        var sourceJson = JsonSerializer.Serialize(sourceScore, CliJsonContext.Default.GuitarProScore);
+        var editedJson = JsonSerializer.Serialize(editedScore, CliJsonContext.Default.GuitarProScore);
+        return string.Equals(sourceJson, editedJson, StringComparison.Ordinal);
     }
 
     private static BatchNamedCount[] BuildNamedCounts<T>(

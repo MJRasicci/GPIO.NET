@@ -73,21 +73,6 @@ public class WriterNotePropertyFidelityTests
                 {
                     Id = 0,
                     Name = "Piano",
-                    Metadata = new TrackMetadata
-                    {
-                        TuningPitches = [40, 45, 50, 55, 59, 64],
-                        Staffs =
-                        [
-                            new StaffMetadata
-                            {
-                                TuningPitches = [40, 45, 50, 55, 59, 64]
-                            },
-                            new StaffMetadata
-                            {
-                                TuningPitches = [23, 28, 33, 38, 43]
-                            }
-                        ]
-                    },
                     Measures =
                     [
                         new MeasureModel
@@ -120,6 +105,21 @@ public class WriterNotePropertyFidelityTests
                             ]
                         }
                     ]
+                }
+            ]
+        };
+        score.Tracks[0].GetOrCreateGuitarPro().Metadata = new TrackMetadata
+        {
+            TuningPitches = [40, 45, 50, 55, 59, 64],
+            Staffs =
+            [
+                new StaffMetadata
+                {
+                    TuningPitches = [40, 45, 50, 55, 59, 64]
+                },
+                new StaffMetadata
+                {
+                    TuningPitches = [23, 28, 33, 38, 43]
                 }
             ]
         };

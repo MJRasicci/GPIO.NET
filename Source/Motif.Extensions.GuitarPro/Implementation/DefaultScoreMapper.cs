@@ -41,113 +41,91 @@ public sealed class DefaultScoreMapper : IScoreMapper
                     GetTrackStaffCount(track),
                     isStringedTrack);
                 ApplyTieDurationStitching(measures);
-
-                var mappedTrack = new TrackModel
+                var trackMetadata = new TrackMetadata
                 {
-                    Id = track.Id,
-                    Name = track.Name,
-                    Metadata = new TrackMetadata
+                    Xml = track.Xml,
+                    ShortName = track.ShortName,
+                    HasExplicitEmptyShortName = track.HasExplicitEmptyShortName,
+                    Color = track.Color,
+                    SystemsDefaultLayout = track.SystemsDefaultLayout,
+                    SystemsLayout = track.SystemsLayout,
+                    HasExplicitEmptySystemsLayout = track.HasExplicitEmptySystemsLayout,
+                    PalmMute = track.PalmMute,
+                    AutoAccentuation = track.AutoAccentuation,
+                    AutoBrush = track.AutoBrush,
+                    LetRingThroughout = track.LetRingThroughout,
+                    PlayingStyle = track.PlayingStyle,
+                    UseOneChannelPerString = track.UseOneChannelPerString,
+                    IconId = track.IconId,
+                    ForcedSound = track.ForcedSound,
+                    TuningPitches = track.TuningPitches,
+                    TuningInstrument = track.TuningInstrument,
+                    TuningLabel = track.TuningLabel,
+                    TuningLabelVisible = track.TuningLabelVisible,
+                    HasTrackTuningProperty = track.HasTrackTuningProperty,
+                    Properties = track.Properties,
+                    InstrumentSetXml = track.InstrumentSetXml,
+                    StavesXml = track.StavesXml,
+                    SoundsXml = track.SoundsXml,
+                    RseXml = track.RseXml,
+                    NotationPatchXml = track.NotationPatchXml,
+                    InstrumentSet = new InstrumentSetMetadata
                     {
-                        Xml = track.Xml,
-                        ShortName = track.ShortName,
-                        HasExplicitEmptyShortName = track.HasExplicitEmptyShortName,
-                        Color = track.Color,
-                        SystemsDefaultLayout = track.SystemsDefaultLayout,
-                        SystemsLayout = track.SystemsLayout,
-                        HasExplicitEmptySystemsLayout = track.HasExplicitEmptySystemsLayout,
-                        PalmMute = track.PalmMute,
-                        AutoAccentuation = track.AutoAccentuation,
-                        AutoBrush = track.AutoBrush,
-                        LetRingThroughout = track.LetRingThroughout,
-                        PlayingStyle = track.PlayingStyle,
-                        UseOneChannelPerString = track.UseOneChannelPerString,
-                        IconId = track.IconId,
-                        ForcedSound = track.ForcedSound,
-                        TuningPitches = track.TuningPitches,
-                        TuningInstrument = track.TuningInstrument,
-                        TuningLabel = track.TuningLabel,
-                        TuningLabelVisible = track.TuningLabelVisible,
-                        HasTrackTuningProperty = track.HasTrackTuningProperty,
-                        Properties = track.Properties,
-                        InstrumentSetXml = track.InstrumentSetXml,
-                        StavesXml = track.StavesXml,
-                        SoundsXml = track.SoundsXml,
-                        RseXml = track.RseXml,
-                        NotationPatchXml = track.NotationPatchXml,
-                        InstrumentSet = new InstrumentSetMetadata
+                        Name = track.InstrumentSet.Name,
+                        Type = track.InstrumentSet.Type,
+                        LineCount = track.InstrumentSet.LineCount,
+                        Elements = track.InstrumentSet.Elements.Select(element => new InstrumentElementMetadata
                         {
-                            Name = track.InstrumentSet.Name,
-                            Type = track.InstrumentSet.Type,
-                            LineCount = track.InstrumentSet.LineCount,
-                            Elements = track.InstrumentSet.Elements.Select(element => new InstrumentElementMetadata
+                            Name = element.Name,
+                            Type = element.Type,
+                            SoundbankName = element.SoundbankName,
+                            Articulations = element.Articulations.Select(articulation => new InstrumentArticulationMetadata
                             {
-                                Name = element.Name,
-                                Type = element.Type,
-                                SoundbankName = element.SoundbankName,
-                                Articulations = element.Articulations.Select(articulation => new InstrumentArticulationMetadata
-                                {
-                                    Name = articulation.Name,
-                                    StaffLine = articulation.StaffLine,
-                                    Noteheads = articulation.Noteheads,
-                                    TechniquePlacement = articulation.TechniquePlacement,
-                                    TechniqueSymbol = articulation.TechniqueSymbol,
-                                    InputMidiNumbers = articulation.InputMidiNumbers,
-                                    OutputRseSound = articulation.OutputRseSound,
-                                    OutputMidiNumber = articulation.OutputMidiNumber
-                                }).ToArray()
+                                Name = articulation.Name,
+                                StaffLine = articulation.StaffLine,
+                                Noteheads = articulation.Noteheads,
+                                TechniquePlacement = articulation.TechniquePlacement,
+                                TechniqueSymbol = articulation.TechniqueSymbol,
+                                InputMidiNumbers = articulation.InputMidiNumbers,
+                                OutputRseSound = articulation.OutputRseSound,
+                                OutputMidiNumber = articulation.OutputMidiNumber
                             }).ToArray()
-                        },
-                        Sounds = track.Sounds.Select(s => new SoundMetadata
+                        }).ToArray()
+                    },
+                    Sounds = track.Sounds.Select(s => new SoundMetadata
+                    {
+                        Name = s.Name,
+                        Label = s.Label,
+                        Path = s.Path,
+                        Role = s.Role,
+                        MidiLsb = s.MidiLsb,
+                        MidiMsb = s.MidiMsb,
+                        MidiProgram = s.MidiProgram,
+                        Rse = new SoundRseMetadata
                         {
-                            Name = s.Name,
-                            Label = s.Label,
-                            Path = s.Path,
-                            Role = s.Role,
-                            MidiLsb = s.MidiLsb,
-                            MidiMsb = s.MidiMsb,
-                            MidiProgram = s.MidiProgram,
-                            Rse = new SoundRseMetadata
+                            SoundbankPatch = s.Rse.SoundbankPatch,
+                            SoundbankSet = s.Rse.SoundbankSet,
+                            ElementsSettingsXml = s.Rse.ElementsSettingsXml,
+                            Pickups = new SoundRsePickupsMetadata
                             {
-                                SoundbankPatch = s.Rse.SoundbankPatch,
-                                SoundbankSet = s.Rse.SoundbankSet,
-                                ElementsSettingsXml = s.Rse.ElementsSettingsXml,
-                                Pickups = new SoundRsePickupsMetadata
-                                {
-                                    OverloudPosition = s.Rse.Pickups.OverloudPosition,
-                                    Volumes = s.Rse.Pickups.Volumes,
-                                    Tones = s.Rse.Pickups.Tones
-                                },
-                                EffectChain = s.Rse.EffectChain.Select(effect => new RseEffectMetadata
-                                {
-                                    Id = effect.Id,
-                                    Bypass = effect.Bypass,
-                                    Parameters = effect.Parameters
-                                }).ToArray()
-                            }
-                        }).ToArray(),
-                        Rse = new RseMetadata
-                        {
-                            Bank = track.ChannelRse.Bank,
-                            ChannelStripVersion = track.ChannelRse.ChannelStripVersion,
-                            ChannelStripParameters = track.ChannelRse.ChannelStripParameters,
-                            Automations = track.ChannelRse.Automations.Select(a => new AutomationMetadata
+                                OverloudPosition = s.Rse.Pickups.OverloudPosition,
+                                Volumes = s.Rse.Pickups.Volumes,
+                                Tones = s.Rse.Pickups.Tones
+                            },
+                            EffectChain = s.Rse.EffectChain.Select(effect => new RseEffectMetadata
                             {
-                                Type = a.Type,
-                                Linear = a.Linear,
-                                Bar = a.Bar,
-                                Position = a.Position,
-                                Visible = a.Visible,
-                                Value = a.Value
+                                Id = effect.Id,
+                                Bypass = effect.Bypass,
+                                Parameters = effect.Parameters
                             }).ToArray()
-                        },
-                        PlaybackStateXml = track.PlaybackStateXml,
-                        AudioEngineStateXml = track.AudioEngineStateXml,
-                        PlaybackState = new PlaybackStateMetadata { Value = track.PlaybackState.Value },
-                        AudioEngineState = new AudioEngineStateMetadata { Value = track.AudioEngineState.Value },
-                        MidiConnectionXml = track.MidiConnectionXml,
-                        LyricsXml = track.LyricsXml,
-                        AutomationsXml = track.AutomationsXml,
-                        Automations = track.Automations.Select(a => new AutomationMetadata
+                        }
+                    }).ToArray(),
+                    Rse = new RseMetadata
+                    {
+                        Bank = track.ChannelRse.Bank,
+                        ChannelStripVersion = track.ChannelRse.ChannelStripVersion,
+                        ChannelStripParameters = track.ChannelRse.ChannelStripParameters,
+                        Automations = track.ChannelRse.Automations.Select(a => new AutomationMetadata
                         {
                             Type = a.Type,
                             Linear = a.Linear,
@@ -155,45 +133,67 @@ public sealed class DefaultScoreMapper : IScoreMapper
                             Position = a.Position,
                             Visible = a.Visible,
                             Value = a.Value
-                        }).ToArray(),
-                        TransposeXml = track.TransposeXml,
-                        MidiConnection = new MidiConnectionMetadata
-                        {
-                            Port = track.MidiConnection.Port,
-                            PrimaryChannel = track.MidiConnection.PrimaryChannel,
-                            SecondaryChannel = track.MidiConnection.SecondaryChannel,
-                            ForceOneChannelPerString = track.MidiConnection.ForceOneChannelPerString
-                        },
-                        Lyrics = new LyricsMetadata
-                        {
-                            Dispatched = track.Lyrics.Dispatched,
-                            Lines = track.Lyrics.Lines.Select(line => new LyricsLineMetadata
-                            {
-                                Text = line.Text,
-                                Offset = line.Offset
-                            }).ToArray()
-                        },
-                        Transpose = new TransposeMetadata
-                        {
-                            Chromatic = track.Transpose.Chromatic,
-                            Octave = track.Transpose.Octave
-                        },
-                        Staffs = track.Staffs.Select(s => new StaffMetadata
-                        {
-                            Id = s.Id,
-                            Cref = s.Cref,
-                            TuningPitches = s.TuningPitches,
-                            CapoFret = s.CapoFret,
-                            Properties = s.Properties,
-                            Xml = s.Xml
                         }).ToArray()
                     },
+                    PlaybackStateXml = track.PlaybackStateXml,
+                    AudioEngineStateXml = track.AudioEngineStateXml,
+                    PlaybackState = new PlaybackStateMetadata { Value = track.PlaybackState.Value },
+                    AudioEngineState = new AudioEngineStateMetadata { Value = track.AudioEngineState.Value },
+                    MidiConnectionXml = track.MidiConnectionXml,
+                    LyricsXml = track.LyricsXml,
+                    AutomationsXml = track.AutomationsXml,
+                    Automations = track.Automations.Select(a => new AutomationMetadata
+                    {
+                        Type = a.Type,
+                        Linear = a.Linear,
+                        Bar = a.Bar,
+                        Position = a.Position,
+                        Visible = a.Visible,
+                        Value = a.Value
+                    }).ToArray(),
+                    TransposeXml = track.TransposeXml,
+                    MidiConnection = new MidiConnectionMetadata
+                    {
+                        Port = track.MidiConnection.Port,
+                        PrimaryChannel = track.MidiConnection.PrimaryChannel,
+                        SecondaryChannel = track.MidiConnection.SecondaryChannel,
+                        ForceOneChannelPerString = track.MidiConnection.ForceOneChannelPerString
+                    },
+                    Lyrics = new LyricsMetadata
+                    {
+                        Dispatched = track.Lyrics.Dispatched,
+                        Lines = track.Lyrics.Lines.Select(line => new LyricsLineMetadata
+                        {
+                            Text = line.Text,
+                            Offset = line.Offset
+                        }).ToArray()
+                    },
+                    Transpose = new TransposeMetadata
+                    {
+                        Chromatic = track.Transpose.Chromatic,
+                        Octave = track.Transpose.Octave
+                    },
+                    Staffs = track.Staffs.Select(s => new StaffMetadata
+                    {
+                        Id = s.Id,
+                        Cref = s.Cref,
+                        TuningPitches = s.TuningPitches,
+                        CapoFret = s.CapoFret,
+                        Properties = s.Properties,
+                        Xml = s.Xml
+                    }).ToArray()
+                };
+
+                var mappedTrack = new TrackModel
+                {
+                    Id = track.Id,
+                    Name = track.Name,
                     Measures = measures
                 };
 
                 mappedTrack.SetExtension(new GpTrackExtension
                 {
-                    Metadata = mappedTrack.Metadata
+                    Metadata = trackMetadata
                 });
 
                 return mappedTrack;
@@ -214,74 +214,74 @@ public sealed class DefaultScoreMapper : IScoreMapper
             .Where(a => string.Equals(a.Type, "Tempo", StringComparison.OrdinalIgnoreCase))
             .Select(ParseTempo)
             .ToArray();
+        var masterTrackMetadata = new MasterTrackMetadata
+        {
+            Xml = source.MasterTrack.Xml,
+            TrackIds = source.MasterTrack.TrackIds,
+            AutomationsXml = source.MasterTrack.AutomationsXml,
+            Automations = masterAutomations,
+            AutomationTimeline = BuildAutomationTimeline(source),
+            DynamicMap = BuildDynamicMap(tracks),
+            Anacrusis = source.MasterTrack.Anacrusis,
+            RseXml = source.MasterTrack.RseXml,
+            Rse = new MasterTrackRseMetadata
+            {
+                MasterEffects = source.MasterTrack.Rse.MasterEffects.Select(effect => new RseEffectMetadata
+                {
+                    Id = effect.Id,
+                    Bypass = effect.Bypass,
+                    Parameters = effect.Parameters
+                }).ToArray()
+            },
+            TempoMap = tempoMap
+        };
+        var scoreMetadata = new ScoreMetadata
+        {
+            ScoreXml = source.Score.Xml,
+            ExplicitEmptyOptionalElements = source.Score.ExplicitEmptyOptionalElements,
+            GpVersion = source.GpVersion,
+            GpRevisionXml = source.GpRevision.Xml,
+            GpRevisionRequired = source.GpRevision.Required,
+            GpRevisionRecommended = source.GpRevision.Recommended,
+            GpRevisionValue = source.GpRevision.Value,
+            EncodingDescription = source.EncodingDescription,
+            ScoreViewsXml = source.ScoreViewsXml,
+            SubTitle = source.Score.SubTitle,
+            Words = source.Score.Words,
+            Music = source.Score.Music,
+            WordsAndMusic = source.Score.WordsAndMusic,
+            Copyright = source.Score.Copyright,
+            Tabber = source.Score.Tabber,
+            Instructions = source.Score.Instructions,
+            Notices = source.Score.Notices,
+            FirstPageHeader = source.Score.FirstPageHeader,
+            FirstPageFooter = source.Score.FirstPageFooter,
+            PageHeader = source.Score.PageHeader,
+            PageFooter = source.Score.PageFooter,
+            ScoreSystemsDefaultLayout = source.Score.ScoreSystemsDefaultLayout,
+            ScoreSystemsLayout = source.Score.ScoreSystemsLayout,
+            ScoreZoomPolicy = source.Score.ScoreZoomPolicy,
+            ScoreZoom = source.Score.ScoreZoom,
+            PageSetupXml = source.Score.PageSetupXml,
+            MultiVoice = source.Score.MultiVoice,
+            BackingTrackXml = source.BackingTrackXml,
+            AudioTracksXml = source.AudioTracksXml,
+            AssetsXml = source.AssetsXml
+        };
 
         var score = new GuitarProScore
         {
             Title = source.Score.Title,
             Artist = source.Score.Artist,
             Album = source.Score.Album,
-            MasterTrack = new MasterTrackMetadata
-            {
-                Xml = source.MasterTrack.Xml,
-                TrackIds = source.MasterTrack.TrackIds,
-                AutomationsXml = source.MasterTrack.AutomationsXml,
-                Automations = masterAutomations,
-                AutomationTimeline = BuildAutomationTimeline(source),
-                DynamicMap = BuildDynamicMap(tracks),
-                Anacrusis = source.MasterTrack.Anacrusis,
-                RseXml = source.MasterTrack.RseXml,
-                Rse = new MasterTrackRseMetadata
-                {
-                    MasterEffects = source.MasterTrack.Rse.MasterEffects.Select(effect => new RseEffectMetadata
-                    {
-                        Id = effect.Id,
-                        Bypass = effect.Bypass,
-                        Parameters = effect.Parameters
-                    }).ToArray()
-                },
-                TempoMap = tempoMap
-            },
-            Metadata = new ScoreMetadata
-            {
-                ScoreXml = source.Score.Xml,
-                ExplicitEmptyOptionalElements = source.Score.ExplicitEmptyOptionalElements,
-                GpVersion = source.GpVersion,
-                GpRevisionXml = source.GpRevision.Xml,
-                GpRevisionRequired = source.GpRevision.Required,
-                GpRevisionRecommended = source.GpRevision.Recommended,
-                GpRevisionValue = source.GpRevision.Value,
-                EncodingDescription = source.EncodingDescription,
-                ScoreViewsXml = source.ScoreViewsXml,
-                SubTitle = source.Score.SubTitle,
-                Words = source.Score.Words,
-                Music = source.Score.Music,
-                WordsAndMusic = source.Score.WordsAndMusic,
-                Copyright = source.Score.Copyright,
-                Tabber = source.Score.Tabber,
-                Instructions = source.Score.Instructions,
-                Notices = source.Score.Notices,
-                FirstPageHeader = source.Score.FirstPageHeader,
-                FirstPageFooter = source.Score.FirstPageFooter,
-                PageHeader = source.Score.PageHeader,
-                PageFooter = source.Score.PageFooter,
-                ScoreSystemsDefaultLayout = source.Score.ScoreSystemsDefaultLayout,
-                ScoreSystemsLayout = source.Score.ScoreSystemsLayout,
-                ScoreZoomPolicy = source.Score.ScoreZoomPolicy,
-                ScoreZoom = source.Score.ScoreZoom,
-                PageSetupXml = source.Score.PageSetupXml,
-                MultiVoice = source.Score.MultiVoice,
-                BackingTrackXml = source.BackingTrackXml,
-                AudioTracksXml = source.AudioTracksXml,
-                AssetsXml = source.AssetsXml
-            },
             Tracks = tracks,
             PlaybackMasterBarSequence = navigationResolver.BuildPlaybackSequence(source.MasterBars, source.MasterTrack.Anacrusis)
         };
 
         score.SetExtension(new GpScoreExtension
         {
-            Metadata = score.Metadata,
-            MasterTrack = score.MasterTrack
+            Metadata = scoreMetadata,
+            MasterTrack = masterTrackMetadata
         });
 
         return ValueTask.FromResult(score);

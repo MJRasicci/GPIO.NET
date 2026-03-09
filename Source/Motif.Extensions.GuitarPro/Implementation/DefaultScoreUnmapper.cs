@@ -15,96 +15,123 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
         cancellationToken.ThrowIfCancellationRequested();
 
         var diagnostics = new WriteDiagnostics();
+        var scoreExtension = score.GetGuitarPro();
+        var scoreMetadata = scoreExtension?.Metadata ?? new ScoreMetadata();
+        var masterTrackMetadata = scoreExtension?.MasterTrack ?? new MasterTrackMetadata();
+        var masterTrackIds = masterTrackMetadata.TrackIds.Length > 0
+            ? masterTrackMetadata.TrackIds
+            : score.Tracks.OrderBy(t => t.Id).Select(t => t.Id).ToArray();
 
         var tracks = score.Tracks
             .OrderBy(t => t.Id)
-            .Select(t => new GpifTrack
+            .Select(t =>
             {
-                Xml = t.Metadata.Xml,
-                Id = t.Id,
-                Name = t.Name,
-                ShortName = t.Metadata.ShortName,
-                HasExplicitEmptyShortName = t.Metadata.HasExplicitEmptyShortName,
-                Color = t.Metadata.Color,
-                SystemsDefaultLayout = t.Metadata.SystemsDefaultLayout,
-                SystemsLayout = t.Metadata.SystemsLayout,
-                HasExplicitEmptySystemsLayout = t.Metadata.HasExplicitEmptySystemsLayout,
-                PalmMute = t.Metadata.PalmMute,
-                AutoAccentuation = t.Metadata.AutoAccentuation,
-                AutoBrush = t.Metadata.AutoBrush,
-                LetRingThroughout = t.Metadata.LetRingThroughout,
-                PlayingStyle = t.Metadata.PlayingStyle,
-                UseOneChannelPerString = t.Metadata.UseOneChannelPerString,
-                IconId = t.Metadata.IconId,
-                ForcedSound = t.Metadata.ForcedSound,
-                TuningPitches = t.Metadata.TuningPitches,
-                TuningInstrument = t.Metadata.TuningInstrument,
-                TuningLabel = t.Metadata.TuningLabel,
-                TuningLabelVisible = t.Metadata.TuningLabelVisible,
-                HasTrackTuningProperty = t.Metadata.HasTrackTuningProperty,
-                Properties = t.Metadata.Properties,
-                InstrumentSetXml = t.Metadata.InstrumentSetXml,
-                StavesXml = ResolveStavesXml(t.Metadata),
-                SoundsXml = t.Metadata.SoundsXml,
-                RseXml = t.Metadata.RseXml,
-                NotationPatchXml = t.Metadata.NotationPatchXml,
-                InstrumentSet = new GpifInstrumentSet
+                var metadata = GetTrackMetadata(t);
+
+                return new GpifTrack
                 {
-                    Name = t.Metadata.InstrumentSet.Name,
-                    Type = t.Metadata.InstrumentSet.Type,
-                    LineCount = t.Metadata.InstrumentSet.LineCount,
-                    Elements = t.Metadata.InstrumentSet.Elements.Select(element => new GpifInstrumentElement
+                    Xml = metadata.Xml,
+                    Id = t.Id,
+                    Name = t.Name,
+                    ShortName = metadata.ShortName,
+                    HasExplicitEmptyShortName = metadata.HasExplicitEmptyShortName,
+                    Color = metadata.Color,
+                    SystemsDefaultLayout = metadata.SystemsDefaultLayout,
+                    SystemsLayout = metadata.SystemsLayout,
+                    HasExplicitEmptySystemsLayout = metadata.HasExplicitEmptySystemsLayout,
+                    PalmMute = metadata.PalmMute,
+                    AutoAccentuation = metadata.AutoAccentuation,
+                    AutoBrush = metadata.AutoBrush,
+                    LetRingThroughout = metadata.LetRingThroughout,
+                    PlayingStyle = metadata.PlayingStyle,
+                    UseOneChannelPerString = metadata.UseOneChannelPerString,
+                    IconId = metadata.IconId,
+                    ForcedSound = metadata.ForcedSound,
+                    TuningPitches = metadata.TuningPitches,
+                    TuningInstrument = metadata.TuningInstrument,
+                    TuningLabel = metadata.TuningLabel,
+                    TuningLabelVisible = metadata.TuningLabelVisible,
+                    HasTrackTuningProperty = metadata.HasTrackTuningProperty,
+                    Properties = metadata.Properties,
+                    InstrumentSetXml = metadata.InstrumentSetXml,
+                    StavesXml = ResolveStavesXml(metadata),
+                    SoundsXml = metadata.SoundsXml,
+                    RseXml = metadata.RseXml,
+                    NotationPatchXml = metadata.NotationPatchXml,
+                    InstrumentSet = new GpifInstrumentSet
                     {
-                        Name = element.Name,
-                        Type = element.Type,
-                        SoundbankName = element.SoundbankName,
-                        Articulations = element.Articulations.Select(articulation => new GpifInstrumentArticulation
+                        Name = metadata.InstrumentSet.Name,
+                        Type = metadata.InstrumentSet.Type,
+                        LineCount = metadata.InstrumentSet.LineCount,
+                        Elements = metadata.InstrumentSet.Elements.Select(element => new GpifInstrumentElement
                         {
-                            Name = articulation.Name,
-                            StaffLine = articulation.StaffLine,
-                            Noteheads = articulation.Noteheads,
-                            TechniquePlacement = articulation.TechniquePlacement,
-                            TechniqueSymbol = articulation.TechniqueSymbol,
-                            InputMidiNumbers = articulation.InputMidiNumbers,
-                            OutputRseSound = articulation.OutputRseSound,
-                            OutputMidiNumber = articulation.OutputMidiNumber
+                            Name = element.Name,
+                            Type = element.Type,
+                            SoundbankName = element.SoundbankName,
+                            Articulations = element.Articulations.Select(articulation => new GpifInstrumentArticulation
+                            {
+                                Name = articulation.Name,
+                                StaffLine = articulation.StaffLine,
+                                Noteheads = articulation.Noteheads,
+                                TechniquePlacement = articulation.TechniquePlacement,
+                                TechniqueSymbol = articulation.TechniqueSymbol,
+                                InputMidiNumbers = articulation.InputMidiNumbers,
+                                OutputRseSound = articulation.OutputRseSound,
+                                OutputMidiNumber = articulation.OutputMidiNumber
+                            }).ToArray()
                         }).ToArray()
-                    }).ToArray()
-                },
-                Sounds = t.Metadata.Sounds.Select(s => new GpifSound
-                {
-                    Name = s.Name,
-                    Label = s.Label,
-                    Path = s.Path,
-                    Role = s.Role,
-                    MidiLsb = s.MidiLsb,
-                    MidiMsb = s.MidiMsb,
-                    MidiProgram = s.MidiProgram,
-                    Rse = new GpifSoundRse
+                    },
+                    Sounds = metadata.Sounds.Select(s => new GpifSound
                     {
-                        SoundbankPatch = s.Rse.SoundbankPatch,
-                        SoundbankSet = s.Rse.SoundbankSet,
-                        ElementsSettingsXml = s.Rse.ElementsSettingsXml,
-                        Pickups = new GpifSoundRsePickups
+                        Name = s.Name,
+                        Label = s.Label,
+                        Path = s.Path,
+                        Role = s.Role,
+                        MidiLsb = s.MidiLsb,
+                        MidiMsb = s.MidiMsb,
+                        MidiProgram = s.MidiProgram,
+                        Rse = new GpifSoundRse
                         {
-                            OverloudPosition = s.Rse.Pickups.OverloudPosition,
-                            Volumes = s.Rse.Pickups.Volumes,
-                            Tones = s.Rse.Pickups.Tones
-                        },
-                        EffectChain = s.Rse.EffectChain.Select(effect => new GpifRseEffect
+                            SoundbankPatch = s.Rse.SoundbankPatch,
+                            SoundbankSet = s.Rse.SoundbankSet,
+                            ElementsSettingsXml = s.Rse.ElementsSettingsXml,
+                            Pickups = new GpifSoundRsePickups
+                            {
+                                OverloudPosition = s.Rse.Pickups.OverloudPosition,
+                                Volumes = s.Rse.Pickups.Volumes,
+                                Tones = s.Rse.Pickups.Tones
+                            },
+                            EffectChain = s.Rse.EffectChain.Select(effect => new GpifRseEffect
+                            {
+                                Id = effect.Id,
+                                Bypass = effect.Bypass,
+                                Parameters = effect.Parameters
+                            }).ToArray()
+                        }
+                    }).ToArray(),
+                    ChannelRse = new GpifRse
+                    {
+                        Bank = metadata.Rse.Bank,
+                        ChannelStripVersion = metadata.Rse.ChannelStripVersion,
+                        ChannelStripParameters = metadata.Rse.ChannelStripParameters,
+                        Automations = metadata.Rse.Automations.Select(a => new GpifAutomation
                         {
-                            Id = effect.Id,
-                            Bypass = effect.Bypass,
-                            Parameters = effect.Parameters
+                            Type = a.Type,
+                            Linear = a.Linear,
+                            Bar = a.Bar,
+                            Position = a.Position,
+                            Visible = a.Visible,
+                            Value = a.Value
                         }).ToArray()
-                    }
-                }).ToArray(),
-                ChannelRse = new GpifRse
-                {
-                    Bank = t.Metadata.Rse.Bank,
-                    ChannelStripVersion = t.Metadata.Rse.ChannelStripVersion,
-                    ChannelStripParameters = t.Metadata.Rse.ChannelStripParameters,
-                    Automations = t.Metadata.Rse.Automations.Select(a => new GpifAutomation
+                    },
+                    PlaybackStateXml = metadata.PlaybackStateXml,
+                    AudioEngineStateXml = metadata.AudioEngineStateXml,
+                    PlaybackState = new GpifPlaybackState { Value = metadata.PlaybackState.Value },
+                    AudioEngineState = new GpifAudioEngineState { Value = metadata.AudioEngineState.Value },
+                    MidiConnectionXml = metadata.MidiConnectionXml,
+                    LyricsXml = metadata.LyricsXml,
+                    AutomationsXml = metadata.AutomationsXml,
+                    Automations = metadata.Automations.Select(a => new GpifAutomation
                     {
                         Type = a.Type,
                         Linear = a.Linear,
@@ -112,55 +139,39 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                         Position = a.Position,
                         Visible = a.Visible,
                         Value = a.Value
-                    }).ToArray()
-                },
-                PlaybackStateXml = t.Metadata.PlaybackStateXml,
-                AudioEngineStateXml = t.Metadata.AudioEngineStateXml,
-                PlaybackState = new GpifPlaybackState { Value = t.Metadata.PlaybackState.Value },
-                AudioEngineState = new GpifAudioEngineState { Value = t.Metadata.AudioEngineState.Value },
-                MidiConnectionXml = t.Metadata.MidiConnectionXml,
-                LyricsXml = t.Metadata.LyricsXml,
-                AutomationsXml = t.Metadata.AutomationsXml,
-                Automations = t.Metadata.Automations.Select(a => new GpifAutomation
-                {
-                    Type = a.Type,
-                    Linear = a.Linear,
-                    Bar = a.Bar,
-                    Position = a.Position,
-                    Visible = a.Visible,
-                    Value = a.Value
-                }).ToArray(),
-                TransposeXml = t.Metadata.TransposeXml,
-                MidiConnection = new GpifMidiConnection
-                {
-                    Port = t.Metadata.MidiConnection.Port,
-                    PrimaryChannel = t.Metadata.MidiConnection.PrimaryChannel,
-                    SecondaryChannel = t.Metadata.MidiConnection.SecondaryChannel,
-                    ForceOneChannelPerString = t.Metadata.MidiConnection.ForceOneChannelPerString
-                },
-                Lyrics = new GpifLyrics
-                {
-                    Dispatched = t.Metadata.Lyrics.Dispatched,
-                    Lines = t.Metadata.Lyrics.Lines.Select(line => new GpifLyricsLine
+                    }).ToArray(),
+                    TransposeXml = metadata.TransposeXml,
+                    MidiConnection = new GpifMidiConnection
                     {
-                        Text = line.Text,
-                        Offset = line.Offset
+                        Port = metadata.MidiConnection.Port,
+                        PrimaryChannel = metadata.MidiConnection.PrimaryChannel,
+                        SecondaryChannel = metadata.MidiConnection.SecondaryChannel,
+                        ForceOneChannelPerString = metadata.MidiConnection.ForceOneChannelPerString
+                    },
+                    Lyrics = new GpifLyrics
+                    {
+                        Dispatched = metadata.Lyrics.Dispatched,
+                        Lines = metadata.Lyrics.Lines.Select(line => new GpifLyricsLine
+                        {
+                            Text = line.Text,
+                            Offset = line.Offset
+                        }).ToArray()
+                    },
+                    Transpose = new GpifTranspose
+                    {
+                        Chromatic = metadata.Transpose.Chromatic,
+                        Octave = metadata.Transpose.Octave
+                    },
+                    Staffs = metadata.Staffs.Select(s => new GpifStaff
+                    {
+                        Id = s.Id,
+                        Cref = s.Cref,
+                        TuningPitches = s.TuningPitches,
+                        CapoFret = s.CapoFret,
+                        Properties = s.Properties,
+                        Xml = s.Xml
                     }).ToArray()
-                },
-                Transpose = new GpifTranspose
-                {
-                    Chromatic = t.Metadata.Transpose.Chromatic,
-                    Octave = t.Metadata.Transpose.Octave
-                },
-                Staffs = t.Metadata.Staffs.Select(s => new GpifStaff
-                {
-                    Id = s.Id,
-                    Cref = s.Cref,
-                    TuningPitches = s.TuningPitches,
-                    CapoFret = s.CapoFret,
-                    Properties = s.Properties,
-                    Xml = s.Xml
-                }).ToArray()
+                };
             })
             .ToArray();
 
@@ -580,47 +591,47 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
 
         var doc = new GpifDocument
         {
-            GpVersion = score.Metadata.GpVersion,
+            GpVersion = scoreMetadata.GpVersion,
             GpRevision = new GpifRevisionInfo
             {
-                Xml = score.Metadata.GpRevisionXml,
-                Required = score.Metadata.GpRevisionRequired,
-                Recommended = score.Metadata.GpRevisionRecommended,
-                Value = score.Metadata.GpRevisionValue
+                Xml = scoreMetadata.GpRevisionXml,
+                Required = scoreMetadata.GpRevisionRequired,
+                Recommended = scoreMetadata.GpRevisionRecommended,
+                Value = scoreMetadata.GpRevisionValue
             },
-            EncodingDescription = score.Metadata.EncodingDescription,
+            EncodingDescription = scoreMetadata.EncodingDescription,
             Score = new ScoreInfo
             {
-                Xml = score.Metadata.ScoreXml,
-                ExplicitEmptyOptionalElements = score.Metadata.ExplicitEmptyOptionalElements,
+                Xml = scoreMetadata.ScoreXml,
+                ExplicitEmptyOptionalElements = scoreMetadata.ExplicitEmptyOptionalElements,
                 Title = score.Title,
-                SubTitle = score.Metadata.SubTitle,
+                SubTitle = scoreMetadata.SubTitle,
                 Artist = score.Artist,
                 Album = score.Album,
-                Words = score.Metadata.Words,
-                Music = score.Metadata.Music,
-                WordsAndMusic = score.Metadata.WordsAndMusic,
-                Copyright = score.Metadata.Copyright,
-                Tabber = score.Metadata.Tabber,
-                Instructions = score.Metadata.Instructions,
-                Notices = score.Metadata.Notices,
-                FirstPageHeader = score.Metadata.FirstPageHeader,
-                FirstPageFooter = score.Metadata.FirstPageFooter,
-                PageHeader = score.Metadata.PageHeader,
-                PageFooter = score.Metadata.PageFooter,
-                ScoreSystemsDefaultLayout = score.Metadata.ScoreSystemsDefaultLayout,
-                ScoreSystemsLayout = score.Metadata.ScoreSystemsLayout,
-                ScoreZoomPolicy = score.Metadata.ScoreZoomPolicy,
-                ScoreZoom = score.Metadata.ScoreZoom,
-                PageSetupXml = score.Metadata.PageSetupXml,
-                MultiVoice = score.Metadata.MultiVoice
+                Words = scoreMetadata.Words,
+                Music = scoreMetadata.Music,
+                WordsAndMusic = scoreMetadata.WordsAndMusic,
+                Copyright = scoreMetadata.Copyright,
+                Tabber = scoreMetadata.Tabber,
+                Instructions = scoreMetadata.Instructions,
+                Notices = scoreMetadata.Notices,
+                FirstPageHeader = scoreMetadata.FirstPageHeader,
+                FirstPageFooter = scoreMetadata.FirstPageFooter,
+                PageHeader = scoreMetadata.PageHeader,
+                PageFooter = scoreMetadata.PageFooter,
+                ScoreSystemsDefaultLayout = scoreMetadata.ScoreSystemsDefaultLayout,
+                ScoreSystemsLayout = scoreMetadata.ScoreSystemsLayout,
+                ScoreZoomPolicy = scoreMetadata.ScoreZoomPolicy,
+                ScoreZoom = scoreMetadata.ScoreZoom,
+                PageSetupXml = scoreMetadata.PageSetupXml,
+                MultiVoice = scoreMetadata.MultiVoice
             },
             MasterTrack = new GpifMasterTrack
             {
-                Xml = score.MasterTrack.Xml,
-                TrackIds = score.MasterTrack.TrackIds,
-                AutomationsXml = score.MasterTrack.AutomationsXml,
-                Automations = score.MasterTrack.Automations.Select(a => new GpifAutomation
+                Xml = masterTrackMetadata.Xml,
+                TrackIds = masterTrackIds,
+                AutomationsXml = masterTrackMetadata.AutomationsXml,
+                Automations = masterTrackMetadata.Automations.Select(a => new GpifAutomation
                 {
                     Type = a.Type,
                     Linear = a.Linear,
@@ -629,11 +640,11 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                     Visible = a.Visible,
                     Value = a.Value
                 }).ToArray(),
-                Anacrusis = score.MasterTrack.Anacrusis,
-                RseXml = score.MasterTrack.RseXml,
+                Anacrusis = masterTrackMetadata.Anacrusis,
+                RseXml = masterTrackMetadata.RseXml,
                 Rse = new GpifMasterRse
                 {
-                    MasterEffects = score.MasterTrack.Rse.MasterEffects.Select(effect => new GpifRseEffect
+                    MasterEffects = masterTrackMetadata.Rse.MasterEffects.Select(effect => new GpifRseEffect
                     {
                         Id = effect.Id,
                         Bypass = effect.Bypass,
@@ -648,10 +659,10 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             BeatsById = beats,
             NotesById = notes,
             RhythmsById = rhythms,
-            BackingTrackXml = score.Metadata.BackingTrackXml,
-            AudioTracksXml = score.Metadata.AudioTracksXml,
-            AssetsXml = score.Metadata.AssetsXml,
-            ScoreViewsXml = score.Metadata.ScoreViewsXml
+            BackingTrackXml = scoreMetadata.BackingTrackXml,
+            AudioTracksXml = scoreMetadata.AudioTracksXml,
+            AssetsXml = scoreMetadata.AssetsXml,
+            ScoreViewsXml = scoreMetadata.ScoreViewsXml
         };
 
         return ValueTask.FromResult(new WriteResult
@@ -784,18 +795,23 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             && kv.Value == beat.BrushDurationTicks.Value);
     }
 
+    private static TrackMetadata GetTrackMetadata(TrackModel track)
+        => track.GetGuitarPro()?.Metadata ?? new TrackMetadata();
+
     private static int[] ResolveTuningPitches(TrackModel track, int staffIndex)
     {
-        if (staffIndex >= 0 && staffIndex < track.Metadata.Staffs.Count)
+        var metadata = GetTrackMetadata(track);
+
+        if (staffIndex >= 0 && staffIndex < metadata.Staffs.Count)
         {
-            var staffTuning = track.Metadata.Staffs[staffIndex].TuningPitches;
+            var staffTuning = metadata.Staffs[staffIndex].TuningPitches;
             if (staffTuning.Length > 0)
             {
                 return staffTuning;
             }
         }
 
-        return track.Metadata.TuningPitches;
+        return metadata.TuningPitches;
     }
 
     private static bool ShouldPreserveSourceStringAndFret(NoteModel note, TrackModel track, int staffIndex)
@@ -817,7 +833,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
 
     private static bool SourceStringContextMatches(TrackModel track, int staffIndex)
     {
-        var source = ResolveSourceStringContext(track.Metadata, staffIndex);
+        var source = ResolveSourceStringContext(GetTrackMetadata(track), staffIndex);
         if (source is null)
         {
             return true;
@@ -862,16 +878,18 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
 
     private static int? ResolveCapoFret(TrackModel track, int staffIndex)
     {
-        if (staffIndex >= 0 && staffIndex < track.Metadata.Staffs.Count)
+        var metadata = GetTrackMetadata(track);
+
+        if (staffIndex >= 0 && staffIndex < metadata.Staffs.Count)
         {
-            var staffCapo = track.Metadata.Staffs[staffIndex].CapoFret;
+            var staffCapo = metadata.Staffs[staffIndex].CapoFret;
             if (staffCapo.HasValue)
             {
                 return staffCapo;
             }
         }
 
-        return ParseCapoFret(track.Metadata.Properties);
+        return ParseCapoFret(metadata.Properties);
     }
 
     private static string ResolveStavesXml(TrackMetadata metadata)
@@ -914,8 +932,9 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             return null;
         }
 
-        var chromatic = track.Metadata.Transpose.Chromatic ?? 0;
-        var octave = track.Metadata.Transpose.Octave ?? 0;
+        var metadata = GetTrackMetadata(track);
+        var chromatic = metadata.Transpose.Chromatic ?? 0;
+        var octave = metadata.Transpose.Octave ?? 0;
         return note.MidiPitch.Value - (octave * 12) + chromatic;
     }
 
@@ -1054,7 +1073,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
 
     private static IReadOnlyList<MeasureStaffModel> ResolveMeasureStaffBars(TrackModel track, MeasureModel measure)
     {
-        var expectedStaffCount = Math.Max(1, track.Metadata.Staffs.Count);
+        var expectedStaffCount = Math.Max(1, GetTrackMetadata(track).Staffs.Count);
         var highestIndexedAdditionalStaff = measure.AdditionalStaffBars.Count == 0
             ? -1
             : measure.AdditionalStaffBars.Max(s => s.StaffIndex);

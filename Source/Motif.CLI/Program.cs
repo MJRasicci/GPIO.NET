@@ -108,6 +108,12 @@ try
             sourceScore = await reader.ReadAsync(options.SourceGpPath).ConfigureAwait(false);
         }
 
+        var isNoOpWrite = sourceScore is not null && IsNoOpWrite(sourceScore, editedScore);
+        if (isNoOpWrite)
+        {
+            editedScore.ReattachGuitarProExtensionsFrom(sourceScore!);
+        }
+
         var unmapper = new DefaultScoreUnmapper();
         var unmapResult = await unmapper.UnmapAsync(editedScore).ConfigureAwait(false);
 
@@ -115,7 +121,7 @@ try
         var serializer = new XmlGpifSerializer();
         await serializer.SerializeAsync(unmapResult.RawDocument, gpifBuffer).ConfigureAwait(false);
 
-        if (sourceScore is not null && IsNoOpWrite(sourceScore, editedScore))
+        if (isNoOpWrite)
         {
             var sourceGpifBytes = await ReadScoreGpifBytesAsync(options.SourceGpPath!).ConfigureAwait(false);
             var sourceRaw = await DeserializeRawGpifAsync(sourceGpifBytes).ConfigureAwait(false);

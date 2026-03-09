@@ -49,12 +49,10 @@ public class XmlGpifSerializerTests
     [Fact]
     public async Task Serializer_emits_explicit_empty_optional_score_nodes()
     {
-        var score = new GuitarProScore
+        var score = new GuitarProScore();
+        score.GetOrCreateGuitarPro().Metadata = new ScoreMetadata
         {
-            Metadata = new ScoreMetadata
-            {
-                ExplicitEmptyOptionalElements = ["WordsAndMusic", "PageHeader"]
-            }
+            ExplicitEmptyOptionalElements = ["WordsAndMusic", "PageHeader"]
         };
 
         var unmapper = new DefaultScoreUnmapper();
@@ -76,18 +74,18 @@ public class XmlGpifSerializerTests
         {
             Title = "Song & Title",
             Artist = string.Empty,
-            Album = "Record",
-            Metadata = new ScoreMetadata
-            {
-                SubTitle = "Subtitle",
-                Words = "Lyrics",
-                WordsAndMusic = string.Empty,
-                Copyright = "(c) test",
-                PageFooter = "<html>Page %page%/%pages%</html>",
-                ScoreSystemsDefaultLayout = "4",
-                ScoreZoom = "1.5",
-                ExplicitEmptyOptionalElements = ["WordsAndMusic"]
-            }
+            Album = "Record"
+        };
+        score.GetOrCreateGuitarPro().Metadata = new ScoreMetadata
+        {
+            SubTitle = "Subtitle",
+            Words = "Lyrics",
+            WordsAndMusic = string.Empty,
+            Copyright = "(c) test",
+            PageFooter = "<html>Page %page%/%pages%</html>",
+            ScoreSystemsDefaultLayout = "4",
+            ScoreZoom = "1.5",
+            ExplicitEmptyOptionalElements = ["WordsAndMusic"]
         };
 
         var unmapper = new DefaultScoreUnmapper();

@@ -80,6 +80,9 @@ These decisions define the target Core model shape. The design questions below a
 
 - [x] The current Core score/track/measure/staff/voice/beat/note/value objects now use settable properties instead of init-only setters, so direct post-construction mutation is supported while the hierarchy refactor is still pending
 - [x] Core tests now cover direct mutation of the current score -> track -> measure -> beat -> note object graph
+- [x] Score/master-track/track Guitar Pro fidelity now attaches through `GpScoreExtension` and `GpTrackExtension` instead of direct Core-owned properties
+- [x] Core JSON serialization is now explicitly Core-only for this layer; GP extensions are not serialized and must be reattached or regenerated during export if fidelity needs to be preserved
+- [x] The CLI no-op `--from-json --source-gp` flow now reattaches imported score/track GP extensions before export so empty optional `<Score>` nodes and current GP metadata survive an untouched JSON round trip
 - [ ] The next mutation-model gap is behavioral rather than syntactic: extension/cache invalidation and regeneration rules still need to be implemented as edits begin moving GP fidelity fully out of Core
 
 ### Acceptance Criteria
@@ -311,6 +314,8 @@ A property belongs in a format extension if it represents:
 
 * [x] `GpScoreExtension` is implemented and attached during Guitar Pro import
 * [x] `GpTrackExtension` is implemented and attached during Guitar Pro import
+* [x] `GuitarProScore.Metadata`, `GuitarProScore.MasterTrack`, and `TrackModel.Metadata` have been removed from the direct Core surface; that fidelity now lives behind GP extensions
+* [x] Core JSON round-trips intentionally drop GP score/track extensions, and the CLI now rehydrates them from `--source-gp` for verified no-op writes
 * [ ] `GpStaffExtension`, `GpStaffMeasureExtension`, `GpVoiceExtension`, `GpBeatExtension`, and `GpNoteExtension` still need to be introduced as the remaining GP fidelity fields move out of Core
 
 ## Acceptance Criteria
@@ -339,6 +344,13 @@ For edits that invalidate cached source fragments, define whether the system wil
 * [x] invalidate the affected cache(s)
 * [x] regenerate or synthesize the affected output from the Core model and any other usable extension data during export
 * [x] apply sensible defaults when required extension state cannot be inferred, while recording diagnostics when fidelity is necessarily degraded
+
+### Progress Update — 2026-03-09
+
+* [x] Score/track/master-track raw fidelity state no longer lives on direct Core properties; it now rides on GP extensions
+* [x] When score-level GP master-track metadata is absent, the writer now infers `MasterTrack.TrackIds` from the current Core track list so export still produces a valid file
+* [x] The CLI no-op JSON round-trip path now reattaches source score/track GP extensions before export when `--source-gp` is available
+* [ ] Measure/staff/voice/beat/note raw XML caches and source IDs still remain on Core types and are the next migration target
 
 ## Acceptance Criteria
 

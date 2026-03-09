@@ -7,6 +7,15 @@ using Motif.Extensions.GuitarPro.Models.Raw;
 
 public class MetadataMappingTests
 {
+    private static ScoreMetadata ScoreMetadataOf(GuitarProScore score)
+        => score.GetRequiredGuitarPro().Metadata;
+
+    private static MasterTrackMetadata MasterTrackMetadataOf(GuitarProScore score)
+        => score.GetRequiredGuitarPro().MasterTrack;
+
+    private static TrackMetadata TrackMetadataOf(TrackModel track)
+        => track.GetRequiredGuitarPro().Metadata;
+
     [Fact]
     public async Task Reader_maps_score_and_track_metadata_from_fixture()
     {
@@ -14,34 +23,36 @@ public class MetadataMappingTests
         var reader = new Motif.Extensions.GuitarPro.GuitarProReader();
 
         var score = await reader.ReadAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
+        var scoreMetadata = ScoreMetadataOf(score);
+        var masterTrackMetadata = MasterTrackMetadataOf(score);
 
-        score.Metadata.SubTitle.Should().NotBeNullOrWhiteSpace();
-        score.Metadata.Copyright.Should().NotBeNullOrWhiteSpace();
-        score.Metadata.Notices.Should().NotBeNullOrWhiteSpace();
-        score.Metadata.ExplicitEmptyOptionalElements.Should().Contain(["WordsAndMusic", "PageHeader"]);
+        scoreMetadata.SubTitle.Should().NotBeNullOrWhiteSpace();
+        scoreMetadata.Copyright.Should().NotBeNullOrWhiteSpace();
+        scoreMetadata.Notices.Should().NotBeNullOrWhiteSpace();
+        scoreMetadata.ExplicitEmptyOptionalElements.Should().Contain(["WordsAndMusic", "PageHeader"]);
 
         score.Tracks.Should().NotBeEmpty();
-        score.Tracks.Any(t => !string.IsNullOrWhiteSpace(t.Metadata.ShortName)).Should().BeTrue();
-        score.Tracks.Any(t => !string.IsNullOrWhiteSpace(t.Metadata.Color)).Should().BeTrue();
-        score.Tracks.Any(t => t.Metadata.TuningPitches.Length > 0).Should().BeTrue();
-        score.Tracks.Any(t => t.Metadata.Staffs.Count > 0).Should().BeTrue();
-        score.Tracks.Any(t => !string.IsNullOrWhiteSpace(t.Metadata.InstrumentSet.Name)).Should().BeTrue();
-        score.Tracks.Any(t => t.Metadata.Sounds.Count > 0).Should().BeTrue();
-        score.Tracks.Any(t => !string.IsNullOrWhiteSpace(t.Metadata.PlaybackState.Value)).Should().BeTrue();
-        score.Tracks.Any(t => t.Metadata.Automations.Count > 0).Should().BeTrue();
-        score.Tracks.Any(t => !string.IsNullOrWhiteSpace(t.Metadata.AudioEngineState.Value)).Should().BeTrue();
-        score.Tracks.Any(t => t.Metadata.MidiConnection.PrimaryChannel.HasValue).Should().BeTrue();
-        score.Tracks.Any(t => t.Metadata.Lyrics.Lines.Count > 0).Should().BeTrue();
-        score.Tracks.Any(t => t.Metadata.Transpose.Octave.HasValue || t.Metadata.Transpose.Chromatic.HasValue).Should().BeTrue();
-        score.Tracks.Any(t => t.Metadata.Rse.Automations.Count > 0).Should().BeTrue();
-        score.Tracks.Any(t => t.Metadata.Sounds.Any(s => !string.IsNullOrWhiteSpace(s.Rse.SoundbankPatch))).Should().BeTrue();
-        score.Tracks.Any(t => t.Metadata.InstrumentSet.Elements.Count > 0).Should().BeTrue();
-        score.MasterTrack.TrackIds.Should().NotBeEmpty();
-        score.MasterTrack.Automations.Should().NotBeEmpty();
-        score.MasterTrack.AutomationTimeline.Should().NotBeEmpty();
-        score.MasterTrack.AutomationTimeline.Should().Contain(a => a.Scope == AutomationScopeKind.MasterTrack);
-        score.MasterTrack.AutomationTimeline.Should().Contain(a => a.Scope == AutomationScopeKind.Track);
-        score.MasterTrack.Rse.MasterEffects.Should().NotBeEmpty();
+        score.Tracks.Any(t => !string.IsNullOrWhiteSpace(TrackMetadataOf(t).ShortName)).Should().BeTrue();
+        score.Tracks.Any(t => !string.IsNullOrWhiteSpace(TrackMetadataOf(t).Color)).Should().BeTrue();
+        score.Tracks.Any(t => TrackMetadataOf(t).TuningPitches.Length > 0).Should().BeTrue();
+        score.Tracks.Any(t => TrackMetadataOf(t).Staffs.Count > 0).Should().BeTrue();
+        score.Tracks.Any(t => !string.IsNullOrWhiteSpace(TrackMetadataOf(t).InstrumentSet.Name)).Should().BeTrue();
+        score.Tracks.Any(t => TrackMetadataOf(t).Sounds.Count > 0).Should().BeTrue();
+        score.Tracks.Any(t => !string.IsNullOrWhiteSpace(TrackMetadataOf(t).PlaybackState.Value)).Should().BeTrue();
+        score.Tracks.Any(t => TrackMetadataOf(t).Automations.Count > 0).Should().BeTrue();
+        score.Tracks.Any(t => !string.IsNullOrWhiteSpace(TrackMetadataOf(t).AudioEngineState.Value)).Should().BeTrue();
+        score.Tracks.Any(t => TrackMetadataOf(t).MidiConnection.PrimaryChannel.HasValue).Should().BeTrue();
+        score.Tracks.Any(t => TrackMetadataOf(t).Lyrics.Lines.Count > 0).Should().BeTrue();
+        score.Tracks.Any(t => TrackMetadataOf(t).Transpose.Octave.HasValue || TrackMetadataOf(t).Transpose.Chromatic.HasValue).Should().BeTrue();
+        score.Tracks.Any(t => TrackMetadataOf(t).Rse.Automations.Count > 0).Should().BeTrue();
+        score.Tracks.Any(t => TrackMetadataOf(t).Sounds.Any(s => !string.IsNullOrWhiteSpace(s.Rse.SoundbankPatch))).Should().BeTrue();
+        score.Tracks.Any(t => TrackMetadataOf(t).InstrumentSet.Elements.Count > 0).Should().BeTrue();
+        masterTrackMetadata.TrackIds.Should().NotBeEmpty();
+        masterTrackMetadata.Automations.Should().NotBeEmpty();
+        masterTrackMetadata.AutomationTimeline.Should().NotBeEmpty();
+        masterTrackMetadata.AutomationTimeline.Should().Contain(a => a.Scope == AutomationScopeKind.MasterTrack);
+        masterTrackMetadata.AutomationTimeline.Should().Contain(a => a.Scope == AutomationScopeKind.Track);
+        masterTrackMetadata.Rse.MasterEffects.Should().NotBeEmpty();
     }
 
     [Fact]
@@ -52,189 +63,12 @@ public class MetadataMappingTests
             Title = "T",
             Artist = "A",
             Album = "B",
-            Metadata = new ScoreMetadata
-            {
-                ExplicitEmptyOptionalElements = ["WordsAndMusic", "PageHeader"],
-                SubTitle = "Sub",
-                Copyright = "(c) test",
-                Notices = "notice",
-                Instructions = "instructions",
-                ScoreZoomPolicy = "Value",
-                ScoreZoom = "1.5"
-            },
-            MasterTrack = new MasterTrackMetadata
-            {
-                TrackIds = [0],
-                RseXml = "<RSE><ChannelStrip version=\"E56\"><Parameters>0.8 0.1</Parameters></ChannelStrip></RSE>",
-                Automations =
-                [
-                    new AutomationMetadata
-                    {
-                        Type = "Tempo",
-                        Linear = false,
-                        Bar = 0,
-                        Position = 0,
-                        Visible = true,
-                        Value = "120 2"
-                    }
-                ]
-            },
             Tracks =
             [
                 new TrackModel
                 {
                     Id = 0,
                     Name = "Guitar",
-                    Metadata = new TrackMetadata
-                    {
-                        ShortName = "gtr",
-                        Color = "255 0 0",
-                        SystemsDefaultLayout = "3",
-                        SystemsLayout = "3 3",
-                        PalmMute = 0.3m,
-                        AutoAccentuation = 0.2m,
-                        AutoBrush = true,
-                        PlayingStyle = "StringedPick",
-                        UseOneChannelPerString = true,
-                        IconId = 1,
-                        ForcedSound = -1,
-                        TuningPitches = [40,45,50,55,59,64],
-                        TuningInstrument = "Guitar",
-                        TuningLabel = "Std",
-                        TuningLabelVisible = true,
-                        Staffs =
-                        [
-                            new StaffMetadata
-                            {
-                                Id = 1,
-                                Cref = "64",
-                                TuningPitches = [40,45,50,55,59,64],
-                                CapoFret = 2,
-                                Properties = new Dictionary<string,string> { ["CapoFret"] = "2" }
-                            }
-                        ],
-                        InstrumentSet = new InstrumentSetMetadata
-                        {
-                            Name = "Steel Guitar",
-                            Type = "steelGuitar",
-                            LineCount = 6,
-                            Elements =
-                            [
-                                new InstrumentElementMetadata
-                                {
-                                    Name = "Pitched",
-                                    Type = "pitched",
-                                    SoundbankName = "D-Steel",
-                                    Articulations =
-                                    [
-                                        new InstrumentArticulationMetadata
-                                        {
-                                            Name = "Sustain",
-                                            StaffLine = 0,
-                                            Noteheads = "noteheadBlack",
-                                            TechniquePlacement = "outside",
-                                            TechniqueSymbol = "none",
-                                            InputMidiNumbers = "60 61",
-                                            OutputRseSound = "Steel Mart",
-                                            OutputMidiNumber = 60
-                                        }
-                                    ]
-                                }
-                            ]
-                        },
-                        Sounds =
-                        [
-                            new SoundMetadata
-                            {
-                                Name = "Steel Mart",
-                                Label = "Steel Mart",
-                                Path = "Stringed/Acoustic Guitars/Steel Guitar",
-                                Role = "Factory",
-                                MidiLsb = 0,
-                                MidiMsb = 0,
-                                MidiProgram = 25,
-                                Rse = new SoundRseMetadata
-                                {
-                                    SoundbankPatch = "D-Steel",
-                                    SoundbankSet = "Factory",
-                                    ElementsSettingsXml = "<ElementsSettings />",
-                                    Pickups = new SoundRsePickupsMetadata
-                                    {
-                                        OverloudPosition = "0",
-                                        Volumes = "1 1",
-                                        Tones = "1 1"
-                                    },
-                                    EffectChain =
-                                    [
-                                        new RseEffectMetadata
-                                        {
-                                            Id = "E30_EqGEq",
-                                            Parameters = "0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.685714"
-                                        }
-                                    ]
-                                }
-                            }
-                        ],
-                        Rse = new RseMetadata
-                        {
-                            Bank = "D-Steel",
-                            ChannelStripVersion = "E56",
-                            ChannelStripParameters = "0.5 0.5",
-                            Automations =
-                            [
-                                new AutomationMetadata
-                                {
-                                    Type = "DSPParam_12",
-                                    Linear = false,
-                                    Bar = 0,
-                                    Position = 0,
-                                    Visible = true,
-                                    Value = "0.72"
-                                }
-                            ]
-                        },
-                        PlaybackState = new PlaybackStateMetadata
-                        {
-                            Value = "Default"
-                        },
-                        AudioEngineState = new AudioEngineStateMetadata
-                        {
-                            Value = "RSE"
-                        },
-                        MidiConnection = new MidiConnectionMetadata
-                        {
-                            Port = 0,
-                            PrimaryChannel = 0,
-                            SecondaryChannel = 1,
-                            ForceOneChannelPerString = false
-                        },
-                        Lyrics = new LyricsMetadata
-                        {
-                            Dispatched = true,
-                            Lines =
-                            [
-                                new LyricsLineMetadata { Text = "Hello", Offset = 0 },
-                                new LyricsLineMetadata { Text = "World", Offset = 1 }
-                            ]
-                        },
-                        Transpose = new TransposeMetadata
-                        {
-                            Chromatic = 0,
-                            Octave = -1
-                        },
-                        Automations =
-                        [
-                            new AutomationMetadata
-                            {
-                                Type = "Sound",
-                                Linear = false,
-                                Bar = 0,
-                                Position = 0,
-                                Visible = true,
-                                Value = "Stringed/Acoustic Guitars/Steel Guitar;Steel Mart;Factory"
-                            }
-                        ]
-                    },
                     Measures =
                     [
                         new MeasureModel
@@ -255,6 +89,183 @@ public class MetadataMappingTests
                 }
             ]
         };
+        score.GetOrCreateGuitarPro().Metadata = new ScoreMetadata
+        {
+            ExplicitEmptyOptionalElements = ["WordsAndMusic", "PageHeader"],
+            SubTitle = "Sub",
+            Copyright = "(c) test",
+            Notices = "notice",
+            Instructions = "instructions",
+            ScoreZoomPolicy = "Value",
+            ScoreZoom = "1.5"
+        };
+        score.GetRequiredGuitarPro().MasterTrack = new MasterTrackMetadata
+        {
+            TrackIds = [0],
+            RseXml = "<RSE><ChannelStrip version=\"E56\"><Parameters>0.8 0.1</Parameters></ChannelStrip></RSE>",
+            Automations =
+            [
+                new AutomationMetadata
+                {
+                    Type = "Tempo",
+                    Linear = false,
+                    Bar = 0,
+                    Position = 0,
+                    Visible = true,
+                    Value = "120 2"
+                }
+            ]
+        };
+        score.Tracks[0].GetOrCreateGuitarPro().Metadata = new TrackMetadata
+        {
+            ShortName = "gtr",
+            Color = "255 0 0",
+            SystemsDefaultLayout = "3",
+            SystemsLayout = "3 3",
+            PalmMute = 0.3m,
+            AutoAccentuation = 0.2m,
+            AutoBrush = true,
+            PlayingStyle = "StringedPick",
+            UseOneChannelPerString = true,
+            IconId = 1,
+            ForcedSound = -1,
+            TuningPitches = [40,45,50,55,59,64],
+            TuningInstrument = "Guitar",
+            TuningLabel = "Std",
+            TuningLabelVisible = true,
+            Staffs =
+            [
+                new StaffMetadata
+                {
+                    Id = 1,
+                    Cref = "64",
+                    TuningPitches = [40,45,50,55,59,64],
+                    CapoFret = 2,
+                    Properties = new Dictionary<string,string> { ["CapoFret"] = "2" }
+                }
+            ],
+            InstrumentSet = new InstrumentSetMetadata
+            {
+                Name = "Steel Guitar",
+                Type = "steelGuitar",
+                LineCount = 6,
+                Elements =
+                [
+                    new InstrumentElementMetadata
+                    {
+                        Name = "Pitched",
+                        Type = "pitched",
+                        SoundbankName = "D-Steel",
+                        Articulations =
+                        [
+                            new InstrumentArticulationMetadata
+                            {
+                                Name = "Sustain",
+                                StaffLine = 0,
+                                Noteheads = "noteheadBlack",
+                                TechniquePlacement = "outside",
+                                TechniqueSymbol = "none",
+                                InputMidiNumbers = "60 61",
+                                OutputRseSound = "Steel Mart",
+                                OutputMidiNumber = 60
+                            }
+                        ]
+                    }
+                ]
+            },
+            Sounds =
+            [
+                new SoundMetadata
+                {
+                    Name = "Steel Mart",
+                    Label = "Steel Mart",
+                    Path = "Stringed/Acoustic Guitars/Steel Guitar",
+                    Role = "Factory",
+                    MidiLsb = 0,
+                    MidiMsb = 0,
+                    MidiProgram = 25,
+                    Rse = new SoundRseMetadata
+                    {
+                        SoundbankPatch = "D-Steel",
+                        SoundbankSet = "Factory",
+                        ElementsSettingsXml = "<ElementsSettings />",
+                        Pickups = new SoundRsePickupsMetadata
+                        {
+                            OverloudPosition = "0",
+                            Volumes = "1 1",
+                            Tones = "1 1"
+                        },
+                        EffectChain =
+                        [
+                            new RseEffectMetadata
+                            {
+                                Id = "E30_EqGEq",
+                                Parameters = "0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.685714"
+                            }
+                        ]
+                    }
+                }
+            ],
+            Rse = new RseMetadata
+            {
+                Bank = "D-Steel",
+                ChannelStripVersion = "E56",
+                ChannelStripParameters = "0.5 0.5",
+                Automations =
+                [
+                    new AutomationMetadata
+                    {
+                        Type = "DSPParam_12",
+                        Linear = false,
+                        Bar = 0,
+                        Position = 0,
+                        Visible = true,
+                        Value = "0.72"
+                    }
+                ]
+            },
+            PlaybackState = new PlaybackStateMetadata
+            {
+                Value = "Default"
+            },
+            AudioEngineState = new AudioEngineStateMetadata
+            {
+                Value = "RSE"
+            },
+            MidiConnection = new MidiConnectionMetadata
+            {
+                Port = 0,
+                PrimaryChannel = 0,
+                SecondaryChannel = 1,
+                ForceOneChannelPerString = false
+            },
+            Lyrics = new LyricsMetadata
+            {
+                Dispatched = true,
+                Lines =
+                [
+                    new LyricsLineMetadata { Text = "Hello", Offset = 0 },
+                    new LyricsLineMetadata { Text = "World", Offset = 1 }
+                ]
+            },
+            Transpose = new TransposeMetadata
+            {
+                Chromatic = 0,
+                Octave = -1
+            },
+            Automations =
+            [
+                new AutomationMetadata
+                {
+                    Type = "Sound",
+                    Linear = false,
+                    Bar = 0,
+                    Position = 0,
+                    Visible = true,
+                    Value = "Stringed/Acoustic Guitars/Steel Guitar;Steel Mart;Factory"
+                }
+            ]
+        };
 
         var outFile = Path.Combine(Path.GetTempPath(), $"gpio-meta-{Guid.NewGuid():N}.gp");
         try
@@ -264,70 +275,73 @@ public class MetadataMappingTests
 
             var reader = new Motif.Extensions.GuitarPro.GuitarProReader();
             var readBack = await reader.ReadAsync(outFile, cancellationToken: TestContext.Current.CancellationToken);
+            var readBackScoreMetadata = ScoreMetadataOf(readBack);
+            var readBackMasterTrack = MasterTrackMetadataOf(readBack);
 
-            readBack.Metadata.SubTitle.Should().Be("Sub");
-            readBack.Metadata.Copyright.Should().Be("(c) test");
-            readBack.Metadata.Notices.Should().Be("notice");
-            readBack.Metadata.Instructions.Should().Be("instructions");
-            readBack.Metadata.ScoreZoomPolicy.Should().Be("Value");
-            readBack.Metadata.ScoreZoom.Should().Be("1.5");
-            readBack.Metadata.ExplicitEmptyOptionalElements.Should().Contain(["WordsAndMusic", "PageHeader"]);
+            readBackScoreMetadata.SubTitle.Should().Be("Sub");
+            readBackScoreMetadata.Copyright.Should().Be("(c) test");
+            readBackScoreMetadata.Notices.Should().Be("notice");
+            readBackScoreMetadata.Instructions.Should().Be("instructions");
+            readBackScoreMetadata.ScoreZoomPolicy.Should().Be("Value");
+            readBackScoreMetadata.ScoreZoom.Should().Be("1.5");
+            readBackScoreMetadata.ExplicitEmptyOptionalElements.Should().Contain(["WordsAndMusic", "PageHeader"]);
 
             var track = readBack.Tracks[0];
-            track.Metadata.ShortName.Should().Be("gtr");
-            track.Metadata.Color.Should().Be("255 0 0");
-            track.Metadata.SystemsDefaultLayout.Should().Be("3");
-            track.Metadata.SystemsLayout.Should().Be("3 3");
-            track.Metadata.PalmMute.Should().Be(0.3m);
-            track.Metadata.AutoAccentuation.Should().Be(0.2m);
-            track.Metadata.AutoBrush.Should().BeTrue();
-            track.Metadata.PlayingStyle.Should().Be("StringedPick");
-            track.Metadata.UseOneChannelPerString.Should().BeTrue();
-            track.Metadata.IconId.Should().Be(1);
-            track.Metadata.ForcedSound.Should().Be(-1);
-            track.Metadata.TuningPitches.Should().Equal(40,45,50,55,59,64);
-            track.Metadata.TuningInstrument.Should().Be("Guitar");
-            track.Metadata.TuningLabel.Should().Be("Std");
-            track.Metadata.TuningLabelVisible.Should().BeTrue();
-            track.Metadata.Staffs.Should().NotBeEmpty();
-            track.Metadata.Staffs[0].CapoFret.Should().Be(2);
-            track.Metadata.InstrumentSet.Name.Should().Be("Steel Guitar");
-            track.Metadata.InstrumentSet.Type.Should().Be("steelGuitar");
-            track.Metadata.InstrumentSet.LineCount.Should().Be(6);
-            track.Metadata.InstrumentSet.Elements.Should().ContainSingle();
-            track.Metadata.InstrumentSet.Elements[0].Articulations.Should().ContainSingle();
-            track.Metadata.Sounds.Should().ContainSingle();
-            track.Metadata.Sounds[0].MidiProgram.Should().Be(25);
-            track.Metadata.Sounds[0].Rse.SoundbankPatch.Should().Be("D-Steel");
-            track.Metadata.Sounds[0].Rse.EffectChain.Should().ContainSingle();
-            track.Metadata.Rse.ChannelStripVersion.Should().Be("E56");
-            track.Metadata.Rse.Bank.Should().Be("D-Steel");
-            track.Metadata.Rse.Automations.Should().ContainSingle();
-            track.Metadata.PlaybackState.Value.Should().Be("Default");
-            track.Metadata.AudioEngineState.Value.Should().Be("RSE");
-            track.Metadata.MidiConnection.PrimaryChannel.Should().Be(0);
-            track.Metadata.MidiConnection.SecondaryChannel.Should().Be(1);
-            track.Metadata.MidiConnection.ForceOneChannelPerString.Should().BeFalse();
-            track.Metadata.Lyrics.Dispatched.Should().BeTrue();
-            track.Metadata.Lyrics.Lines.Should().HaveCount(2);
-            track.Metadata.Lyrics.Lines[0].Text.Should().Be("Hello");
-            track.Metadata.Transpose.Octave.Should().Be(-1);
-            track.Metadata.Automations.Should().ContainSingle();
-            track.Metadata.Automations[0].Type.Should().Be("Sound");
+            var trackMetadata = TrackMetadataOf(track);
+            trackMetadata.ShortName.Should().Be("gtr");
+            trackMetadata.Color.Should().Be("255 0 0");
+            trackMetadata.SystemsDefaultLayout.Should().Be("3");
+            trackMetadata.SystemsLayout.Should().Be("3 3");
+            trackMetadata.PalmMute.Should().Be(0.3m);
+            trackMetadata.AutoAccentuation.Should().Be(0.2m);
+            trackMetadata.AutoBrush.Should().BeTrue();
+            trackMetadata.PlayingStyle.Should().Be("StringedPick");
+            trackMetadata.UseOneChannelPerString.Should().BeTrue();
+            trackMetadata.IconId.Should().Be(1);
+            trackMetadata.ForcedSound.Should().Be(-1);
+            trackMetadata.TuningPitches.Should().Equal(40,45,50,55,59,64);
+            trackMetadata.TuningInstrument.Should().Be("Guitar");
+            trackMetadata.TuningLabel.Should().Be("Std");
+            trackMetadata.TuningLabelVisible.Should().BeTrue();
+            trackMetadata.Staffs.Should().NotBeEmpty();
+            trackMetadata.Staffs[0].CapoFret.Should().Be(2);
+            trackMetadata.InstrumentSet.Name.Should().Be("Steel Guitar");
+            trackMetadata.InstrumentSet.Type.Should().Be("steelGuitar");
+            trackMetadata.InstrumentSet.LineCount.Should().Be(6);
+            trackMetadata.InstrumentSet.Elements.Should().ContainSingle();
+            trackMetadata.InstrumentSet.Elements[0].Articulations.Should().ContainSingle();
+            trackMetadata.Sounds.Should().ContainSingle();
+            trackMetadata.Sounds[0].MidiProgram.Should().Be(25);
+            trackMetadata.Sounds[0].Rse.SoundbankPatch.Should().Be("D-Steel");
+            trackMetadata.Sounds[0].Rse.EffectChain.Should().ContainSingle();
+            trackMetadata.Rse.ChannelStripVersion.Should().Be("E56");
+            trackMetadata.Rse.Bank.Should().Be("D-Steel");
+            trackMetadata.Rse.Automations.Should().ContainSingle();
+            trackMetadata.PlaybackState.Value.Should().Be("Default");
+            trackMetadata.AudioEngineState.Value.Should().Be("RSE");
+            trackMetadata.MidiConnection.PrimaryChannel.Should().Be(0);
+            trackMetadata.MidiConnection.SecondaryChannel.Should().Be(1);
+            trackMetadata.MidiConnection.ForceOneChannelPerString.Should().BeFalse();
+            trackMetadata.Lyrics.Dispatched.Should().BeTrue();
+            trackMetadata.Lyrics.Lines.Should().HaveCount(2);
+            trackMetadata.Lyrics.Lines[0].Text.Should().Be("Hello");
+            trackMetadata.Transpose.Octave.Should().Be(-1);
+            trackMetadata.Automations.Should().ContainSingle();
+            trackMetadata.Automations[0].Type.Should().Be("Sound");
 
-            readBack.MasterTrack.TrackIds.Should().Contain(0);
-            readBack.MasterTrack.Automations.Should().ContainSingle();
-            readBack.MasterTrack.Automations[0].Type.Should().Be("Tempo");
-            readBack.MasterTrack.TempoMap.Should().NotBeEmpty();
-            readBack.MasterTrack.TempoMap[0].Bpm.Should().Be(120m);
-            readBack.MasterTrack.AutomationTimeline.Should().HaveCount(2);
-            readBack.MasterTrack.AutomationTimeline[0].Scope.Should().Be(AutomationScopeKind.MasterTrack);
-            readBack.MasterTrack.AutomationTimeline[0].Type.Should().Be("Tempo");
-            readBack.MasterTrack.AutomationTimeline[0].Tempo.Should().NotBeNull();
-            readBack.MasterTrack.AutomationTimeline[0].Tempo!.Bpm.Should().Be(120m);
-            readBack.MasterTrack.AutomationTimeline[1].Scope.Should().Be(AutomationScopeKind.Track);
-            readBack.MasterTrack.AutomationTimeline[1].TrackId.Should().Be(0);
-            readBack.MasterTrack.AutomationTimeline[1].Type.Should().Be("Sound");
+            readBackMasterTrack.TrackIds.Should().Contain(0);
+            readBackMasterTrack.Automations.Should().ContainSingle();
+            readBackMasterTrack.Automations[0].Type.Should().Be("Tempo");
+            readBackMasterTrack.TempoMap.Should().NotBeEmpty();
+            readBackMasterTrack.TempoMap[0].Bpm.Should().Be(120m);
+            readBackMasterTrack.AutomationTimeline.Should().HaveCount(2);
+            readBackMasterTrack.AutomationTimeline[0].Scope.Should().Be(AutomationScopeKind.MasterTrack);
+            readBackMasterTrack.AutomationTimeline[0].Type.Should().Be("Tempo");
+            readBackMasterTrack.AutomationTimeline[0].Tempo.Should().NotBeNull();
+            readBackMasterTrack.AutomationTimeline[0].Tempo!.Bpm.Should().Be(120m);
+            readBackMasterTrack.AutomationTimeline[1].Scope.Should().Be(AutomationScopeKind.Track);
+            readBackMasterTrack.AutomationTimeline[1].TrackId.Should().Be(0);
+            readBackMasterTrack.AutomationTimeline[1].Type.Should().Be("Sound");
 
             var measure = track.Measures[0];
             measure.KeyAccidentalCount.Should().Be(1);
@@ -360,27 +374,6 @@ public class MetadataMappingTests
             Title = "RSE Typed",
             Artist = "A",
             Album = "B",
-            MasterTrack = new MasterTrackMetadata
-            {
-                TrackIds = [0],
-                Rse = new MasterTrackRseMetadata
-                {
-                    MasterEffects =
-                    [
-                        new RseEffectMetadata
-                        {
-                            Id = "I01_VolumeAndPan",
-                            Parameters = "0.76 0.5"
-                        },
-                        new RseEffectMetadata
-                        {
-                            Id = "M03_StudioReverbRoomStudioA",
-                            Bypass = true,
-                            Parameters = "0 0 0 0 0"
-                        }
-                    ]
-                }
-            },
             Tracks =
             [
                 new TrackModel
@@ -399,6 +392,27 @@ public class MetadataMappingTests
                 }
             ]
         };
+        score.GetOrCreateGuitarPro().MasterTrack = new MasterTrackMetadata
+        {
+            TrackIds = [0],
+            Rse = new MasterTrackRseMetadata
+            {
+                MasterEffects =
+                [
+                    new RseEffectMetadata
+                    {
+                        Id = "I01_VolumeAndPan",
+                        Parameters = "0.76 0.5"
+                    },
+                    new RseEffectMetadata
+                    {
+                        Id = "M03_StudioReverbRoomStudioA",
+                        Bypass = true,
+                        Parameters = "0 0 0 0 0"
+                    }
+                ]
+            }
+        };
 
         var outFile = Path.Combine(Path.GetTempPath(), $"gpio-master-rse-{Guid.NewGuid():N}.gp");
         try
@@ -408,12 +422,13 @@ public class MetadataMappingTests
 
             var reader = new Motif.Extensions.GuitarPro.GuitarProReader();
             var readBack = await reader.ReadAsync(outFile, cancellationToken: TestContext.Current.CancellationToken);
+            var readBackMasterTrack = MasterTrackMetadataOf(readBack);
 
-            readBack.MasterTrack.Rse.MasterEffects.Should().HaveCount(2);
-            readBack.MasterTrack.Rse.MasterEffects[0].Id.Should().Be("I01_VolumeAndPan");
-            readBack.MasterTrack.Rse.MasterEffects[0].Parameters.Should().Be("0.76 0.5");
-            readBack.MasterTrack.Rse.MasterEffects[1].Id.Should().Be("M03_StudioReverbRoomStudioA");
-            readBack.MasterTrack.Rse.MasterEffects[1].Bypass.Should().BeTrue();
+            readBackMasterTrack.Rse.MasterEffects.Should().HaveCount(2);
+            readBackMasterTrack.Rse.MasterEffects[0].Id.Should().Be("I01_VolumeAndPan");
+            readBackMasterTrack.Rse.MasterEffects[0].Parameters.Should().Be("0.76 0.5");
+            readBackMasterTrack.Rse.MasterEffects[1].Id.Should().Be("M03_StudioReverbRoomStudioA");
+            readBackMasterTrack.Rse.MasterEffects[1].Bypass.Should().BeTrue();
         }
         finally
         {
@@ -493,7 +508,7 @@ public class MetadataMappingTests
         };
 
         var score = await new DefaultScoreMapper().MapAsync(document, TestContext.Current.CancellationToken);
-        var timeline = score.MasterTrack.AutomationTimeline;
+        var timeline = MasterTrackMetadataOf(score).AutomationTimeline;
 
         timeline.Should().HaveCount(4);
         timeline.Select(a => (a.Scope, a.TrackId, a.Type)).Should().Equal(
@@ -525,10 +540,11 @@ public class MetadataMappingTests
         var reader = new Motif.Extensions.GuitarPro.GuitarProReader();
 
         var score = await reader.ReadAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
+        var dynamicMap = MasterTrackMetadataOf(score).DynamicMap;
 
-        score.MasterTrack.DynamicMap.Should().NotBeEmpty();
-        score.MasterTrack.DynamicMap[0].Dynamic.Should().NotBeNullOrWhiteSpace();
-        score.MasterTrack.DynamicMap[0].Kind.Should().NotBe(DynamicKind.Unknown);
+        dynamicMap.Should().NotBeEmpty();
+        dynamicMap[0].Dynamic.Should().NotBeNullOrWhiteSpace();
+        dynamicMap[0].Kind.Should().NotBe(DynamicKind.Unknown);
     }
 
     [Fact]
@@ -605,7 +621,7 @@ public class MetadataMappingTests
         };
 
         var score = await new DefaultScoreMapper().MapAsync(document, TestContext.Current.CancellationToken);
-        var dynamicMap = score.MasterTrack.DynamicMap;
+        var dynamicMap = MasterTrackMetadataOf(score).DynamicMap;
 
         dynamicMap.Should().HaveCount(2);
 
