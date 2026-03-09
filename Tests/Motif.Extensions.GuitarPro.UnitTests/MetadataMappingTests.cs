@@ -2,6 +2,7 @@ namespace Motif.Extensions.GuitarPro.UnitTests;
 
 using FluentAssertions;
 using Motif.Extensions.GuitarPro.Implementation;
+using Motif.Extensions.GuitarPro.Models;
 using Motif.Models;
 using Motif.Extensions.GuitarPro.Models.Raw;
 

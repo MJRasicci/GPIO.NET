@@ -1,6 +1,7 @@
 namespace Motif.Extensions.GuitarPro.Implementation;
 
 using Motif.Extensions.GuitarPro.Abstractions;
+using Motif.Extensions.GuitarPro.Models;
 using Motif.Models;
 using Motif.Extensions.GuitarPro.Models.Raw;
 using Motif.Extensions.GuitarPro.Models.Write;

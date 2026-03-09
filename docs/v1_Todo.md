@@ -315,6 +315,7 @@ A property belongs in a format extension if it represents:
 * [x] `GpScoreExtension` is implemented and attached during Guitar Pro import
 * [x] `GpTrackExtension` is implemented and attached during Guitar Pro import
 * [x] `GuitarProScore.Metadata`, `GuitarProScore.MasterTrack`, and `TrackModel.Metadata` have been removed from the direct Core surface; that fidelity now lives behind GP extensions
+* [x] The score/track/master-track GP metadata model types themselves now live in `Motif.Extensions.GuitarPro.Models` instead of `Motif.Core`
 * [x] Core JSON round-trips intentionally drop GP score/track extensions, and the CLI now rehydrates them from `--source-gp` for verified no-op writes
 * [ ] `GpStaffExtension`, `GpStaffMeasureExtension`, `GpVoiceExtension`, `GpBeatExtension`, and `GpNoteExtension` still need to be introduced as the remaining GP fidelity fields move out of Core
 
@@ -348,6 +349,7 @@ For edits that invalidate cached source fragments, define whether the system wil
 ### Progress Update — 2026-03-09
 
 * [x] Score/track/master-track raw fidelity state no longer lives on direct Core properties; it now rides on GP extensions
+* [x] The score/track/master-track GP metadata/cache model types now live in the Guitar Pro extension project rather than the Core assembly
 * [x] When score-level GP master-track metadata is absent, the writer now infers `MasterTrack.TrackIds` from the current Core track list so export still produces a valid file
 * [x] The CLI no-op JSON round-trip path now reattaches source score/track GP extensions before export when `--source-gp` is available
 * [ ] Measure/staff/voice/beat/note raw XML caches and source IDs still remain on Core types and are the next migration target
