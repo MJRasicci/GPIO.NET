@@ -301,13 +301,12 @@ public class WriterReferenceReuseTests
     }
 
     [Fact]
-    public void To_json_preserves_source_rhythm_shape()
+    public void To_json_drops_source_rhythm_shape_from_core_json()
     {
         var json = CreateTupletScore().ToJson();
 
-        json.Should().Contain("\"SourceRhythm\"");
-        json.Should().Contain("\"PrimaryTuplet\"");
-        json.Should().Contain("\"NoteValue\": \"32nd\"");
+        json.Should().NotContain("\"SourceRhythm\"");
+        json.Should().NotContain("\"SourceRhythmId\"");
     }
 
     [Fact]
@@ -593,16 +592,6 @@ public class WriterReferenceReuseTests
                                 new BeatModel
                                 {
                                     Id = 1,
-                                    SourceRhythmId = 10,
-                                    SourceRhythm = new RhythmShapeModel
-                                    {
-                                        NoteValue = "32nd",
-                                        PrimaryTuplet = new TupletRatioModel
-                                        {
-                                            Numerator = 3,
-                                            Denominator = 2
-                                        }
-                                    },
                                     Duration = 1m / 48m,
                                     Notes =
                                     [
@@ -619,7 +608,6 @@ public class WriterReferenceReuseTests
                 }
             ]
         };
-
     private static IReadOnlyList<int> SplitRefs(string refs)
         => refs.Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Where(value => int.Parse(value, CultureInfo.InvariantCulture) >= 0)

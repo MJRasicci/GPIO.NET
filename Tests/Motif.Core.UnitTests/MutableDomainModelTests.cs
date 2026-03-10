@@ -33,10 +33,7 @@ public class MutableDomainModelTests
 
         beat.Id = 10;
         beat.Dynamic = "mf";
-        beat.SourceRhythm = new RhythmShapeModel
-        {
-            NoteValue = "quarter"
-        };
+        beat.FreeText = "quarter pulse";
 
         note.Id = 20;
         note.MidiPitch = 64;
@@ -67,7 +64,7 @@ public class MutableDomainModelTests
         ];
 
         beat.Dynamic = "ff";
-        beat.SourceRhythm.NoteValue = "eighth";
+        beat.FreeText = "eighth pulse";
 
         note.MidiPitch = 67;
         note.ConcertPitch = new PitchValueModel
@@ -93,8 +90,7 @@ public class MutableDomainModelTests
         measure.Beats.Should().ContainSingle().Which.Should().BeSameAs(beat);
 
         beat.Dynamic.Should().Be("ff");
-        beat.SourceRhythm.Should().NotBeNull();
-        beat.SourceRhythm!.NoteValue.Should().Be("eighth");
+        beat.FreeText.Should().Be("eighth pulse");
         beat.Notes.Should().ContainSingle().Which.Should().BeSameAs(note);
 
         note.MidiPitch.Should().Be(67);

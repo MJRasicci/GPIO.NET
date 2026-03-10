@@ -498,22 +498,16 @@ public sealed class DefaultScoreMapper : IScoreMapper
                         ? ResolveHopoCounterpartNoteId(source, nextBeat, stringNumber, isStringedTrack, expectOrigin: false)
                         : null;
 
-                    return new NoteModel
+                    var note = new NoteModel
                     {
-                        Xml = n.Xml,
                         Id = n.Id,
                         Velocity = n.Velocity,
                         MidiPitch = n.MidiPitch,
-                        SourceMidiPitch = n.MidiPitch,
-                        SourceTransposedMidiPitch = ResolveSourceTransposedMidiPitch(n.MidiPitch, track.Transpose),
                         ConcertPitch = MapPitchValue(n.ConcertPitch),
                         TransposedPitch = MapPitchValue(n.TransposedPitch),
-                        SourceFret = n.SourceFret,
-                        SourceStringNumber = n.SourceStringNumber,
                         ShowStringNumber = n.ShowStringNumber,
                         StringNumber = stringNumber,
                         XProperties = n.XProperties.ToDictionary(kv => kv.Key, kv => kv.Value),
-                        XPropertiesXml = n.XPropertiesXml,
                         Duration = duration,
                         Articulation = new NoteArticulationModel
                         {
@@ -545,6 +539,19 @@ public sealed class DefaultScoreMapper : IScoreMapper
                             Harmonic = ArticulationDecoders.DecodeHarmonic(n.Articulation)
                         }
                     };
+                    note.SetExtension(new GpNoteExtension
+                    {
+                        Metadata = new GpNoteMetadata
+                        {
+                            Xml = n.Xml,
+                            SourceMidiPitch = n.MidiPitch,
+                            SourceTransposedMidiPitch = ResolveSourceTransposedMidiPitch(n.MidiPitch, track.Transpose),
+                            SourceFret = n.SourceFret,
+                            SourceStringNumber = n.SourceStringNumber,
+                            XPropertiesXml = n.XPropertiesXml
+                        }
+                    });
+                    return note;
                 })
                 .ToArray();
 
@@ -553,12 +560,9 @@ public sealed class DefaultScoreMapper : IScoreMapper
                 .Select(n => n.MidiPitch!.Value)
                 .ToArray();
 
-            beats.Add(new BeatModel
+            var mappedBeat = new BeatModel
             {
-                Xml = beat.Xml,
                 Id = beat.Id,
-                SourceRhythmId = beat.RhythmRef,
-                SourceRhythm = MapRhythmShape(source, beat.RhythmRef),
                 GraceType = beat.GraceType,
                 Dynamic = beat.Dynamic,
                 TransposedPitchStemOrientation = beat.TransposedPitchStemOrientation,
@@ -598,14 +602,24 @@ public sealed class DefaultScoreMapper : IScoreMapper
                 WhammyExtendUsesElement = beat.WhammyExtendUsesElement,
                 Properties = beat.Properties.ToDictionary(kv => kv.Key, kv => kv.Value),
                 XProperties = beat.XProperties.ToDictionary(kv => kv.Key, kv => kv.Value),
-                XPropertiesXml = beat.XPropertiesXml,
                 VoiceProperties = voiceProps,
                 VoiceDirectionTags = voiceDirTags,
                 Offset = offset,
                 Duration = duration,
                 Notes = notes,
                 MidiPitches = midi
+            };
+            mappedBeat.SetExtension(new GpBeatExtension
+            {
+                Metadata = new GpBeatMetadata
+                {
+                    Xml = beat.Xml,
+                    SourceRhythmId = beat.RhythmRef,
+                    SourceRhythm = MapRhythmShape(source, beat.RhythmRef),
+                    XPropertiesXml = beat.XPropertiesXml
+                }
             });
+            beats.Add(mappedBeat);
 
             offset += duration;
         }
@@ -613,14 +627,14 @@ public sealed class DefaultScoreMapper : IScoreMapper
         return beats;
     }
 
-    private static RhythmShapeModel? MapRhythmShape(GpifDocument source, int rhythmRef)
+    private static GpRhythmShapeMetadata? MapRhythmShape(GpifDocument source, int rhythmRef)
     {
         if (!source.RhythmsById.TryGetValue(rhythmRef, out var rhythm))
         {
             return null;
         }
 
-        return new RhythmShapeModel
+        return new GpRhythmShapeMetadata
         {
             Xml = rhythm.Xml,
             NoteValue = rhythm.NoteValue,

@@ -273,9 +273,11 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                         noteXProperties["688062467"] = encodedTrillSpeed.Value;
                                     }
 
+                                    var noteMetadata = GetNoteMetadata(note);
+
                                     var noteCandidate = new GpifNote
                                     {
-                                        Xml = note.Xml,
+                                        Xml = noteMetadata.Xml,
                                         Id = 0,
                                         Velocity = note.Velocity,
                                         MidiPitch = note.MidiPitch,
@@ -286,12 +288,12 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                         TransposedPitch = ShouldPreserveSourceTransposedPitch(note, transposedMidiPitch)
                                             ? ToRawPitchValue(note.TransposedPitch)
                                             : null,
-                                        SourceFret = note.SourceFret,
-                                        SourceStringNumber = note.SourceStringNumber,
+                                        SourceFret = noteMetadata.SourceFret,
+                                        SourceStringNumber = noteMetadata.SourceStringNumber,
                                         ShowStringNumber = note.ShowStringNumber,
                                         Properties = BuildCoreNoteProperties(note.MidiPitch, resolvedStringNumber, resolvedFret),
                                         XProperties = noteXProperties,
-                                        XPropertiesXml = note.XPropertiesXml,
+                                        XPropertiesXml = noteMetadata.XPropertiesXml,
                                         Articulation = new GpifNoteArticulation
                                         {
                                             LeftFingering = note.Articulation.LeftFingering,
@@ -360,10 +362,11 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 rhythmCandidate.SecondaryTuplet?.Numerator,
                                 rhythmCandidate.SecondaryTuplet?.Denominator);
                             int currentRhythmId;
-                            if (beat.SourceRhythmId >= 0)
+                            var beatMetadata = GetBeatMetadata(beat);
+                            if (beatMetadata.SourceRhythmId >= 0)
                             {
                                 currentRhythmId = AllocateId(
-                                    beat.SourceRhythmId,
+                                    beatMetadata.SourceRhythmId,
                                     rhythmCandidate,
                                     rhythms,
                                     ref rhythmId,
@@ -372,7 +375,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                     diagnostics,
                                     code: "RHYTHM_ID_CONFLICT",
                                     category: "ReferenceReuse",
-                                    message: $"Rhythm id {beat.SourceRhythmId} appeared with different content; a new raw rhythm id was allocated.");
+                                    message: $"Rhythm id {beatMetadata.SourceRhythmId} appeared with different content; a new raw rhythm id was allocated.");
                             }
                             else if (!rhythmIdsBySignature.TryGetValue(rhythmSignature, out currentRhythmId))
                             {
@@ -387,7 +390,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
 
                             var beatCandidate = new GpifBeat
                             {
-                                Xml = beat.Xml,
+                                Xml = beatMetadata.Xml,
                                 Id = 0,
                                 RhythmRef = currentRhythmId,
                                 NotesReferenceList = ReferenceListFormatter.JoinRefs(noteRefs),
@@ -437,7 +440,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 WhammyExtendUsesElement = beat.WhammyExtendUsesElement,
                                 Properties = beat.Properties.ToDictionary(kv => kv.Key, kv => kv.Value),
                                 XProperties = beatXProperties,
-                                XPropertiesXml = beat.XPropertiesXml
+                                XPropertiesXml = beatMetadata.XPropertiesXml
                             };
 
                             var currentBeatId = AllocateId(
@@ -717,9 +720,10 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
 
     private static (int? StringNumber, int? Fret) ResolveStringAndFret(NoteModel note, TrackModel track, int staffIndex)
     {
+        var noteMetadata = GetNoteMetadata(note);
         if (ShouldPreserveSourceStringAndFret(note, track, staffIndex))
         {
-            return (note.SourceStringNumber ?? note.StringNumber, note.SourceFret);
+            return (noteMetadata.SourceStringNumber ?? note.StringNumber, noteMetadata.SourceFret);
         }
 
         if (!note.MidiPitch.HasValue)
@@ -816,6 +820,12 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
     private static GpVoiceMetadata GetVoiceMetadata(MeasureVoiceModel voice)
         => voice.GetGuitarPro()?.Metadata ?? new GpVoiceMetadata();
 
+    private static GpBeatMetadata GetBeatMetadata(BeatModel beat)
+        => beat.GetGuitarPro()?.Metadata ?? new GpBeatMetadata();
+
+    private static GpNoteMetadata GetNoteMetadata(NoteModel note)
+        => note.GetGuitarPro()?.Metadata ?? new GpNoteMetadata();
+
     private static int[] ResolveTuningPitches(TrackModel track, int staffIndex)
     {
         var metadata = GetTrackMetadata(track);
@@ -834,14 +844,15 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
 
     private static bool ShouldPreserveSourceStringAndFret(NoteModel note, TrackModel track, int staffIndex)
     {
-        if (!note.SourceFret.HasValue && !note.SourceStringNumber.HasValue)
+        var noteMetadata = GetNoteMetadata(note);
+        if (!noteMetadata.SourceFret.HasValue && !noteMetadata.SourceStringNumber.HasValue)
         {
             return false;
         }
 
-        if (note.MidiPitch != note.SourceMidiPitch
-            || note.StringNumber != note.SourceStringNumber
-            || ResolveTransposedMidiPitch(note, track) != note.SourceTransposedMidiPitch)
+        if (note.MidiPitch != noteMetadata.SourceMidiPitch
+            || note.StringNumber != noteMetadata.SourceStringNumber
+            || ResolveTransposedMidiPitch(note, track) != noteMetadata.SourceTransposedMidiPitch)
         {
             return false;
         }
@@ -978,12 +989,18 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
     }
 
     private static bool ShouldPreserveSourceConcertPitch(NoteModel note)
-        => note.ConcertPitch is not null
-           && note.MidiPitch == note.SourceMidiPitch;
+    {
+        var noteMetadata = GetNoteMetadata(note);
+        return note.ConcertPitch is not null
+               && note.MidiPitch == noteMetadata.SourceMidiPitch;
+    }
 
     private static bool ShouldPreserveSourceTransposedPitch(NoteModel note, int? transposedMidiPitch)
-        => note.TransposedPitch is not null
-           && transposedMidiPitch == note.SourceTransposedMidiPitch;
+    {
+        var noteMetadata = GetNoteMetadata(note);
+        return note.TransposedPitch is not null
+               && transposedMidiPitch == noteMetadata.SourceTransposedMidiPitch;
+    }
 
     private static GpifPitchValue? ToRawPitchValue(PitchValueModel? pitch)
         => pitch is null
@@ -1579,21 +1596,22 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
 
     private static GpifRhythm? TryPreserveSourceRhythmShape(BeatModel beat)
     {
-        if (beat.SourceRhythm is null)
+        var beatMetadata = GetBeatMetadata(beat);
+        if (beatMetadata.SourceRhythm is null)
         {
             return null;
         }
 
         var sourceRhythm = new GpifRhythm
         {
-            Xml = beat.SourceRhythm.Xml,
+            Xml = beatMetadata.SourceRhythm.Xml,
             Id = 0,
-            NoteValue = beat.SourceRhythm.NoteValue,
-            AugmentationDots = beat.SourceRhythm.AugmentationDots,
-            AugmentationDotUsesCountAttribute = beat.SourceRhythm.AugmentationDotUsesCountAttribute,
-            AugmentationDotCounts = beat.SourceRhythm.AugmentationDotCounts,
-            PrimaryTuplet = ToRawTuplet(beat.SourceRhythm.PrimaryTuplet),
-            SecondaryTuplet = ToRawTuplet(beat.SourceRhythm.SecondaryTuplet)
+            NoteValue = beatMetadata.SourceRhythm.NoteValue,
+            AugmentationDots = beatMetadata.SourceRhythm.AugmentationDots,
+            AugmentationDotUsesCountAttribute = beatMetadata.SourceRhythm.AugmentationDotUsesCountAttribute,
+            AugmentationDotCounts = beatMetadata.SourceRhythm.AugmentationDotCounts,
+            PrimaryTuplet = ToRawTuplet(beatMetadata.SourceRhythm.PrimaryTuplet),
+            SecondaryTuplet = ToRawTuplet(beatMetadata.SourceRhythm.SecondaryTuplet)
         };
 
         return NearlyEqual(ResolveRhythmDuration(sourceRhythm), beat.Duration)

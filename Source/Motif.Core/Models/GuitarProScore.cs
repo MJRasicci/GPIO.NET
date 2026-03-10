@@ -112,23 +112,6 @@ public sealed class MeasureVoiceModel : ExtensibleModel
     public IReadOnlyList<BeatModel> Beats { get; set; } = Array.Empty<BeatModel>();
 }
 
-public sealed class RhythmShapeModel
-{
-    public string Xml { get; set; } = string.Empty;
-
-    public string NoteValue { get; set; } = string.Empty;
-
-    public int AugmentationDots { get; set; }
-
-    public bool AugmentationDotUsesCountAttribute { get; set; }
-
-    public int[] AugmentationDotCounts { get; set; } = Array.Empty<int>();
-
-    public TupletRatioModel? PrimaryTuplet { get; set; }
-
-    public TupletRatioModel? SecondaryTuplet { get; set; }
-}
-
 public sealed class TupletRatioModel
 {
     public int Numerator { get; set; }
@@ -147,13 +130,7 @@ public sealed class FermataMetadata
 
 public sealed class BeatModel : ExtensibleModel
 {
-    public string Xml { get; set; } = string.Empty;
-
     public int Id { get; set; }
-
-    public int SourceRhythmId { get; set; } = -1;
-
-    public RhythmShapeModel? SourceRhythm { get; set; }
 
     public string GraceType { get; set; } = string.Empty;
 
@@ -233,8 +210,6 @@ public sealed class BeatModel : ExtensibleModel
 
     public IReadOnlyDictionary<string, int> XProperties { get; set; } = new Dictionary<string, int>();
 
-    public string XPropertiesXml { get; set; } = string.Empty;
-
     public IReadOnlyDictionary<string, string> VoiceProperties { get; set; } = new Dictionary<string, string>();
 
     public IReadOnlyList<string> VoiceDirectionTags { get; set; } = Array.Empty<string>();
@@ -250,33 +225,21 @@ public sealed class BeatModel : ExtensibleModel
 
 public sealed class NoteModel : ExtensibleModel
 {
-    public string Xml { get; set; } = string.Empty;
-
     public int Id { get; set; }
 
     public int? Velocity { get; set; }
 
     public int? MidiPitch { get; set; }
 
-    public int? SourceMidiPitch { get; set; }
-
-    public int? SourceTransposedMidiPitch { get; set; }
-
     public PitchValueModel? ConcertPitch { get; set; }
 
     public PitchValueModel? TransposedPitch { get; set; }
-
-    public int? SourceFret { get; set; }
-
-    public int? SourceStringNumber { get; set; }
 
     public bool ShowStringNumber { get; set; }
 
     public int? StringNumber { get; set; }
 
     public IReadOnlyDictionary<string, int> XProperties { get; set; } = new Dictionary<string, int>();
-
-    public string XPropertiesXml { get; set; } = string.Empty;
 
     public decimal Duration { get; set; }
 

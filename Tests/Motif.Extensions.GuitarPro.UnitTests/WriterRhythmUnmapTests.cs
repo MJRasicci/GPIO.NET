@@ -2,6 +2,7 @@ namespace Motif.Extensions.GuitarPro.UnitTests;
 
 using FluentAssertions;
 using Motif.Extensions.GuitarPro.Implementation;
+using Motif.Extensions.GuitarPro.Models;
 using Motif.Models;
 using System.Text;
 using System.Xml.Linq;
@@ -27,8 +28,8 @@ public class WriterRhythmUnmapTests
                             TimeSignature = "4/4",
                             Beats =
                             [
-                                new BeatModel { Id = 1, Duration = 0.375m },      // dotted quarter
-                                new BeatModel { Id = 2, Duration = 1m/12m }       // eighth triplet
+                                new BeatModel { Id = 1, Duration = 0.375m },
+                                new BeatModel { Id = 2, Duration = 1m / 12m }
                             ]
                         }
                     ]
@@ -71,14 +72,16 @@ public class WriterRhythmUnmapTests
                             TimeSignature = "4/4",
                             Beats =
                             [
-                                new BeatModel { Id = 1, SourceRhythmId = 3, Duration = 0.25m },
-                                new BeatModel { Id = 2, SourceRhythmId = 7, Duration = 0.25m }
+                                new BeatModel { Id = 1, Duration = 0.25m },
+                                new BeatModel { Id = 2, Duration = 0.25m }
                             ]
                         }
                     ]
                 }
             ]
         };
+        score.Tracks[0].Measures[0].Beats[0].GetOrCreateGuitarPro().Metadata.SourceRhythmId = 3;
+        score.Tracks[0].Measures[0].Beats[1].GetOrCreateGuitarPro().Metadata.SourceRhythmId = 7;
 
         var unmapper = new DefaultScoreUnmapper();
         var result = await unmapper.UnmapAsync(score, TestContext.Current.CancellationToken);
@@ -111,16 +114,6 @@ public class WriterRhythmUnmapTests
                                 new BeatModel
                                 {
                                     Id = 1,
-                                    SourceRhythmId = 10,
-                                    SourceRhythm = new RhythmShapeModel
-                                    {
-                                        NoteValue = "32nd",
-                                        PrimaryTuplet = new TupletRatioModel
-                                        {
-                                            Numerator = 3,
-                                            Denominator = 2
-                                        }
-                                    },
                                     Duration = 1m / 48m
                                 }
                             ]
@@ -128,6 +121,16 @@ public class WriterRhythmUnmapTests
                     ]
                 }
             ]
+        };
+        score.Tracks[0].Measures[0].Beats[0].GetOrCreateGuitarPro().Metadata.SourceRhythmId = 10;
+        score.Tracks[0].Measures[0].Beats[0].GetRequiredGuitarPro().Metadata.SourceRhythm = new GpRhythmShapeMetadata
+        {
+            NoteValue = "32nd",
+            PrimaryTuplet = new TupletRatioModel
+            {
+                Numerator = 3,
+                Denominator = 2
+            }
         };
 
         var unmapper = new DefaultScoreUnmapper();
@@ -163,13 +166,6 @@ public class WriterRhythmUnmapTests
                                 new BeatModel
                                 {
                                     Id = 1,
-                                    SourceRhythmId = 4,
-                                    SourceRhythm = new RhythmShapeModel
-                                    {
-                                        NoteValue = "Quarter",
-                                        AugmentationDots = 1,
-                                        AugmentationDotUsesCountAttribute = true
-                                    },
                                     Duration = 0.375m
                                 }
                             ]
@@ -177,6 +173,13 @@ public class WriterRhythmUnmapTests
                     ]
                 }
             ]
+        };
+        score.Tracks[0].Measures[0].Beats[0].GetOrCreateGuitarPro().Metadata.SourceRhythmId = 4;
+        score.Tracks[0].Measures[0].Beats[0].GetRequiredGuitarPro().Metadata.SourceRhythm = new GpRhythmShapeMetadata
+        {
+            NoteValue = "Quarter",
+            AugmentationDots = 1,
+            AugmentationDotUsesCountAttribute = true
         };
 
         var unmapper = new DefaultScoreUnmapper();
@@ -217,14 +220,6 @@ public class WriterRhythmUnmapTests
                                 new BeatModel
                                 {
                                     Id = 1,
-                                    SourceRhythmId = 9,
-                                    SourceRhythm = new RhythmShapeModel
-                                    {
-                                        NoteValue = "Quarter",
-                                        AugmentationDots = 2,
-                                        AugmentationDotUsesCountAttribute = true,
-                                        AugmentationDotCounts = [2]
-                                    },
                                     Duration = 0.4375m
                                 }
                             ]
@@ -232,6 +227,14 @@ public class WriterRhythmUnmapTests
                     ]
                 }
             ]
+        };
+        score.Tracks[0].Measures[0].Beats[0].GetOrCreateGuitarPro().Metadata.SourceRhythmId = 9;
+        score.Tracks[0].Measures[0].Beats[0].GetRequiredGuitarPro().Metadata.SourceRhythm = new GpRhythmShapeMetadata
+        {
+            NoteValue = "Quarter",
+            AugmentationDots = 2,
+            AugmentationDotUsesCountAttribute = true,
+            AugmentationDotCounts = [2]
         };
 
         var unmapper = new DefaultScoreUnmapper();

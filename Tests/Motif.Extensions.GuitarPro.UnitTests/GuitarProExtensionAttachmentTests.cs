@@ -8,7 +8,7 @@ using System.Text.Json;
 public class GuitarProExtensionAttachmentTests
 {
     [Fact]
-    public async Task Reader_attaches_score_track_measure_and_voice_guitar_pro_extensions()
+    public async Task Reader_attaches_score_track_measure_voice_beat_and_note_guitar_pro_extensions()
     {
         var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "test.gp");
 
@@ -25,10 +25,14 @@ public class GuitarProExtensionAttachmentTests
         score.Tracks[0].Measures[0].GetRequiredGuitarPro().Metadata.MasterBarXml.Should().Contain("<MasterBar");
         score.Tracks[0].Measures[0].Voices[0].GetGuitarPro().Should().NotBeNull();
         score.Tracks[0].Measures[0].Voices[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Voice");
+        score.Tracks[0].Measures[0].Beats[0].GetGuitarPro().Should().NotBeNull();
+        score.Tracks[0].Measures[0].Beats[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Beat");
+        score.Tracks[0].Measures[0].Beats[0].Notes[0].GetGuitarPro().Should().NotBeNull();
+        score.Tracks[0].Measures[0].Beats[0].Notes[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Note");
     }
 
     [Fact]
-    public async Task Json_round_trip_can_reattach_score_track_measure_and_voice_guitar_pro_extensions_from_source_score()
+    public async Task Json_round_trip_can_reattach_score_track_measure_voice_beat_and_note_guitar_pro_extensions_from_source_score()
     {
         var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "test.gp");
         var sourceScore = await new GuitarProReader().ReadAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
@@ -43,6 +47,8 @@ public class GuitarProExtensionAttachmentTests
         fromJson.Tracks[0].GetGuitarPro().Should().BeNull();
         fromJson.Tracks[0].Measures[0].GetGuitarPro().Should().BeNull();
         fromJson.Tracks[0].Measures[0].Voices[0].GetGuitarPro().Should().BeNull();
+        fromJson.Tracks[0].Measures[0].Beats[0].GetGuitarPro().Should().BeNull();
+        fromJson.Tracks[0].Measures[0].Beats[0].Notes[0].GetGuitarPro().Should().BeNull();
 
         fromJson.ReattachGuitarProExtensionsFrom(sourceScore);
 
@@ -51,5 +57,7 @@ public class GuitarProExtensionAttachmentTests
         fromJson.Tracks[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Track");
         fromJson.Tracks[0].Measures[0].GetRequiredGuitarPro().Metadata.MasterBarXml.Should().Contain("<MasterBar");
         fromJson.Tracks[0].Measures[0].Voices[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Voice");
+        fromJson.Tracks[0].Measures[0].Beats[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Beat");
+        fromJson.Tracks[0].Measures[0].Beats[0].Notes[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Note");
     }
 }

@@ -25,6 +25,9 @@ public class WriterRemainingFidelityTests
     private static GpVoiceMetadata VoiceMetadataOf(MeasureVoiceModel voice)
         => voice.GetRequiredGuitarPro().Metadata;
 
+    private static GpBeatMetadata BeatMetadataOf(BeatModel beat)
+        => beat.GetRequiredGuitarPro().Metadata;
+
     private static async Task<GuitarProScore> DeserializeAndMap(string gpif)
     {
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(gpif));
@@ -271,14 +274,14 @@ public class WriterRemainingFidelityTests
         TrackMetadataOf(score.Tracks[0]).Xml.Should().Contain("<Track id=\"0\"><Name>Track</Name></Track>");
         MeasureMetadataOf(score.Tracks[0].Measures[0]).MasterBarXml.Should().Contain("<MasterBar><Time>4/4</Time><FreeTime /><Bars>1</Bars></MasterBar>");
         VoiceMetadataOf(score.Tracks[0].Measures[0].Voices[0]).Xml.Should().Contain("<Voice id=\"10\"><Beats>100</Beats></Voice>");
-        score.Tracks[0].Measures[0].Beats[0].Xml.Should().Contain("<Beat id=\"100\"><Rhythm ref=\"1000\" /><FreeText><![CDATA[Dist.]]></FreeText><Notes>200</Notes></Beat>");
-        score.Tracks[0].Measures[0].Beats[0].SourceRhythm!.Xml.Should().Contain("<Rhythm id=\"1000\"><NoteValue>Eighth</NoteValue><AugmentationDot count=\"1\" /></Rhythm>");
+        BeatMetadataOf(score.Tracks[0].Measures[0].Beats[0]).Xml.Should().Contain("<Beat id=\"100\"><Rhythm ref=\"1000\" /><FreeText><![CDATA[Dist.]]></FreeText><Notes>200</Notes></Beat>");
+        BeatMetadataOf(score.Tracks[0].Measures[0].Beats[0]).SourceRhythm!.Xml.Should().Contain("<Rhythm id=\"1000\"><NoteValue>Eighth</NoteValue><AugmentationDot count=\"1\" /></Rhythm>");
         fromJson!.GetGuitarPro().Should().BeNull();
         fromJson.Tracks[0].GetGuitarPro().Should().BeNull();
         fromJson.Tracks[0].Measures[0].GetGuitarPro().Should().BeNull();
         fromJson.Tracks[0].Measures[0].Voices[0].GetGuitarPro().Should().BeNull();
-        fromJson.Tracks[0].Measures[0].Beats[0].Xml.Should().Contain("<Beat id=\"100\"><Rhythm ref=\"1000\" /><FreeText><![CDATA[Dist.]]></FreeText><Notes>200</Notes></Beat>");
-        fromJson.Tracks[0].Measures[0].Beats[0].SourceRhythm!.Xml.Should().Contain("<Rhythm id=\"1000\"><NoteValue>Eighth</NoteValue><AugmentationDot count=\"1\" /></Rhythm>");
+        fromJson.Tracks[0].Measures[0].Beats[0].GetGuitarPro().Should().BeNull();
+        fromJson.Tracks[0].Measures[0].Beats[0].Notes[0].GetGuitarPro().Should().BeNull();
         fromJson.ReattachGuitarProExtensionsFrom(score);
 
         var xml = await RoundTripThroughWriteText(fromJson);

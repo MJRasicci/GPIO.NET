@@ -166,6 +166,70 @@ public static class GuitarProModelExtensions
         return extension;
     }
 
+    public static GpBeatExtension? GetGuitarPro(this BeatModel beat)
+    {
+        ArgumentNullException.ThrowIfNull(beat);
+
+        return beat.GetExtension<GpBeatExtension>();
+    }
+
+    public static GpBeatExtension GetRequiredGuitarPro(this BeatModel beat)
+    {
+        ArgumentNullException.ThrowIfNull(beat);
+
+        return beat.GetRequiredExtension<GpBeatExtension>();
+    }
+
+    public static GpBeatExtension GetOrCreateGuitarPro(this BeatModel beat)
+    {
+        ArgumentNullException.ThrowIfNull(beat);
+
+        var extension = beat.GetGuitarPro();
+        if (extension is not null)
+        {
+            return extension;
+        }
+
+        extension = new GpBeatExtension
+        {
+            Metadata = new GpBeatMetadata()
+        };
+        beat.SetExtension(extension);
+        return extension;
+    }
+
+    public static GpNoteExtension? GetGuitarPro(this NoteModel note)
+    {
+        ArgumentNullException.ThrowIfNull(note);
+
+        return note.GetExtension<GpNoteExtension>();
+    }
+
+    public static GpNoteExtension GetRequiredGuitarPro(this NoteModel note)
+    {
+        ArgumentNullException.ThrowIfNull(note);
+
+        return note.GetRequiredExtension<GpNoteExtension>();
+    }
+
+    public static GpNoteExtension GetOrCreateGuitarPro(this NoteModel note)
+    {
+        ArgumentNullException.ThrowIfNull(note);
+
+        var extension = note.GetGuitarPro();
+        if (extension is not null)
+        {
+            return extension;
+        }
+
+        extension = new GpNoteExtension
+        {
+            Metadata = new GpNoteMetadata()
+        };
+        note.SetExtension(extension);
+        return extension;
+    }
+
     public static void ReattachGuitarProExtensionsFrom(this GuitarProScore target, GuitarProScore source)
     {
         ArgumentNullException.ThrowIfNull(target);
@@ -264,7 +328,109 @@ public static class GuitarProModelExtensions
                 {
                     Metadata = voiceExtension.Metadata
                 });
+
+                ReattachBeatExtensions(targetVoice.Beats, sourceVoice.Beats);
+            }
+
+            ReattachBeatExtensions(targetMeasure.Beats, sourceMeasure.Beats);
+
+            foreach (var targetStaff in targetMeasure.AdditionalStaffBars)
+            {
+                if (!sourceStaffByIndex.TryGetValue(targetStaff.StaffIndex, out var sourceStaff))
+                {
+                    continue;
+                }
+
+                ReattachBeatExtensions(targetStaff.Beats, sourceStaff.Beats);
+
+                var sourceStaffVoicesByIndex = sourceStaff.Voices
+                    .ToDictionary(voice => voice.VoiceIndex);
+                foreach (var targetStaffVoice in targetStaff.Voices)
+                {
+                    if (!sourceStaffVoicesByIndex.TryGetValue(targetStaffVoice.VoiceIndex, out var sourceStaffVoice))
+                    {
+                        continue;
+                    }
+
+                    ReattachBeatExtensions(targetStaffVoice.Beats, sourceStaffVoice.Beats);
+                }
             }
         }
+    }
+
+    private static void ReattachBeatExtensions(IReadOnlyList<BeatModel> targetBeats, IReadOnlyList<BeatModel> sourceBeats)
+    {
+        var sourceBeatsById = BuildItemsByIdQueue(sourceBeats, static beat => beat.Id);
+        foreach (var targetBeat in targetBeats)
+        {
+            if (!TryDequeueMatchingItem(sourceBeatsById, targetBeat.Id, out var sourceBeat))
+            {
+                continue;
+            }
+
+            var beatExtension = sourceBeat.GetGuitarPro();
+            if (beatExtension is not null)
+            {
+                targetBeat.SetExtension(new GpBeatExtension
+                {
+                    Metadata = beatExtension.Metadata
+                });
+            }
+
+            var sourceNotesById = BuildItemsByIdQueue(sourceBeat.Notes, static note => note.Id);
+            foreach (var targetNote in targetBeat.Notes)
+            {
+                if (!TryDequeueMatchingItem(sourceNotesById, targetNote.Id, out var sourceNote))
+                {
+                    continue;
+                }
+
+                var noteExtension = sourceNote.GetGuitarPro();
+                if (noteExtension is null)
+                {
+                    continue;
+                }
+
+                targetNote.SetExtension(new GpNoteExtension
+                {
+                    Metadata = noteExtension.Metadata
+                });
+            }
+        }
+    }
+
+    private static Dictionary<int, Queue<TItem>> BuildItemsByIdQueue<TItem>(
+        IReadOnlyList<TItem> items,
+        Func<TItem, int> idSelector)
+    {
+        var itemsById = new Dictionary<int, Queue<TItem>>();
+        foreach (var item in items)
+        {
+            var id = idSelector(item);
+            if (!itemsById.TryGetValue(id, out var queue))
+            {
+                queue = new Queue<TItem>();
+                itemsById[id] = queue;
+            }
+
+            queue.Enqueue(item);
+        }
+
+        return itemsById;
+    }
+
+    private static bool TryDequeueMatchingItem<TItem>(
+        Dictionary<int, Queue<TItem>> itemsById,
+        int id,
+        out TItem item)
+    {
+        if (itemsById.TryGetValue(id, out var queue) && queue.Count > 0)
+        {
+            item = queue.Dequeue();
+            return true;
+        }
+
+        item = default!;
+        return false;
     }
 }

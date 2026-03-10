@@ -7,7 +7,6 @@ using System.Text.Json.Serialization;
 [JsonSourceGenerationOptions(WriteIndented = true, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(GuitarProScore))]
 [JsonSerializable(typeof(PitchValueModel))]
-[JsonSerializable(typeof(RhythmShapeModel))]
 [JsonSerializable(typeof(TupletRatioModel))]
 [JsonSerializable(typeof(WriteDiagnosticEntry[]))]
 [JsonSerializable(typeof(BatchFailure))]

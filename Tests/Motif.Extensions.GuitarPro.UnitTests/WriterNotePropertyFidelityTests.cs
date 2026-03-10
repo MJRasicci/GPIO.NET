@@ -10,6 +10,9 @@ using System.Xml.Linq;
 
 public class WriterNotePropertyFidelityTests
 {
+    private static GpNoteMetadata NoteMetadataOf(NoteModel note)
+        => note.GetRequiredGuitarPro().Metadata;
+
     private static string BuildGpif(string noteBody)
     {
         return $"""
@@ -60,6 +63,7 @@ public class WriterNotePropertyFidelityTests
         });
 
         fromJson.Should().NotBeNull();
+        fromJson!.ReattachGuitarProExtensionsFrom(score);
         return await RoundTripThroughWrite(fromJson!);
     }
 
@@ -155,8 +159,8 @@ public class WriterNotePropertyFidelityTests
         var note = score.Tracks[0].Measures[0].Beats[0].Notes[0];
 
         note.MidiPitch.Should().Be(36);
-        note.SourceMidiPitch.Should().Be(36);
-        note.SourceTransposedMidiPitch.Should().Be(36);
+        NoteMetadataOf(note).SourceMidiPitch.Should().Be(36);
+        NoteMetadataOf(note).SourceTransposedMidiPitch.Should().Be(36);
         note.ConcertPitch.Should().NotBeNull();
         note.ConcertPitch!.Step.Should().Be("C");
         note.ConcertPitch.Octave.Should().Be(-1);
@@ -209,8 +213,6 @@ public class WriterNotePropertyFidelityTests
                                         {
                                             Id = 200,
                                             MidiPitch = 38,
-                                            SourceMidiPitch = 36,
-                                            SourceTransposedMidiPitch = 36,
                                             ConcertPitch = new PitchValueModel
                                             {
                                                 Step = "C",
@@ -233,6 +235,8 @@ public class WriterNotePropertyFidelityTests
                 }
             ]
         };
+        score.Tracks[0].Measures[0].Beats[0].Notes[0].GetOrCreateGuitarPro().Metadata.SourceMidiPitch = 36;
+        score.Tracks[0].Measures[0].Beats[0].Notes[0].GetOrCreateGuitarPro().Metadata.SourceTransposedMidiPitch = 36;
 
         var roundTrip = await RoundTripThroughWrite(score);
         var outputProperties = roundTrip.Root!

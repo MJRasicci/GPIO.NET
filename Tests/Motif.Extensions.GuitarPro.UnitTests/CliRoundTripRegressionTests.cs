@@ -37,7 +37,9 @@ public class CliRoundTripRegressionTests
                 repoRoot);
 
             var json = await File.ReadAllTextAsync(jsonPath, TestContext.Current.CancellationToken);
-            json.Should().Contain("\"PrimaryTuplet\"");
+            json.Should().NotContain("\"PrimaryTuplet\"");
+            json.Should().NotContain("\"SourceRhythm\"");
+            json.Should().NotContain("\"SourceRhythmId\"");
 
             var gpifText = Encoding.UTF8.GetString(await ReadScoreGpifBytesAsync(outputGp, TestContext.Current.CancellationToken));
             var doc = XDocument.Parse(gpifText);

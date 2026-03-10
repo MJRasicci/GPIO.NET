@@ -2,10 +2,15 @@ namespace Motif.Extensions.GuitarPro.UnitTests;
 
 using FluentAssertions;
 using Motif.Extensions.GuitarPro.Implementation;
+using Motif.Extensions.GuitarPro.Models;
+using Motif.Models;
 using System.Text;
 
 public class RhythmAndTieMappingTests
 {
+    private static GpRhythmShapeMetadata SourceRhythmOf(BeatModel beat)
+        => beat.GetRequiredGuitarPro().Metadata.SourceRhythm!;
+
     [Fact]
     public async Task Mapper_applies_augmentation_dots_and_tuplets_to_duration()
     {
@@ -81,8 +86,8 @@ public class RhythmAndTieMappingTests
 
         raw.RhythmsById[1000].AugmentationDots.Should().Be(2);
         raw.RhythmsById[1000].AugmentationDotCounts.Should().Equal(2);
-        score.Tracks[0].Measures[0].Beats[0].SourceRhythm!.AugmentationDots.Should().Be(2);
-        score.Tracks[0].Measures[0].Beats[0].SourceRhythm!.AugmentationDotCounts.Should().Equal(2);
+        SourceRhythmOf(score.Tracks[0].Measures[0].Beats[0]).AugmentationDots.Should().Be(2);
+        SourceRhythmOf(score.Tracks[0].Measures[0].Beats[0]).AugmentationDotCounts.Should().Equal(2);
         score.Tracks[0].Measures[0].Beats[0].Duration.Should().Be(0.4375m);
     }
 
