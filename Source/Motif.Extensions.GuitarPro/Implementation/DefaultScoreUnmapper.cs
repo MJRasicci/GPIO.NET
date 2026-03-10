@@ -308,7 +308,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                             Accent = note.Articulation.Accent,
                                             AntiAccent = note.Articulation.AntiAccent,
                                             AntiAccentValue = note.Articulation.AntiAccentValue,
-                                            InstrumentArticulation = note.Articulation.InstrumentArticulation,
+                                            InstrumentArticulation = noteMetadata.InstrumentArticulation,
                                             PalmMuted = ResolveNotePalmMuted(note, beat),
                                             Muted = note.Articulation.Muted,
                                             Tapped = note.Articulation.Tapped,

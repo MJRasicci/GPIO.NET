@@ -521,7 +521,6 @@ public sealed class DefaultScoreMapper : IScoreMapper
                             Accent = n.Articulation.Accent,
                             AntiAccent = n.Articulation.AntiAccent,
                             AntiAccentValue = n.Articulation.AntiAccentValue,
-                            InstrumentArticulation = n.Articulation.InstrumentArticulation,
                             PalmMuted = n.Articulation.PalmMuted,
                             Muted = n.Articulation.Muted,
                             Tapped = n.Articulation.Tapped,
@@ -546,6 +545,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
                             SourceFret = n.SourceFret,
                             SourceStringNumber = n.SourceStringNumber,
                             SourceSlideFlags = n.Articulation.SlideFlags,
+                            InstrumentArticulation = n.Articulation.InstrumentArticulation,
                             XPropertiesXml = n.XPropertiesXml
                         }
                     });

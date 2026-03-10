@@ -140,5 +140,7 @@ public sealed class GpNoteMetadata
 
     public int? SourceSlideFlags { get; set; }
 
+    public int? InstrumentArticulation { get; set; }
+
     public string XPropertiesXml { get; set; } = string.Empty;
 }

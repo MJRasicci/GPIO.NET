@@ -1,6 +1,7 @@
 namespace Motif.Extensions.GuitarPro.UnitTests;
 
 using FluentAssertions;
+using Motif.Extensions.GuitarPro;
 using Motif.Extensions.GuitarPro.Implementation;
 using System.Text;
 
@@ -77,6 +78,6 @@ public class ArticulationMappingTests
         note.Articulation.TieDestination.Should().BeFalse();
         note.Articulation.Trill.Should().Be(7);
         note.Articulation.Accent.Should().Be(2);
-        note.Articulation.InstrumentArticulation.Should().Be(5);
+        note.GetRequiredGuitarPro().Metadata.InstrumentArticulation.Should().Be(5);
     }
 }

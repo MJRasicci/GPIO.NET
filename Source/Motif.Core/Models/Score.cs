@@ -255,8 +255,6 @@ public sealed class NoteArticulationModel
 
     public string AntiAccentValue { get; set; } = string.Empty;
 
-    public int? InstrumentArticulation { get; set; }
-
     public bool PalmMuted { get; set; }
 
     public bool Muted { get; set; }
