@@ -82,6 +82,20 @@ public sealed class GpBeatMetadata
 
     public GpRhythmShapeMetadata? SourceRhythm { get; set; }
 
+    public string UserTransposedPitchStemOrientation { get; set; } = string.Empty;
+
+    public bool HasTransposedPitchStemOrientationUserDefinedElement { get; set; }
+
+    public string LyricsXml { get; set; } = string.Empty;
+
+    public string BrushDurationXPropertyId { get; set; } = string.Empty;
+
+    public bool HasExplicitBrushDurationXProperty { get; set; }
+
+    public bool WhammyUsesElement { get; set; }
+
+    public bool WhammyExtendUsesElement { get; set; }
+
     public string XPropertiesXml { get; set; } = string.Empty;
 }
 

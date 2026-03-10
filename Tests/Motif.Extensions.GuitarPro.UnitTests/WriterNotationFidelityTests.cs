@@ -156,9 +156,9 @@ public class WriterNotationFidelityTests
         beat.Ottavia.Should().Be("8va");
         beat.LegatoOrigin.Should().BeTrue();
         beat.LegatoDestination.Should().BeFalse();
-        beat.LyricsXml.Should().Contain("<Lyrics>");
-        beat.WhammyUsesElement.Should().BeTrue();
-        beat.WhammyExtendUsesElement.Should().BeTrue();
+        BeatMetadataOf(beat).LyricsXml.Should().Contain("<Lyrics>");
+        BeatMetadataOf(beat).WhammyUsesElement.Should().BeTrue();
+        BeatMetadataOf(beat).WhammyExtendUsesElement.Should().BeTrue();
         beat.WhammyBar.Should().NotBeNull();
         beat.XProperties.Should().Contain("687931393", 234);
         NoteMetadataOf(note).SourceFret.Should().Be(5);
@@ -230,7 +230,6 @@ public class WriterNotationFidelityTests
                                     Id = beat.Id,
                                     Duration = 0.25m,
                                     BrushDurationTicks = 120,
-                                    BrushDurationXPropertyId = beat.BrushDurationXPropertyId,
                                     XProperties = beat.XProperties,
                                     Notes =
                                     [
@@ -252,6 +251,7 @@ public class WriterNotationFidelityTests
                 }
             ]
         };
+        score.Tracks[0].Measures[0].Beats[0].GetOrCreateGuitarPro().Metadata.BrushDurationXPropertyId = BeatMetadataOf(beat).BrushDurationXPropertyId;
         score.Tracks[0].Measures[0].Beats[0].GetOrCreateGuitarPro().Metadata.XPropertiesXml = BeatMetadataOf(beat).XPropertiesXml;
         score.Tracks[0].Measures[0].Beats[0].Notes[0].GetOrCreateGuitarPro().Metadata.XPropertiesXml = NoteMetadataOf(note).XPropertiesXml;
 

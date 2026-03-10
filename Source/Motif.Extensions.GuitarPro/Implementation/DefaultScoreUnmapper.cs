@@ -240,17 +240,18 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 beatXProperties.Remove("687935489");
                             }
 
+                            var beatMetadata = GetBeatMetadata(beat);
                             if (beat.BrushDurationTicks.HasValue)
                             {
-                                var shouldWriteBrushDurationXProperty = beat.HasExplicitBrushDurationXProperty
+                                var shouldWriteBrushDurationXProperty = beatMetadata.HasExplicitBrushDurationXProperty
                                     || beat.XProperties.ContainsKey("687931393")
                                     || beat.XProperties.ContainsKey("687935489")
                                     || beat.BrushDurationTicks.Value != 60;
 
                                 if (shouldWriteBrushDurationXProperty)
                                 {
-                                    var brushDurationXPropertyId = !string.IsNullOrWhiteSpace(beat.BrushDurationXPropertyId)
-                                        ? beat.BrushDurationXPropertyId
+                                    var brushDurationXPropertyId = !string.IsNullOrWhiteSpace(beatMetadata.BrushDurationXPropertyId)
+                                        ? beatMetadata.BrushDurationXPropertyId
                                         : beat.Arpeggio
                                             ? "687931393"
                                             : "687935489";
@@ -362,7 +363,6 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 rhythmCandidate.SecondaryTuplet?.Numerator,
                                 rhythmCandidate.SecondaryTuplet?.Denominator);
                             int currentRhythmId;
-                            var beatMetadata = GetBeatMetadata(beat);
                             if (beatMetadata.SourceRhythmId >= 0)
                             {
                                 currentRhythmId = AllocateId(
@@ -397,8 +397,8 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 GraceType = beat.GraceType,
                                 Dynamic = beat.Dynamic,
                                 TransposedPitchStemOrientation = beat.TransposedPitchStemOrientation,
-                                UserTransposedPitchStemOrientation = beat.UserTransposedPitchStemOrientation,
-                                HasTransposedPitchStemOrientationUserDefinedElement = beat.HasTransposedPitchStemOrientationUserDefinedElement,
+                                UserTransposedPitchStemOrientation = beatMetadata.UserTransposedPitchStemOrientation,
+                                HasTransposedPitchStemOrientationUserDefinedElement = beatMetadata.HasTransposedPitchStemOrientationUserDefinedElement,
                                 ConcertPitchStemOrientation = beat.ConcertPitchStemOrientation,
                                 Wah = beat.Wah,
                                 Golpe = beat.Golpe,
@@ -409,7 +409,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 Ottavia = beat.Ottavia,
                                 LegatoOrigin = beat.LegatoOrigin,
                                 LegatoDestination = beat.LegatoDestination,
-                                LyricsXml = beat.LyricsXml,
+                                LyricsXml = beatMetadata.LyricsXml,
                                 PickStrokeDirection = beat.PickStrokeDirection,
                                 VibratoWithTremBarStrength = beat.VibratoWithTremBarStrength,
                                 Slapped = beat.Slapped,
@@ -418,8 +418,8 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 BrushIsUp = beat.BrushIsUp,
                                 Arpeggio = beat.Arpeggio,
                                 BrushDurationTicks = beat.BrushDurationTicks,
-                                BrushDurationXPropertyId = beat.BrushDurationXPropertyId,
-                                HasExplicitBrushDurationXProperty = beat.HasExplicitBrushDurationXProperty,
+                                BrushDurationXPropertyId = beatMetadata.BrushDurationXPropertyId,
+                                HasExplicitBrushDurationXProperty = beatMetadata.HasExplicitBrushDurationXProperty,
                                 Rasgueado = beat.Rasgueado,
                                 RasgueadoPattern = beat.RasgueadoPattern,
                                 DeadSlapped = beat.DeadSlapped,
@@ -436,8 +436,8 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 WhammyBarMiddleOffset1 = encodedWhammy.MiddleOffset1,
                                 WhammyBarMiddleOffset2 = encodedWhammy.MiddleOffset2,
                                 WhammyBarDestinationOffset = encodedWhammy.DestinationOffset,
-                                WhammyUsesElement = beat.WhammyUsesElement,
-                                WhammyExtendUsesElement = beat.WhammyExtendUsesElement,
+                                WhammyUsesElement = beatMetadata.WhammyUsesElement,
+                                WhammyExtendUsesElement = beatMetadata.WhammyExtendUsesElement,
                                 Properties = beat.Properties.ToDictionary(kv => kv.Key, kv => kv.Value),
                                 XProperties = beatXProperties,
                                 XPropertiesXml = beatMetadata.XPropertiesXml
@@ -797,9 +797,10 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                 && !beatXProperties.ContainsKey("687935489");
         }
 
-        if (!string.IsNullOrWhiteSpace(beat.BrushDurationXPropertyId))
+        var beatMetadata = GetBeatMetadata(beat);
+        if (!string.IsNullOrWhiteSpace(beatMetadata.BrushDurationXPropertyId))
         {
-            return beatXProperties.TryGetValue(beat.BrushDurationXPropertyId, out var value)
+            return beatXProperties.TryGetValue(beatMetadata.BrushDurationXPropertyId, out var value)
                 && value == beat.BrushDurationTicks.Value;
         }
 

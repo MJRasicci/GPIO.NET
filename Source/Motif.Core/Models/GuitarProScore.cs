@@ -138,10 +138,6 @@ public sealed class BeatModel : ExtensibleModel
 
     public string TransposedPitchStemOrientation { get; set; } = string.Empty;
 
-    public string UserTransposedPitchStemOrientation { get; set; } = string.Empty;
-
-    public bool HasTransposedPitchStemOrientationUserDefinedElement { get; set; }
-
     public string ConcertPitchStemOrientation { get; set; } = string.Empty;
 
     public string Wah { get; set; } = string.Empty;
@@ -162,8 +158,6 @@ public sealed class BeatModel : ExtensibleModel
 
     public bool? LegatoDestination { get; set; }
 
-    public string LyricsXml { get; set; } = string.Empty;
-
     public string PickStrokeDirection { get; set; } = string.Empty;
 
     public string VibratoWithTremBarStrength { get; set; } = string.Empty;
@@ -182,10 +176,6 @@ public sealed class BeatModel : ExtensibleModel
 
     public int? BrushDurationTicks { get; set; }
 
-    public string BrushDurationXPropertyId { get; set; } = string.Empty;
-
-    public bool HasExplicitBrushDurationXProperty { get; set; }
-
     public bool Rasgueado { get; set; }
 
     public string RasgueadoPattern { get; set; } = string.Empty;
@@ -201,10 +191,6 @@ public sealed class BeatModel : ExtensibleModel
     public string FreeText { get; set; } = string.Empty;
 
     public WhammyBarModel? WhammyBar { get; set; }
-
-    public bool WhammyUsesElement { get; set; }
-
-    public bool WhammyExtendUsesElement { get; set; }
 
     public IReadOnlyDictionary<string, string> Properties { get; set; } = new Dictionary<string, string>();
 

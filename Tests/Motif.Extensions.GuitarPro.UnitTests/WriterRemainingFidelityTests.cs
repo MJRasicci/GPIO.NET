@@ -442,7 +442,7 @@ public class WriterRemainingFidelityTests
 
         beat.Brush.Should().BeTrue();
         beat.BrushDurationTicks.Should().Be(60);
-        beat.HasExplicitBrushDurationXProperty.Should().BeFalse();
+        BeatMetadataOf(beat).HasExplicitBrushDurationXProperty.Should().BeFalse();
 
         var roundTrip = await RoundTripThroughJsonAndWrite(gpif);
         var outputBeat = roundTrip.Root!.Element("Beats")!.Element("Beat")!;

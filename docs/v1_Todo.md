@@ -323,10 +323,11 @@ A property belongs in a format extension if it represents:
 * [x] `BeatModel` and `NoteModel` raw GP XML/source-rhythm/source-pitch/source-string/source-fret fidelity now lives behind `GpBeatExtension` and `GpNoteExtension` instead of direct Core-owned properties
 * [x] GP rhythm-shape preservation now rides on `GpBeatExtension` metadata instead of a separate Core-owned `RhythmShapeModel`
 * [x] `BeatModel` no longer carries GP voice property/direction-tag payload; that fidelity now lives only on `GpVoiceExtension`
+* [x] `BeatModel` no longer carries GP beat-shape fidelity flags such as raw lyrics XML, user stem-orientation element preservation, brush-duration XProperty identity, or whammy element-form preservation; that state now lives on `GpBeatExtension`
 * [x] Core JSON round-trips intentionally drop GP score/track extensions, and the CLI now rehydrates them from `--source-gp` for verified no-op writes
 * [x] GP-specific JSON/write-path tests now explicitly reattach source score/track/measure/staff/voice/beat/note extensions before asserting no-op GP fidelity
 * [x] The write fallback for scores built with `Measure.Beats` but no explicit `Measure.Voices` now synthesizes a default implicit voice instead of reading GP-only voice metadata from beats
-* [ ] The remaining Step 2 audit is behavioral/domain-focused rather than cache-focused: decide which surviving beat/note fields are true format-agnostic musical semantics versus GP-only notation/playback state
+* [ ] The remaining Step 2 audit is now mostly about surviving beat/note semantics such as wah/golpe/fadding/rasgueado/notation state: decide which of those belong in Core versus GP extensions
 * [ ] `GpStaffExtension` remains planned for the later `Track -> Staff -> StaffMeasure` hierarchy refactor rather than the current migration shape
 
 ## Acceptance Criteria
@@ -365,6 +366,7 @@ For edits that invalidate cached source fragments, define whether the system wil
 * [x] Measure/staff/voice raw XML caches and source IDs no longer live on direct Core properties; they now ride on `GpMeasureExtension`, `GpMeasureStaffExtension`, and `GpVoiceExtension`
 * [x] Beat/note raw XML caches, source rhythm/note IDs, and note source pitch/string/fret fidelity no longer live on direct Core properties; they now ride on `GpBeatExtension` and `GpNoteExtension`
 * [x] GP voice property/direction-tag fidelity is no longer mirrored onto `BeatModel`; voice-less write fallbacks synthesize empty implicit voice metadata instead
+* [x] Beat-level raw lyrics XML and GPIF element-shape flags (user stem-orientation element preservation, brush-duration XProperty identity, whammy element-form preservation) no longer live on direct Core properties; they now ride on `GpBeatExtension`
 * [ ] The next raw-cache task is to codify invalidation/regeneration/defaulting rules for surviving GP fidelity after structural edits, rather than moving more source caches off Core
 
 ## Acceptance Criteria

@@ -1,13 +1,18 @@
 namespace Motif.Extensions.GuitarPro.UnitTests;
 
 using FluentAssertions;
+using Motif.Extensions.GuitarPro;
 using Motif.Extensions.GuitarPro.Implementation;
+using Motif.Extensions.GuitarPro.Models;
 using Motif.Models;
 using Motif.Extensions.GuitarPro.Models.Raw;
 using System.Text.Json;
 
 public class BeatStemOrientationTests
 {
+    private static GpBeatMetadata BeatMetadataOf(BeatModel beat)
+        => beat.GetRequiredGuitarPro().Metadata;
+
     [Fact]
     public async Task Mapper_and_unmapper_preserve_stem_orientation_fields_through_json_round_trip()
     {
@@ -91,7 +96,7 @@ public class BeatStemOrientationTests
 
         var beat = score.Tracks[0].Measures[0].Beats.Single();
         beat.TransposedPitchStemOrientation.Should().Be("Undefined");
-        beat.UserTransposedPitchStemOrientation.Should().Be("Downward");
+        BeatMetadataOf(beat).UserTransposedPitchStemOrientation.Should().Be("Downward");
         beat.ConcertPitchStemOrientation.Should().Be("Upward");
 
         var json = score.ToJson(indented: false);
@@ -101,6 +106,7 @@ public class BeatStemOrientationTests
         });
 
         fromJson.Should().NotBeNull();
+        fromJson!.ReattachGuitarProExtensionsFrom(score);
 
         var unmapper = new DefaultScoreUnmapper();
         var result = await unmapper.UnmapAsync(fromJson!, TestContext.Current.CancellationToken);

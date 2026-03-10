@@ -1,13 +1,18 @@
 namespace Motif.Extensions.GuitarPro.UnitTests;
 
 using FluentAssertions;
+using Motif.Extensions.GuitarPro;
 using Motif.Extensions.GuitarPro.Implementation;
+using Motif.Extensions.GuitarPro.Models;
 using Motif.Models;
 using System.Text;
 using System.Xml.Linq;
 
 public class BeatEffectMappingTests
 {
+    private static GpBeatMetadata BeatMetadataOf(BeatModel beat)
+        => beat.GetRequiredGuitarPro().Metadata;
+
     private static string BuildGpif(string beatBody, string noteBody = "", string noteXProperties = "")
     {
         var notesRef = string.IsNullOrEmpty(noteBody) ? "" : "<Notes>200</Notes>";
@@ -292,7 +297,7 @@ public class BeatEffectMappingTests
         var score = await DeserializeAndMap(gpif);
         var beat = score.Tracks[0].Measures[0].Beats[0];
 
-        beat.HasTransposedPitchStemOrientationUserDefinedElement.Should().BeTrue();
+        BeatMetadataOf(beat).HasTransposedPitchStemOrientationUserDefinedElement.Should().BeTrue();
         beat.Wah.Should().Be("Open");
         beat.Golpe.Should().Be("Finger");
         beat.Fadding.Should().Be("FadeIn");
