@@ -1,6 +1,7 @@
 namespace Motif.Extensions.GuitarPro.UnitTests;
 
 using FluentAssertions;
+using Motif.Extensions.GuitarPro;
 using Motif.Extensions.GuitarPro.Implementation;
 using Motif.Extensions.GuitarPro.Models;
 using Motif.Models;
@@ -16,6 +17,9 @@ public class MetadataMappingTests
 
     private static TrackMetadata TrackMetadataOf(TrackModel track)
         => track.GetRequiredGuitarPro().Metadata;
+
+    private static GpVoiceMetadata VoiceMetadataOf(MeasureVoiceModel voice)
+        => voice.GetRequiredGuitarPro().Metadata;
 
     [Fact]
     public async Task Reader_maps_score_and_track_metadata_from_fixture()
@@ -59,6 +63,17 @@ public class MetadataMappingTests
     [Fact]
     public async Task Writer_round_trip_preserves_custom_score_and_track_metadata()
     {
+        var beat = new BeatModel
+        {
+            Id = 1,
+            Duration = 0.25m
+        };
+        var voice = new MeasureVoiceModel
+        {
+            VoiceIndex = 0,
+            Beats = [beat]
+        };
+
         var score = new GuitarProScore
         {
             Title = "T",
@@ -84,7 +99,8 @@ public class MetadataMappingTests
                             XProperties = new Dictionary<string,int> { ["1124204545"] = 2 },
                             Clef = "G2",
                             BarProperties = new Dictionary<string,string> { ["BarDisplay"] = "Both" },
-                            Beats = [ new BeatModel { Id = 1, Duration = 0.25m, VoiceProperties = new Dictionary<string,string>{{"PartedSlur","true"}}, VoiceDirectionTags = new[]{"Coda"} } ]
+                            Voices = [ voice ],
+                            Beats = [ beat ]
                         }
                     ]
                 }
@@ -267,6 +283,9 @@ public class MetadataMappingTests
                 }
             ]
         };
+        voice.GetOrCreateGuitarPro().Metadata.Properties =
+            new Dictionary<string, string> { ["PartedSlur"] = "true" };
+        voice.GetRequiredGuitarPro().Metadata.DirectionTags = ["Coda"];
 
         var outFile = Path.Combine(Path.GetTempPath(), $"gpio-meta-{Guid.NewGuid():N}.gp");
         try
@@ -355,8 +374,8 @@ public class MetadataMappingTests
             measure.DirectionProperties.Should().ContainKey("Fine");
             measure.Jump.Should().Be("DaCapo");
             measure.Target.Should().Be("Segno");
-            measure.Beats[0].VoiceProperties.Should().ContainKey("PartedSlur");
-            measure.Beats[0].VoiceDirectionTags.Should().Contain("Coda");
+            VoiceMetadataOf(measure.Voices[0]).Properties.Should().ContainKey("PartedSlur");
+            VoiceMetadataOf(measure.Voices[0]).DirectionTags.Should().Contain("Coda");
         }
         finally
         {

@@ -1180,13 +1180,6 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             return Array.Empty<MeasureVoiceModel>();
         }
 
-        var fallbackProperties = measureBeats.Count > 0
-            ? measureBeats[0].VoiceProperties
-            : new Dictionary<string, string>();
-        var fallbackDirectionTags = measureBeats.Count > 0
-            ? measureBeats[0].VoiceDirectionTags
-            : Array.Empty<string>();
-
         var voice = new MeasureVoiceModel
         {
             VoiceIndex = 0,
@@ -1197,8 +1190,8 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
             Metadata = new GpVoiceMetadata
             {
                 SourceVoiceId = 0,
-                Properties = fallbackProperties.ToDictionary(kv => kv.Key, kv => kv.Value),
-                DirectionTags = fallbackDirectionTags.ToArray()
+                Properties = new Dictionary<string, string>(),
+                DirectionTags = Array.Empty<string>()
             }
         });
         return [voice];

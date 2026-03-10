@@ -161,8 +161,6 @@
           "Beats": [
             {
               "Id": 0,
-              "VoiceProperties": {},
-              "VoiceDirectionTags": [],
               "Offset": 0,
               "Duration": 0.0625,
               "Notes": [
@@ -199,8 +197,6 @@
             },
             {
               "Id": 1,
-              "VoiceProperties": {},
-              "VoiceDirectionTags": [],
               "Offset": 0.0625,
               "Duration": 0.0625,
               "Notes": [
@@ -237,8 +233,6 @@
             },
             {
               "Id": 2,
-              "VoiceProperties": {},
-              "VoiceDirectionTags": [],
               "Offset": 0.1250,
               "Duration": 0.0625,
               "Notes": [
@@ -275,8 +269,6 @@
             },
             {
               "Id": 3,
-              "VoiceProperties": {},
-              "VoiceDirectionTags": [],
               "Offset": 0.1875,
               "Duration": 0.0625,
               "Notes": [
@@ -313,8 +305,6 @@
             },
             {
               "Id": 4,
-              "VoiceProperties": {},
-              "VoiceDirectionTags": [],
               "Offset": 0.2500,
               "Duration": 0.0625,
               "Notes": [
@@ -351,8 +341,6 @@
             },
             {
               "Id": 1,
-              "VoiceProperties": {},
-              "VoiceDirectionTags": [],
               "Offset": 0.3125,
               "Duration": 0.0625,
               "Notes": [
@@ -389,8 +377,6 @@
             },
             {
               "Id": 0,
-              "VoiceProperties": {},
-              "VoiceDirectionTags": [],
               "Offset": 0.3750,
               "Duration": 0.0625,
               "Notes": [
@@ -427,8 +413,6 @@
             },
             {
               "Id": 5,
-              "VoiceProperties": {},
-              "VoiceDirectionTags": [],
               "Offset": 0.4375,
               "Duration": 0.1875,
               "Notes": [
@@ -465,8 +449,6 @@
             },
             {
               "Id": 6,
-              "VoiceProperties": {},
-              "VoiceDirectionTags": [],
               "Offset": 0.6250,
               "Duration": 0.125,
               "Notes": [
@@ -503,8 +485,6 @@
             },
             {
               "Id": 7,
-              "VoiceProperties": {},
-              "VoiceDirectionTags": [],
               "Offset": 0.7500,
               "Duration": 0.125,
               "Notes": [],
@@ -512,8 +492,6 @@
             },
             {
               "Id": 8,
-              "VoiceProperties": {},
-              "VoiceDirectionTags": [],
               "Offset": 0.8750,
               "Duration": 0.0625,
               "Notes": [
@@ -577,8 +555,6 @@
             },
             {
               "Id": 9,
-              "VoiceProperties": {},
-              "VoiceDirectionTags": [],
               "Offset": 0.9375,
               "Duration": 0.0625,
               "Notes": [

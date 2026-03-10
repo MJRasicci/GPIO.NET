@@ -33,7 +33,6 @@ public class MultiVoiceMappingTests
         {
             Id = 1,
             Duration = 0.25m,
-            VoiceProperties = new Dictionary<string, string> { ["PartedSlur"] = "true" },
             Notes =
             [
                 new NoteModel
@@ -48,7 +47,6 @@ public class MultiVoiceMappingTests
         {
             Id = 2,
             Duration = 0.5m,
-            VoiceDirectionTags = ["Coda"],
             Notes =
             [
                 new NoteModel

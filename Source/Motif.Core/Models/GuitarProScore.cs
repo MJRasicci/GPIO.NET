@@ -210,10 +210,6 @@ public sealed class BeatModel : ExtensibleModel
 
     public IReadOnlyDictionary<string, int> XProperties { get; set; } = new Dictionary<string, int>();
 
-    public IReadOnlyDictionary<string, string> VoiceProperties { get; set; } = new Dictionary<string, string>();
-
-    public IReadOnlyList<string> VoiceDirectionTags { get; set; } = Array.Empty<string>();
-
     public decimal Offset { get; set; }
 
     public decimal Duration { get; set; }

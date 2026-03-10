@@ -464,8 +464,6 @@ public sealed class DefaultScoreMapper : IScoreMapper
     private static IReadOnlyList<BeatModel> MapVoiceBeats(GpifDocument source, GpifTrack track, GpifVoice voice, bool isStringedTrack)
     {
         var beatRefs = ReferenceListParser.SplitRefs(voice.BeatsReferenceList);
-        var voiceProps = voice.Properties.ToDictionary(kv => kv.Key, kv => kv.Value);
-        var voiceDirTags = voice.DirectionTags.ToArray();
         var beats = new List<BeatModel>(beatRefs.Count);
 
         decimal offset = 0;
@@ -602,8 +600,6 @@ public sealed class DefaultScoreMapper : IScoreMapper
                 WhammyExtendUsesElement = beat.WhammyExtendUsesElement,
                 Properties = beat.Properties.ToDictionary(kv => kv.Key, kv => kv.Value),
                 XProperties = beat.XProperties.ToDictionary(kv => kv.Key, kv => kv.Value),
-                VoiceProperties = voiceProps,
-                VoiceDirectionTags = voiceDirTags,
                 Offset = offset,
                 Duration = duration,
                 Notes = notes,
