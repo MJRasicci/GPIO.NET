@@ -46,7 +46,9 @@ The following are explicitly out of scope for v1:
 - [x] Move the GP read/write pipeline out of `Motif.Core` and into `Motif.Extensions.GuitarPro`
 - [x] Move the GP-focused test suite into `Motif.Extensions.GuitarPro.UnitTests`
 - [x] Finish the namespace migration from `GPIO.NET` to `Motif*` across Core, Guitar Pro, and CLI code
-- [ ] Remaining rename work: public type/API cleanup, package metadata/package IDs, and any last documentation/badge references
+- [x] Rename the GP-coupled root Core domain type from `GuitarProScore` to `Score`
+- [x] Reorganize `Motif.Core` so the public extensibility contracts, helpers, and JSON serialization types live in clear subdirectories instead of the project root or a single monolithic source file
+- [ ] Remaining rename work: package metadata/package IDs and any last documentation/badge references
 
 ---
 
@@ -249,7 +251,8 @@ public interface IModelExtension
 * Backing storage may still be dictionary-based internally, but that should not define the public API
 * Writers/converters must be able to inspect available extensions dynamically at runtime
 * Implemented in Core on 2026-03-09 via `IExtensibleModel`, `IModelExtension`, `ExtensibleModel`, and typed helper APIs such as `GetRequiredExtension<T>()`
-* Current extensible Core nodes: `GuitarProScore`, `TrackModel`, `MeasureModel`, `MeasureStaffModel`, `MeasureVoiceModel`, `BeatModel`, and `NoteModel`
+* Reorganized on 2026-03-10 so the interfaces live under `Abstractions/`, the base model and helper extensions live in `Models/` and `Extensions/`, and the domain-model JSON helpers live under `Serialization/`
+* Current extensible Core nodes: `Score`, `TrackModel`, `MeasureModel`, `MeasureStaffModel`, `MeasureVoiceModel`, `BeatModel`, and `NoteModel`
 * Implemented in `Motif.Extensions.GuitarPro` on 2026-03-09/2026-03-10: importer now attaches concrete `GpScoreExtension`, `GpTrackExtension`, `GpMeasureExtension`, `GpMeasureStaffExtension`, `GpVoiceExtension`, `GpBeatExtension`, and `GpNoteExtension` instances, and the package exposes ergonomic `.GetGuitarPro()` helpers plus score-to-score extension reattachment helpers for GP-aware write paths
 * Next step: formalize extension invalidation/regeneration rules and carry the same lifecycle into the upcoming `Track -> Staff -> StaffMeasure` hierarchy refactor
 
@@ -317,7 +320,7 @@ A property belongs in a format extension if it represents:
 * [x] `GpScoreExtension` is implemented and attached during Guitar Pro import
 * [x] `GpTrackExtension` is implemented and attached during Guitar Pro import
 * [x] `GpMeasureExtension`, `GpMeasureStaffExtension`, `GpVoiceExtension`, `GpBeatExtension`, and `GpNoteExtension` are implemented and attached during Guitar Pro import
-* [x] `GuitarProScore.Metadata`, `GuitarProScore.MasterTrack`, and `TrackModel.Metadata` have been removed from the direct Core surface; that fidelity now lives behind GP extensions
+* [x] `Score.Metadata`, `Score.MasterTrack`, and `TrackModel.Metadata` have been removed from the direct Core surface; that fidelity now lives behind GP extensions
 * [x] The score/track/master-track GP metadata model types themselves now live in `Motif.Extensions.GuitarPro.Models` instead of `Motif.Core`
 * [x] `MeasureModel`, `MeasureStaffModel`, and `MeasureVoiceModel` raw GP XML/source-ID/property-bag fidelity now lives behind GP extensions instead of direct Core-owned properties
 * [x] `BeatModel` and `NoteModel` raw GP XML/source-rhythm/source-pitch/source-string/source-fret fidelity now lives behind `GpBeatExtension` and `GpNoteExtension` instead of direct Core-owned properties
@@ -401,8 +404,8 @@ Move all `.gp`, GPIF, archive, mapping, and GP-specific diagnostics concerns out
 
 These names are generic today, but the contracts are not.
 
-* [x] `IScoreMapper` — currently maps `GpifDocument -> GuitarProScore`; move to GuitarPro if it remains
-* [x] `IScoreUnmapper` — currently maps `GuitarProScore -> GpifDocument`; move to GuitarPro if it remains
+* [x] `IScoreMapper` — currently maps `GpifDocument -> Score`; move to GuitarPro if it remains
+* [x] `IScoreUnmapper` — currently maps `Score -> GpifDocument`; move to GuitarPro if it remains
 * [ ] Remove mapper/unmapper interfaces entirely if `IScoreReader` / `IScoreWriter` make them unnecessary public surface
 
 ## Keep in `Motif.Core` Only If Truly Format-Agnostic
@@ -424,7 +427,7 @@ Current JSON types serialize the domain model rather than GPIF transport types.
 ### Core Candidates
 
 * [x] `MotifJsonContext.cs` (renamed from `GpioJsonContext.cs`)
-* [x] `GuitarProScoreJson.cs` / `ToJson()` extension if it serializes the domain model rather than GP-only transport state
+* [x] `ScoreJson.cs` / `ToJson()` extension if it serializes the domain model rather than GP-only transport state
 
 ### Required Work
 

@@ -9,10 +9,10 @@ using Motif.Extensions.GuitarPro.Models.Raw;
 
 public class MetadataMappingTests
 {
-    private static ScoreMetadata ScoreMetadataOf(GuitarProScore score)
+    private static ScoreMetadata ScoreMetadataOf(Score score)
         => score.GetRequiredGuitarPro().Metadata;
 
-    private static MasterTrackMetadata MasterTrackMetadataOf(GuitarProScore score)
+    private static MasterTrackMetadata MasterTrackMetadataOf(Score score)
         => score.GetRequiredGuitarPro().MasterTrack;
 
     private static TrackMetadata TrackMetadataOf(TrackModel track)
@@ -74,7 +74,7 @@ public class MetadataMappingTests
             Beats = [beat]
         };
 
-        var score = new GuitarProScore
+        var score = new Score
         {
             Title = "T",
             Artist = "A",
@@ -389,7 +389,7 @@ public class MetadataMappingTests
     [Fact]
     public async Task Writer_round_trip_preserves_typed_master_track_rse_when_raw_xml_absent()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Title = "RSE Typed",
             Artist = "A",

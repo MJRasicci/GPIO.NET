@@ -8,7 +8,7 @@ public class MutableDomainModelTests
     [Fact]
     public void Domain_model_supports_post_construction_mutation()
     {
-        var score = new GuitarProScore();
+        var score = new Score();
         var track = new TrackModel();
         var measure = new MeasureModel();
         var beat = new BeatModel();

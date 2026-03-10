@@ -44,7 +44,7 @@ public class WriterReferenceReuseTests
     [Fact]
     public async Task Unmapper_reuses_shared_beats_notes_and_rhythms_when_ids_repeat()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [
@@ -97,7 +97,7 @@ public class WriterReferenceReuseTests
     [Fact]
     public async Task Unmapper_reuses_remapped_note_aliases_when_conflicting_source_ids_repeat()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [
@@ -146,7 +146,7 @@ public class WriterReferenceReuseTests
     [Fact]
     public async Task Unmapper_does_not_split_shared_note_ids_when_beat_palm_mute_is_derived_from_other_notes()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [
@@ -194,7 +194,7 @@ public class WriterReferenceReuseTests
     [Fact]
     public async Task Unmapper_preserves_measure_with_zero_voices_without_synthesizing_empty_voice()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [
@@ -231,7 +231,7 @@ public class WriterReferenceReuseTests
     [Fact]
     public async Task Unmapper_does_not_copy_master_bar_xproperties_onto_written_bars()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [
@@ -395,10 +395,10 @@ public class WriterReferenceReuseTests
         return await ReadJsonRoundTrippedRawAsync(score);
     }
 
-    private static async Task<GpifDocument> ReadJsonRoundTrippedRawAsync(GuitarProScore score)
+    private static async Task<GpifDocument> ReadJsonRoundTrippedRawAsync(Score score)
     {
         var json = score.ToJson(indented: false);
-        var fromJson = JsonSerializer.Deserialize<GuitarProScore>(json, new JsonSerializerOptions
+        var fromJson = JsonSerializer.Deserialize<Score>(json, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         });
@@ -570,7 +570,7 @@ public class WriterReferenceReuseTests
             }
         };
 
-    private static GuitarProScore CreateTupletScore()
+    private static Score CreateTupletScore()
         => new()
         {
             Tracks =

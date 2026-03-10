@@ -10,7 +10,7 @@ using System.Xml.Linq;
 
 public sealed class DefaultScoreUnmapper : IScoreUnmapper
 {
-    public ValueTask<WriteResult> UnmapAsync(GuitarProScore score, CancellationToken cancellationToken = default)
+    public ValueTask<WriteResult> UnmapAsync(Score score, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(score);
         cancellationToken.ThrowIfCancellationRequested();

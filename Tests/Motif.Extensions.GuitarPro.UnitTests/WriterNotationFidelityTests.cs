@@ -102,14 +102,14 @@ public class WriterNotationFidelityTests
         """;
     }
 
-    private static async Task<GuitarProScore> DeserializeAndMap(string gpif)
+    private static async Task<Score> DeserializeAndMap(string gpif)
     {
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(gpif));
         var raw = await new XmlGpifDeserializer().DeserializeAsync(stream, TestContext.Current.CancellationToken);
         return await new DefaultScoreMapper().MapAsync(raw, TestContext.Current.CancellationToken);
     }
 
-    private static async Task<XDocument> RoundTripThroughWrite(GuitarProScore score)
+    private static async Task<XDocument> RoundTripThroughWrite(Score score)
     {
         var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
         await using var stream = new MemoryStream();
@@ -121,7 +121,7 @@ public class WriterNotationFidelityTests
     {
         var score = await DeserializeAndMap(gpif);
         var json = score.ToJson(indented: false);
-        var fromJson = JsonSerializer.Deserialize<GuitarProScore>(json, new JsonSerializerOptions
+        var fromJson = JsonSerializer.Deserialize<Score>(json, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         });
@@ -209,7 +209,7 @@ public class WriterNotationFidelityTests
         var beat = sourceScore.Tracks[0].Measures[0].Beats[0];
         var note = beat.Notes[0];
 
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [
@@ -272,7 +272,7 @@ public class WriterNotationFidelityTests
         var beat = sourceScore.Tracks[0].Measures[0].Beats[0];
         var note = beat.Notes[0];
 
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [

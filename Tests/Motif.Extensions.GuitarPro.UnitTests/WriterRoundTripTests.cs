@@ -11,7 +11,7 @@ public class WriterRoundTripTests
     [Fact]
     public async Task Writer_creates_gp_archive_that_reader_can_open()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Title = "RoundTrip",
             Artist = "GPIO",

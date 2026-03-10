@@ -5,21 +5,21 @@ using Motif.Models;
 
 public static class GuitarProModelExtensions
 {
-    public static GpScoreExtension? GetGuitarPro(this GuitarProScore score)
+    public static GpScoreExtension? GetGuitarPro(this Score score)
     {
         ArgumentNullException.ThrowIfNull(score);
 
         return score.GetExtension<GpScoreExtension>();
     }
 
-    public static GpScoreExtension GetRequiredGuitarPro(this GuitarProScore score)
+    public static GpScoreExtension GetRequiredGuitarPro(this Score score)
     {
         ArgumentNullException.ThrowIfNull(score);
 
         return score.GetRequiredExtension<GpScoreExtension>();
     }
 
-    public static GpScoreExtension GetOrCreateGuitarPro(this GuitarProScore score)
+    public static GpScoreExtension GetOrCreateGuitarPro(this Score score)
     {
         ArgumentNullException.ThrowIfNull(score);
 
@@ -230,7 +230,7 @@ public static class GuitarProModelExtensions
         return extension;
     }
 
-    public static void ReattachGuitarProExtensionsFrom(this GuitarProScore target, GuitarProScore source)
+    public static void ReattachGuitarProExtensionsFrom(this Score target, Score source)
     {
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(source);

@@ -5,11 +5,11 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-public static class GuitarProScoreJson
+public static class ScoreJson
 {
     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Fallback JSON options path used for non-default formatting only.")]
     public static string ToJson(
-        this GuitarProScore score,
+        this Score score,
         bool indented = true,
         bool ignoreNullValues = false,
         bool ignoreDefaultValues = false)
@@ -18,7 +18,7 @@ public static class GuitarProScoreJson
 
         if (indented && !ignoreNullValues && !ignoreDefaultValues)
         {
-            return JsonSerializer.Serialize(score, MotifJsonContext.Default.GuitarProScore);
+            return JsonSerializer.Serialize(score, MotifJsonContext.Default.Score);
         }
 
         var options = new JsonSerializerOptions(DefaultOptions)

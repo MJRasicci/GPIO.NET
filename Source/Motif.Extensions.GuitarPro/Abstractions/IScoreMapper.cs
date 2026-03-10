@@ -8,5 +8,5 @@ using Motif.Extensions.GuitarPro.Models.Raw;
 /// </summary>
 public interface IScoreMapper
 {
-    ValueTask<GuitarProScore> MapAsync(GpifDocument source, CancellationToken cancellationToken = default);
+    ValueTask<Score> MapAsync(GpifDocument source, CancellationToken cancellationToken = default);
 }

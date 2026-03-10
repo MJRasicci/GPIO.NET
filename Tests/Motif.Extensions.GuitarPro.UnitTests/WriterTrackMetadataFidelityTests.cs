@@ -32,14 +32,14 @@ public class WriterTrackMetadataFidelityTests
         """;
     }
 
-    private static async Task<GuitarProScore> DeserializeAndMap(string gpif)
+    private static async Task<Score> DeserializeAndMap(string gpif)
     {
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(gpif));
         var raw = await new XmlGpifDeserializer().DeserializeAsync(stream, TestContext.Current.CancellationToken);
         return await new DefaultScoreMapper().MapAsync(raw, TestContext.Current.CancellationToken);
     }
 
-    private static async Task<XDocument> RoundTripThroughWrite(GuitarProScore score)
+    private static async Task<XDocument> RoundTripThroughWrite(Score score)
     {
         var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
         await using var stream = new MemoryStream();
@@ -51,7 +51,7 @@ public class WriterTrackMetadataFidelityTests
     {
         var score = await DeserializeAndMap(gpif);
         var json = score.ToJson(indented: false);
-        var fromJson = JsonSerializer.Deserialize<GuitarProScore>(json, new JsonSerializerOptions
+        var fromJson = JsonSerializer.Deserialize<Score>(json, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         });
@@ -126,7 +126,7 @@ public class WriterTrackMetadataFidelityTests
 
         var score = await DeserializeAndMap(gpif);
         var json = score.ToJson(indented: false);
-        var fromJson = JsonSerializer.Deserialize<GuitarProScore>(json, new JsonSerializerOptions
+        var fromJson = JsonSerializer.Deserialize<Score>(json, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         });
@@ -139,7 +139,7 @@ public class WriterTrackMetadataFidelityTests
     [Fact]
     public async Task Generated_track_without_raw_staves_emits_top_level_tuning_property_as_fallback()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [

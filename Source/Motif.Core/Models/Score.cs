@@ -1,6 +1,6 @@
 namespace Motif.Models;
 
-public sealed class GuitarProScore : ExtensibleModel
+public sealed class Score : ExtensibleModel
 {
     public string Title { get; set; } = string.Empty;
 

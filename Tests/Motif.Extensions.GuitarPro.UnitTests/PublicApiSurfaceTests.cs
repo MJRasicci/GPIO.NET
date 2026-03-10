@@ -23,7 +23,7 @@ public class PublicApiSurfaceTests
         typeof(GpTrackExtension).Should().NotBeNull();
 
         new GpReadOptions().Should().NotBeNull();
-        new GuitarProScore().Tracks.Should().BeEmpty();
+        new Score().Tracks.Should().BeEmpty();
         new GpifDocument().Tracks.Should().BeEmpty();
     }
 }

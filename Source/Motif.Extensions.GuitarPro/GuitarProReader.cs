@@ -23,7 +23,7 @@ public sealed class GuitarProReader : IGuitarProReader
         this.mapper = mapper;
     }
 
-    public async ValueTask<GuitarProScore> ReadAsync(string filePath, GpReadOptions? options = null, CancellationToken cancellationToken = default)
+    public async ValueTask<Score> ReadAsync(string filePath, GpReadOptions? options = null, CancellationToken cancellationToken = default)
     {
         options ??= new GpReadOptions();
 

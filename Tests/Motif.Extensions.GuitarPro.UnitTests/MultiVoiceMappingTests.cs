@@ -57,7 +57,7 @@ public class MultiVoiceMappingTests
             ]
         };
 
-        var score = new GuitarProScore
+        var score = new Score
         {
             Title = "MultiVoice RoundTrip",
             Tracks =

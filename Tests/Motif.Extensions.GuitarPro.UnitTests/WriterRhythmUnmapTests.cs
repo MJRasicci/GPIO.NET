@@ -12,7 +12,7 @@ public class WriterRhythmUnmapTests
     [Fact]
     public async Task Unmapper_preserves_dotted_and_tuplet_rhythm_shapes_when_recognized()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [
@@ -56,7 +56,7 @@ public class WriterRhythmUnmapTests
     [Fact]
     public async Task Unmapper_preserves_distinct_source_rhythm_ids_even_when_shapes_match()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [
@@ -95,7 +95,7 @@ public class WriterRhythmUnmapTests
     [Fact]
     public async Task Unmapper_preserves_source_tuplet_shape_when_duration_is_unchanged()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [
@@ -147,7 +147,7 @@ public class WriterRhythmUnmapTests
     [Fact]
     public async Task Unmapper_preserves_augmentation_dot_count_attribute_when_requested_by_source_shape()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [
@@ -201,7 +201,7 @@ public class WriterRhythmUnmapTests
     [Fact]
     public async Task Unmapper_preserves_grouped_augmentation_dot_count_shape_when_requested_by_source()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [

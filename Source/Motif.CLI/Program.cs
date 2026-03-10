@@ -98,10 +98,10 @@ try
         }
 
         var json = await File.ReadAllTextAsync(options.InputPath).ConfigureAwait(false);
-        var editedScore = JsonSerializer.Deserialize(json, CliJsonContext.Default.GuitarProScore)
+        var editedScore = JsonSerializer.Deserialize(json, CliJsonContext.Default.Score)
                           ?? throw new InvalidDataException("Unable to deserialize mapped score JSON.");
 
-        var sourceScore = default(GuitarProScore);
+        var sourceScore = default(Score);
         if (!string.IsNullOrWhiteSpace(options.SourceGpPath))
         {
             var reader = new GuitarProReader();
@@ -281,10 +281,10 @@ static bool AreSamePath(string left, string right)
     return string.Equals(normalizedLeft, normalizedRight, comparison);
 }
 
-static bool IsNoOpWrite(GuitarProScore sourceScore, GuitarProScore editedScore)
+static bool IsNoOpWrite(Score sourceScore, Score editedScore)
 {
-    var sourceJson = JsonSerializer.Serialize(sourceScore, CliJsonContext.Default.GuitarProScore);
-    var editedJson = JsonSerializer.Serialize(editedScore, CliJsonContext.Default.GuitarProScore);
+    var sourceJson = JsonSerializer.Serialize(sourceScore, CliJsonContext.Default.Score);
+    var editedJson = JsonSerializer.Serialize(editedScore, CliJsonContext.Default.Score);
     return string.Equals(sourceJson, editedJson, StringComparison.Ordinal);
 }
 

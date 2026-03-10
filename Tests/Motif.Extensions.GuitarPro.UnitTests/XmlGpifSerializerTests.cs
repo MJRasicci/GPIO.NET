@@ -13,7 +13,7 @@ public class XmlGpifSerializerTests
     [Fact]
     public async Task Serializer_emits_section_text_as_cdata()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [
@@ -50,7 +50,7 @@ public class XmlGpifSerializerTests
     [Fact]
     public async Task Serializer_emits_explicit_empty_optional_score_nodes()
     {
-        var score = new GuitarProScore();
+        var score = new Score();
         score.GetOrCreateGuitarPro().Metadata = new ScoreMetadata
         {
             ExplicitEmptyOptionalElements = ["WordsAndMusic", "PageHeader"]
@@ -71,7 +71,7 @@ public class XmlGpifSerializerTests
     [Fact]
     public async Task Serializer_emits_score_metadata_display_fields_as_cdata()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Title = "Song & Title",
             Artist = string.Empty,
@@ -114,7 +114,7 @@ public class XmlGpifSerializerTests
     [Fact]
     public async Task Serializer_emits_lf_delimited_xml_without_leading_indentation()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Title = "Formatting Test",
             Tracks =

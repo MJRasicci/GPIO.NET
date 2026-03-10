@@ -37,7 +37,7 @@ public class GuitarProExtensionAttachmentTests
         var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "test.gp");
         var sourceScore = await new GuitarProReader().ReadAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
         var json = sourceScore.ToJson(indented: false);
-        var fromJson = JsonSerializer.Deserialize<GuitarProScore>(json, new JsonSerializerOptions
+        var fromJson = JsonSerializer.Deserialize<Score>(json, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         });

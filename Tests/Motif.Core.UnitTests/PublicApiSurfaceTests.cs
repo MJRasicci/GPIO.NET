@@ -10,7 +10,7 @@ public class PublicApiSurfaceTests
     [Fact]
     public void Core_domain_model_and_json_helpers_are_available()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Title = "Example",
             Tracks =
@@ -26,7 +26,7 @@ public class PublicApiSurfaceTests
         typeof(IExtensibleModel).Should().NotBeNull();
         typeof(IModelExtension).Should().NotBeNull();
 
-        new GuitarProScore().Tracks.Should().BeEmpty();
+        new Score().Tracks.Should().BeEmpty();
         new TrackModel().Measures.Should().BeEmpty();
 
         var json = score.ToJson();

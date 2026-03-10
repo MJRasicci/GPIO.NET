@@ -8,7 +8,7 @@ public class ModelExtensionTests
     [Fact]
     public void Typed_extensions_can_be_attached_retrieved_and_removed()
     {
-        var score = new GuitarProScore();
+        var score = new Score();
         var extension = new TestScoreExtension("primary");
 
         score.TryGetExtension<TestScoreExtension>(out _).Should().BeFalse();

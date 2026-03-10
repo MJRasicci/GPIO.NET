@@ -8,5 +8,5 @@ using Motif.Models;
 /// </summary>
 public interface IGuitarProReader
 {
-    ValueTask<GuitarProScore> ReadAsync(string filePath, GpReadOptions? options = null, CancellationToken cancellationToken = default);
+    ValueTask<Score> ReadAsync(string filePath, GpReadOptions? options = null, CancellationToken cancellationToken = default);
 }

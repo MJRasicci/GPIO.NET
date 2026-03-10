@@ -38,14 +38,14 @@ public class WriterNotePropertyFidelityTests
         """;
     }
 
-    private static async Task<GuitarProScore> DeserializeAndMap(string gpif)
+    private static async Task<Score> DeserializeAndMap(string gpif)
     {
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(gpif));
         var raw = await new XmlGpifDeserializer().DeserializeAsync(stream, TestContext.Current.CancellationToken);
         return await new DefaultScoreMapper().MapAsync(raw, TestContext.Current.CancellationToken);
     }
 
-    private static async Task<XDocument> RoundTripThroughWrite(GuitarProScore score)
+    private static async Task<XDocument> RoundTripThroughWrite(Score score)
     {
         var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
         await using var stream = new MemoryStream();
@@ -57,7 +57,7 @@ public class WriterNotePropertyFidelityTests
     {
         var score = await DeserializeAndMap(gpif);
         var json = score.ToJson(indented: false);
-        var fromJson = JsonSerializer.Deserialize<GuitarProScore>(json, new JsonSerializerOptions
+        var fromJson = JsonSerializer.Deserialize<Score>(json, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         });
@@ -70,7 +70,7 @@ public class WriterNotePropertyFidelityTests
     [Fact]
     public async Task Unmapper_uses_staff_specific_tuning_for_additional_staff_notes()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [
@@ -187,7 +187,7 @@ public class WriterNotePropertyFidelityTests
     [Fact]
     public async Task Changed_note_midi_regenerates_pitch_payloads_instead_of_reusing_source_values()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [

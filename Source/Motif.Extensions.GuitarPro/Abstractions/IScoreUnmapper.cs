@@ -5,5 +5,5 @@ using Motif.Extensions.GuitarPro.Models.Write;
 
 public interface IScoreUnmapper
 {
-    ValueTask<WriteResult> UnmapAsync(GuitarProScore score, CancellationToken cancellationToken = default);
+    ValueTask<WriteResult> UnmapAsync(Score score, CancellationToken cancellationToken = default);
 }

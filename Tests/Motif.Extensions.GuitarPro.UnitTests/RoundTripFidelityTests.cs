@@ -46,7 +46,7 @@ public class RoundTripFidelityTests
         var original = await reader.ReadAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
 
         var json = original.ToJson(indented: false);
-        var fromJson = JsonSerializer.Deserialize<GuitarProScore>(json, new JsonSerializerOptions
+        var fromJson = JsonSerializer.Deserialize<Score>(json, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         });
@@ -71,7 +71,7 @@ public class RoundTripFidelityTests
         }
     }
 
-    private static void AssertCoreInvariants(GuitarProScore original, GuitarProScore roundTripped)
+    private static void AssertCoreInvariants(Score original, Score roundTripped)
     {
         roundTripped.Tracks.Count.Should().Be(original.Tracks.Count);
         roundTripped.PlaybackMasterBarSequence.Count.Should().BeGreaterThan(0);
@@ -93,7 +93,7 @@ public class RoundTripFidelityTests
         }
     }
 
-    private static IReadOnlyList<TrackMetrics> BuildTrackMetrics(GuitarProScore score)
+    private static IReadOnlyList<TrackMetrics> BuildTrackMetrics(Score score)
         => score.Tracks
             .OrderBy(t => t.Id)
             .Select(t =>

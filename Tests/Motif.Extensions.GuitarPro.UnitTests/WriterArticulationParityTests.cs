@@ -8,7 +8,7 @@ public class WriterArticulationParityTests
     [Fact]
     public async Task Writer_round_trip_preserves_core_articulation_fields()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [

@@ -100,7 +100,7 @@ public class BeatStemOrientationTests
         beat.ConcertPitchStemOrientation.Should().Be("Upward");
 
         var json = score.ToJson(indented: false);
-        var fromJson = JsonSerializer.Deserialize<GuitarProScore>(json, new JsonSerializerOptions
+        var fromJson = JsonSerializer.Deserialize<Score>(json, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         });

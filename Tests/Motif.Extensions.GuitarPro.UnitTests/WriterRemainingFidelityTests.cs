@@ -10,10 +10,10 @@ using System.Xml.Linq;
 
 public class WriterRemainingFidelityTests
 {
-    private static ScoreMetadata ScoreMetadataOf(GuitarProScore score)
+    private static ScoreMetadata ScoreMetadataOf(Score score)
         => score.GetRequiredGuitarPro().Metadata;
 
-    private static MasterTrackMetadata MasterTrackMetadataOf(GuitarProScore score)
+    private static MasterTrackMetadata MasterTrackMetadataOf(Score score)
         => score.GetRequiredGuitarPro().MasterTrack;
 
     private static TrackMetadata TrackMetadataOf(TrackModel track)
@@ -28,20 +28,20 @@ public class WriterRemainingFidelityTests
     private static GpBeatMetadata BeatMetadataOf(BeatModel beat)
         => beat.GetRequiredGuitarPro().Metadata;
 
-    private static async Task<GuitarProScore> DeserializeAndMap(string gpif)
+    private static async Task<Score> DeserializeAndMap(string gpif)
     {
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(gpif));
         var raw = await new XmlGpifDeserializer().DeserializeAsync(stream, TestContext.Current.CancellationToken);
         return await new DefaultScoreMapper().MapAsync(raw, TestContext.Current.CancellationToken);
     }
 
-    private static async Task<XDocument> RoundTripThroughWrite(GuitarProScore score)
+    private static async Task<XDocument> RoundTripThroughWrite(Score score)
     {
         var xml = await RoundTripThroughWriteText(score);
         return XDocument.Parse(xml);
     }
 
-    private static async Task<string> RoundTripThroughWriteText(GuitarProScore score)
+    private static async Task<string> RoundTripThroughWriteText(Score score)
     {
         var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
         await using var stream = new MemoryStream();
@@ -59,7 +59,7 @@ public class WriterRemainingFidelityTests
     {
         var score = await DeserializeAndMap(gpif);
         var json = score.ToJson(indented: false);
-        var fromJson = JsonSerializer.Deserialize<GuitarProScore>(json, new JsonSerializerOptions
+        var fromJson = JsonSerializer.Deserialize<Score>(json, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         });
@@ -263,7 +263,7 @@ public class WriterRemainingFidelityTests
 
         var score = await DeserializeAndMap(gpif);
         var json = score.ToJson(indented: false);
-        var fromJson = JsonSerializer.Deserialize<GuitarProScore>(json, new JsonSerializerOptions
+        var fromJson = JsonSerializer.Deserialize<Score>(json, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         });
@@ -498,7 +498,7 @@ public class WriterRemainingFidelityTests
     [Fact]
     public async Task Unmapper_preserves_sparse_bar_voice_slots()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [

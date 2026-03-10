@@ -199,8 +199,8 @@ internal sealed class BatchRoundTripDiagnosticsRunner
 
         // Use the CLI source-generated context here so batch diagnostics stay trim/AOT-safe while still
         // exercising the JSON roundtrip. ignore-default/null trims would artificially create drift.
-        var mappedJson = JsonSerializer.Serialize(sourceScore, CompactJsonContext.GuitarProScore);
-        var jsonScore = JsonSerializer.Deserialize(mappedJson, CliJsonContext.Default.GuitarProScore)
+        var mappedJson = JsonSerializer.Serialize(sourceScore, CompactJsonContext.Score);
+        var jsonScore = JsonSerializer.Deserialize(mappedJson, CliJsonContext.Default.Score)
             ?? throw new InvalidDataException("Unable to deserialize mapped score JSON during batch roundtrip diagnostics.");
 
         var isNoOpWrite = IsNoOpWrite(sourceScore, jsonScore);
@@ -241,10 +241,10 @@ internal sealed class BatchRoundTripDiagnosticsRunner
         return new AnalyzedFile(fileResult, diagnostics);
     }
 
-    private static bool IsNoOpWrite(GuitarProScore sourceScore, GuitarProScore editedScore)
+    private static bool IsNoOpWrite(Score sourceScore, Score editedScore)
     {
-        var sourceJson = JsonSerializer.Serialize(sourceScore, CliJsonContext.Default.GuitarProScore);
-        var editedJson = JsonSerializer.Serialize(editedScore, CliJsonContext.Default.GuitarProScore);
+        var sourceJson = JsonSerializer.Serialize(sourceScore, CliJsonContext.Default.Score);
+        var editedJson = JsonSerializer.Serialize(editedScore, CliJsonContext.Default.Score);
         return string.Equals(sourceJson, editedJson, StringComparison.Ordinal);
     }
 

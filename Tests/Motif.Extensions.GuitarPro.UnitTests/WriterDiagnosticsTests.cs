@@ -14,7 +14,7 @@ public class WriterDiagnosticsTests
     [Fact]
     public async Task Unmapper_emits_structured_warning_for_unrepresentable_duration()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [

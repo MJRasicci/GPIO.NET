@@ -47,7 +47,7 @@ public class BeatEffectMappingTests
         """;
     }
 
-    private static async Task<GuitarProScore> DeserializeAndMap(string gpif)
+    private static async Task<Score> DeserializeAndMap(string gpif)
     {
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(gpif));
         var raw = await new XmlGpifDeserializer().DeserializeAsync(stream, TestContext.Current.CancellationToken);
@@ -199,7 +199,7 @@ public class BeatEffectMappingTests
     [Fact]
     public async Task WhammyBar_encode_round_trips_through_write_and_read()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [
@@ -462,7 +462,7 @@ public class BeatEffectMappingTests
     [InlineData(TrillSpeedKind.OneHundredTwentyEighth)]
     public async Task TrillSpeed_round_trips_through_write_and_read(TrillSpeedKind kind)
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [
@@ -588,7 +588,7 @@ public class BeatEffectMappingTests
     [Fact]
     public async Task Dynamic_round_trips_through_write_and_read()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [
@@ -640,7 +640,7 @@ public class BeatEffectMappingTests
     [Fact]
     public async Task RoundTrip_preserves_all_new_beat_effects()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [
@@ -749,7 +749,7 @@ public class BeatEffectMappingTests
     [Fact]
     public async Task RoundTrip_whammy_bar_only()
     {
-        var score = new GuitarProScore
+        var score = new Score
         {
             Tracks =
             [

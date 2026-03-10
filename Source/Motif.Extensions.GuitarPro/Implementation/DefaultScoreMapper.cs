@@ -20,7 +20,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
         this.navigationResolver = navigationResolver;
     }
 
-    public ValueTask<GuitarProScore> MapAsync(GpifDocument source, CancellationToken cancellationToken = default)
+    public ValueTask<Score> MapAsync(GpifDocument source, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(source);
         cancellationToken.ThrowIfCancellationRequested();
@@ -269,7 +269,7 @@ public sealed class DefaultScoreMapper : IScoreMapper
             AssetsXml = source.AssetsXml
         };
 
-        var score = new GuitarProScore
+        var score = new Score
         {
             Title = source.Score.Title,
             Artist = source.Score.Artist,
