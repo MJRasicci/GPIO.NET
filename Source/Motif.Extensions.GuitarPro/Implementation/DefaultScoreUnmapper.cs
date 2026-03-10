@@ -315,7 +315,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                             LeftHandTapped = note.Articulation.LeftHandTapped,
                                             HopoOrigin = note.Articulation.HopoOrigin,
                                             HopoDestination = note.Articulation.HopoDestination,
-                                            SlideFlags = note.Articulation.SlideFlags ?? ArticulationDecoders.EncodeSlides(note.Articulation.Slides),
+                                            SlideFlags = ResolveSlideFlags(note),
                                             BendEnabled = bend.Enabled,
                                             BendOriginOffset = bend.OriginOffset,
                                             BendOriginValue = bend.OriginValue,
@@ -396,16 +396,16 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 NotesReferenceList = ReferenceListFormatter.JoinRefs(noteRefs),
                                 GraceType = beat.GraceType,
                                 Dynamic = beat.Dynamic,
-                                TransposedPitchStemOrientation = beat.TransposedPitchStemOrientation,
+                                TransposedPitchStemOrientation = beatMetadata.TransposedPitchStemOrientation,
                                 UserTransposedPitchStemOrientation = beatMetadata.UserTransposedPitchStemOrientation,
                                 HasTransposedPitchStemOrientationUserDefinedElement = beatMetadata.HasTransposedPitchStemOrientationUserDefinedElement,
-                                ConcertPitchStemOrientation = beat.ConcertPitchStemOrientation,
+                                ConcertPitchStemOrientation = beatMetadata.ConcertPitchStemOrientation,
                                 Wah = beat.Wah,
                                 Golpe = beat.Golpe,
-                                Fadding = beat.Fadding,
+                                Fadding = beatMetadata.Fadding,
                                 Slashed = beat.Slashed,
                                 Hairpin = beat.Hairpin,
-                                Variation = beat.Variation,
+                                Variation = beatMetadata.Variation,
                                 Ottavia = beat.Ottavia,
                                 LegatoOrigin = beat.LegatoOrigin,
                                 LegatoDestination = beat.LegatoDestination,
@@ -425,7 +425,7 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
                                 DeadSlapped = beat.DeadSlapped,
                                 Tremolo = beat.Tremolo,
                                 TremoloValue = beat.TremoloValue,
-                                ChordId = beat.ChordId,
+                                ChordId = beatMetadata.ChordId,
                                 FreeText = beat.FreeText,
                                 WhammyBar = encodedWhammy.Enabled,
                                 WhammyBarExtended = encodedWhammy.Extended,
@@ -987,6 +987,25 @@ public sealed class DefaultScoreUnmapper : IScoreUnmapper
         }
 
         return encodedTrillSpeed.Value;
+    }
+
+    private static int? ResolveSlideFlags(NoteModel note)
+    {
+        var encodedSlideFlags = ArticulationDecoders.EncodeSlides(note.Articulation.Slides);
+        if (!encodedSlideFlags.HasValue)
+        {
+            return null;
+        }
+
+        var noteMetadata = GetNoteMetadata(note);
+        if (noteMetadata.SourceSlideFlags.HasValue
+            && ArticulationDecoders.DecodeSlides(noteMetadata.SourceSlideFlags.Value)
+                .SequenceEqual(note.Articulation.Slides))
+        {
+            return noteMetadata.SourceSlideFlags.Value;
+        }
+
+        return encodedSlideFlags.Value;
     }
 
     private static bool ShouldPreserveSourceConcertPitch(NoteModel note)

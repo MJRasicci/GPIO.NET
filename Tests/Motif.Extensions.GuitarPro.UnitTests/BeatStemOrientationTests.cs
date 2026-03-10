@@ -95,9 +95,9 @@ public class BeatStemOrientationTests
         var score = await mapper.MapAsync(sourceRaw, TestContext.Current.CancellationToken);
 
         var beat = score.Tracks[0].Measures[0].Beats.Single();
-        beat.TransposedPitchStemOrientation.Should().Be("Undefined");
+        BeatMetadataOf(beat).TransposedPitchStemOrientation.Should().Be("Undefined");
         BeatMetadataOf(beat).UserTransposedPitchStemOrientation.Should().Be("Downward");
-        beat.ConcertPitchStemOrientation.Should().Be("Upward");
+        BeatMetadataOf(beat).ConcertPitchStemOrientation.Should().Be("Upward");
 
         var json = score.ToJson(indented: false);
         var fromJson = JsonSerializer.Deserialize<Score>(json, new JsonSerializerOptions

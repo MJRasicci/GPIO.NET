@@ -152,7 +152,7 @@ public class WriterNotationFidelityTests
         measure.XProperties.Should().Contain("1124073985", 2);
         measure.BarXProperties.Should().Contain("1124139521", 7);
         beat.Hairpin.Should().Be("Crescendo");
-        beat.Variation.Should().Be("2");
+        BeatMetadataOf(beat).Variation.Should().Be("2");
         beat.Ottavia.Should().Be("8va");
         beat.LegatoOrigin.Should().BeTrue();
         beat.LegatoDestination.Should().BeFalse();

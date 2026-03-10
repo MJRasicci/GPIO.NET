@@ -82,9 +82,19 @@ public sealed class GpBeatMetadata
 
     public GpRhythmShapeMetadata? SourceRhythm { get; set; }
 
+    public string TransposedPitchStemOrientation { get; set; } = string.Empty;
+
     public string UserTransposedPitchStemOrientation { get; set; } = string.Empty;
 
     public bool HasTransposedPitchStemOrientationUserDefinedElement { get; set; }
+
+    public string ConcertPitchStemOrientation { get; set; } = string.Empty;
+
+    public string Fadding { get; set; } = string.Empty;
+
+    public string Variation { get; set; } = string.Empty;
+
+    public string ChordId { get; set; } = string.Empty;
 
     public string LyricsXml { get; set; } = string.Empty;
 
@@ -127,6 +137,8 @@ public sealed class GpNoteMetadata
     public int? SourceFret { get; set; }
 
     public int? SourceStringNumber { get; set; }
+
+    public int? SourceSlideFlags { get; set; }
 
     public string XPropertiesXml { get; set; } = string.Empty;
 }

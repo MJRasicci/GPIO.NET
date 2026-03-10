@@ -300,7 +300,7 @@ public class BeatEffectMappingTests
         BeatMetadataOf(beat).HasTransposedPitchStemOrientationUserDefinedElement.Should().BeTrue();
         beat.Wah.Should().Be("Open");
         beat.Golpe.Should().Be("Finger");
-        beat.Fadding.Should().Be("FadeIn");
+        BeatMetadataOf(beat).Fadding.Should().Be("FadeIn");
         beat.Slashed.Should().BeTrue();
         beat.Rasgueado.Should().BeTrue();
         beat.RasgueadoPattern.Should().Be("mii_1");
@@ -562,7 +562,7 @@ public class BeatEffectMappingTests
         var gpif = BuildGpif("<Chord>Am7</Chord>");
 
         var score = await DeserializeAndMap(gpif);
-        score.Tracks[0].Measures[0].Beats[0].ChordId.Should().Be("Am7");
+        BeatMetadataOf(score.Tracks[0].Measures[0].Beats[0]).ChordId.Should().Be("Am7");
     }
 
     // ── FreeText ────────────────────────────────────────────────────────
@@ -667,7 +667,6 @@ public class BeatEffectMappingTests
                                     DeadSlapped = true,
                                     Tremolo = true,
                                     TremoloValue = "1/8",
-                                    ChordId = "Dm",
                                     FreeText = "muted",
                                     WhammyBar = new WhammyBarModel
                                     {
@@ -702,6 +701,7 @@ public class BeatEffectMappingTests
                 }
             ]
         };
+        score.Tracks[0].Measures[0].Beats[0].GetOrCreateGuitarPro().Metadata.ChordId = "Dm";
 
         var outFile = Path.Combine(Path.GetTempPath(), $"gpio-beatfx-{Guid.NewGuid():N}.gp");
         try
@@ -721,7 +721,7 @@ public class BeatEffectMappingTests
             beat.DeadSlapped.Should().BeTrue();
             beat.Tremolo.Should().BeTrue();
             beat.TremoloValue.Should().Be("1/8");
-            beat.ChordId.Should().Be("Dm");
+            BeatMetadataOf(beat).ChordId.Should().Be("Dm");
             beat.FreeText.Should().Be("muted");
 
             beat.WhammyBar.Should().NotBeNull();

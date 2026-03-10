@@ -136,21 +136,13 @@ public sealed class BeatModel : ExtensibleModel
 
     public string Dynamic { get; set; } = string.Empty;
 
-    public string TransposedPitchStemOrientation { get; set; } = string.Empty;
-
-    public string ConcertPitchStemOrientation { get; set; } = string.Empty;
-
     public string Wah { get; set; } = string.Empty;
 
     public string Golpe { get; set; } = string.Empty;
 
-    public string Fadding { get; set; } = string.Empty;
-
     public bool Slashed { get; set; }
 
     public string Hairpin { get; set; } = string.Empty;
-
-    public string Variation { get; set; } = string.Empty;
 
     public string Ottavia { get; set; } = string.Empty;
 
@@ -185,8 +177,6 @@ public sealed class BeatModel : ExtensibleModel
     public bool Tremolo { get; set; }
 
     public string TremoloValue { get; set; } = string.Empty;
-
-    public string ChordId { get; set; } = string.Empty;
 
     public string FreeText { get; set; } = string.Empty;
 
@@ -284,8 +274,6 @@ public sealed class NoteArticulationModel
     public int? HopoOriginNoteId { get; set; }
 
     public int? HopoDestinationNoteId { get; set; }
-
-    public int? SlideFlags { get; set; }
 
     public IReadOnlyList<SlideType> Slides { get; set; } = Array.Empty<SlideType>();
 

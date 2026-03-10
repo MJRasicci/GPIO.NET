@@ -1,10 +1,14 @@
 namespace Motif.Extensions.GuitarPro.UnitTests;
 
 using FluentAssertions;
+using Motif.Extensions.GuitarPro;
 using Motif.Models;
 
 public class AdvancedArticulationFixtureTests
 {
+    private static int? SourceSlideFlagsOf(NoteModel note)
+        => note.GetRequiredGuitarPro().Metadata.SourceSlideFlags;
+
     [Fact]
     public async Task Schema_reference_fixture_exposes_slide_bend_and_harmonic_data()
     {
@@ -31,7 +35,7 @@ public class AdvancedArticulationFixtureTests
             .Should().BeTrue();
 
         var seenSlideFlags = notes
-            .Select(n => n.Articulation.SlideFlags)
+            .Select(SourceSlideFlagsOf)
             .Where(v => v.HasValue)
             .Select(v => v!.Value)
             .Distinct()

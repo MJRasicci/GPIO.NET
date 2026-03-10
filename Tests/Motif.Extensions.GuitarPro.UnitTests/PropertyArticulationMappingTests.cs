@@ -1,12 +1,17 @@
 namespace Motif.Extensions.GuitarPro.UnitTests;
 
 using FluentAssertions;
+using Motif.Extensions.GuitarPro;
 using Motif.Extensions.GuitarPro.Implementation;
+using Motif.Extensions.GuitarPro.Models;
 using Motif.Models;
 using System.Text;
 
 public class PropertyArticulationMappingTests
 {
+    private static GpNoteMetadata NoteMetadataOf(NoteModel note)
+        => note.GetRequiredGuitarPro().Metadata;
+
     [Fact]
     public async Task Mapper_captures_property_based_articulations()
     {
@@ -70,6 +75,7 @@ public class PropertyArticulationMappingTests
         var score = await mapper.MapAsync(raw, TestContext.Current.CancellationToken);
 
         var beat = score.Tracks[0].Measures[0].Beats[0];
+        var note = beat.Notes[0];
         var articulation = beat.Notes[0].Articulation;
 
         beat.GraceType.Should().Be("BeforeBeat");
@@ -90,7 +96,7 @@ public class PropertyArticulationMappingTests
         articulation.LeftHandTapped.Should().BeTrue();
         articulation.HopoOrigin.Should().BeTrue();
         articulation.HopoDestination.Should().BeTrue();
-        articulation.SlideFlags.Should().Be(32);
+        NoteMetadataOf(note).SourceSlideFlags.Should().Be(32);
         articulation.Slides.Should().Contain(SlideType.IntoFromAbove);
 
         articulation.Harmonic.Should().NotBeNull();
