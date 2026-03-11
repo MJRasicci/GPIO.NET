@@ -82,24 +82,13 @@ public static class ScoreNavigation
     }
 
     /// <summary>
-    /// Returns the score timeline, populating it from the first populated legacy measure track when absent.
+    /// Returns the current score-owned timeline without promoting legacy measure state implicitly.
     /// </summary>
     public static IReadOnlyList<TimelineBarModel> EnsureTimelineBars(Score score)
     {
         ArgumentNullException.ThrowIfNull(score);
 
-        if (score.TimelineBars.Count > 0)
-        {
-            return score.TimelineBars;
-        }
-
-        var legacyMeasures = FindLegacyTimelineMeasures(score);
-        if (legacyMeasures.Count == 0)
-        {
-            return Array.Empty<TimelineBarModel>();
-        }
-
-        score.TimelineBars = BuildTimelineBars(legacyMeasures);
+        score.TimelineBars ??= Array.Empty<TimelineBarModel>();
         return score.TimelineBars;
     }
 
@@ -117,6 +106,8 @@ public static class ScoreNavigation
 
     /// <summary>
     /// Recomputes <see cref="Score.PlaybackMasterBarSequence"/> from the current score timeline.
+    /// Promote legacy measure-local state explicitly with <see cref="BuildTimelineBars(System.Collections.Generic.IReadOnlyList{Motif.Models.MeasureModel})"/>
+    /// before calling this method when working with compatibility <see cref="TrackModel.Measures"/>.
     /// </summary>
     public static IReadOnlyList<int> RebuildPlaybackSequence(Score score)
     {
@@ -128,12 +119,6 @@ public static class ScoreNavigation
         SetPlaybackSequenceState(score, isCurrent: true);
         return sequence;
     }
-
-    private static IReadOnlyList<MeasureModel> FindLegacyTimelineMeasures(Score score)
-        => score.Tracks
-            .FirstOrDefault(track => track.Measures.Count > 0)?
-            .Measures
-            ?? Array.Empty<MeasureModel>();
 
     private static TimelineBarModel BuildTimelineBar(MeasureModel measure)
         => new()

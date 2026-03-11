@@ -14,6 +14,11 @@ public sealed class GpTrackExtension : IModelExtension
     public required TrackMetadata Metadata { get; set; }
 }
 
+public sealed class GpTimelineBarExtension : IModelExtension
+{
+    public required GpTimelineBarMetadata Metadata { get; set; }
+}
+
 public sealed class GpStaffExtension : IModelExtension
 {
     public required StaffMetadata Metadata { get; set; }
@@ -50,6 +55,10 @@ public sealed class GpExtensionReattachmentResult
 
     public bool ScoreUnmatched { get; internal set; }
 
+    public int TimelineBarsAttached { get; internal set; }
+
+    public int TimelineBarsUnmatched { get; internal set; }
+
     public int TracksAttached { get; internal set; }
 
     public int TracksUnmatched { get; internal set; }
@@ -76,12 +85,22 @@ public sealed class GpExtensionReattachmentResult
 
     public bool HasUnmatchedTargets
         => ScoreUnmatched
+           || TimelineBarsUnmatched > 0
            || TracksUnmatched > 0
            || MeasuresUnmatched > 0
            || StaffsUnmatched > 0
            || VoicesUnmatched > 0
            || BeatsUnmatched > 0
            || NotesUnmatched > 0;
+}
+
+public sealed class GpTimelineBarMetadata
+{
+    public string MasterBarXml { get; set; } = string.Empty;
+
+    public string DirectionsXml { get; set; } = string.Empty;
+
+    public string MasterBarXPropertiesXml { get; set; } = string.Empty;
 }
 
 public sealed class GpMeasureMetadata

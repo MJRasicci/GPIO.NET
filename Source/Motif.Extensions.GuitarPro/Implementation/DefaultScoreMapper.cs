@@ -516,11 +516,8 @@ internal sealed class DefaultScoreMapper : IScoreMapper
             {
                 Metadata = new GpMeasureMetadata
                 {
-                    MasterBarXml = masterBar.Xml,
                     BarXml = primaryStaff?.GetRequiredGuitarPro().Metadata.BarXml ?? string.Empty,
                     SourceBarId = primaryStaff?.GetRequiredGuitarPro().Metadata.SourceBarId ?? -1,
-                    DirectionsXml = masterBar.DirectionsXml,
-                    MasterBarXPropertiesXml = masterBar.XPropertiesXml,
                     BarXPropertiesXml = primaryStaff?.GetRequiredGuitarPro().Metadata.BarXPropertiesXml ?? string.Empty
                 }
             });
@@ -531,7 +528,8 @@ internal sealed class DefaultScoreMapper : IScoreMapper
     }
 
     private static TimelineBarModel MapTimelineBar(GpifMasterBar masterBar)
-        => new()
+    {
+        var timelineBar = new TimelineBarModel
         {
             Index = masterBar.Index,
             TimeSignature = masterBar.Time,
@@ -562,6 +560,17 @@ internal sealed class DefaultScoreMapper : IScoreMapper
             }).ToArray(),
             XProperties = masterBar.XProperties.ToDictionary(kv => kv.Key, kv => kv.Value)
         };
+        timelineBar.SetExtension(new GpTimelineBarExtension
+        {
+            Metadata = new GpTimelineBarMetadata
+            {
+                MasterBarXml = masterBar.Xml,
+                DirectionsXml = masterBar.DirectionsXml,
+                MasterBarXPropertiesXml = masterBar.XPropertiesXml
+            }
+        });
+        return timelineBar;
+    }
 
     private static MeasureStaffModel? MapStaffBar(
         GpifDocument source,

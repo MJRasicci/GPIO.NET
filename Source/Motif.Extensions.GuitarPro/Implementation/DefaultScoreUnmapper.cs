@@ -719,15 +719,18 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
     {
         if (timelineBar is not null)
         {
-            var measureMetadata = fallbackMeasure is null
-                ? new GpMeasureMetadata()
+            var timelineMetadata = GetTimelineBarMetadata(timelineBar);
+            var legacyMeasureMetadata = fallbackMeasure is null
+                ? null
                 : GetMeasureMetadata(fallbackMeasure);
             var jump = ResolveDirectionValue(timelineBar.Jump, timelineBar.DirectionProperties, "Jump");
             var target = ResolveDirectionValue(timelineBar.Target, timelineBar.DirectionProperties, "Target");
 
             return new GpifMasterBar
             {
-                Xml = measureMetadata.MasterBarXml,
+                Xml = string.IsNullOrEmpty(timelineMetadata.MasterBarXml)
+                    ? legacyMeasureMetadata?.MasterBarXml ?? string.Empty
+                    : timelineMetadata.MasterBarXml,
                 Index = timelineBar.Index,
                 Time = timelineBar.TimeSignature,
                 DoubleBar = timelineBar.DoubleBar,
@@ -746,7 +749,9 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
                 Jump = jump,
                 Target = target,
                 DirectionProperties = timelineBar.DirectionProperties,
-                DirectionsXml = measureMetadata.DirectionsXml,
+                DirectionsXml = string.IsNullOrEmpty(timelineMetadata.DirectionsXml)
+                    ? legacyMeasureMetadata?.DirectionsXml ?? string.Empty
+                    : timelineMetadata.DirectionsXml,
                 KeyAccidentalCount = timelineBar.KeyAccidentalCount,
                 KeyMode = timelineBar.KeyMode,
                 KeyTransposeAs = timelineBar.KeyTransposeAs,
@@ -757,7 +762,9 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
                     Length = f.Length
                 }).ToArray(),
                 XProperties = timelineBar.XProperties,
-                XPropertiesXml = measureMetadata.MasterBarXPropertiesXml
+                XPropertiesXml = string.IsNullOrEmpty(timelineMetadata.MasterBarXPropertiesXml)
+                    ? legacyMeasureMetadata?.MasterBarXPropertiesXml ?? string.Empty
+                    : timelineMetadata.MasterBarXPropertiesXml
             };
         }
 
@@ -857,7 +864,11 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
 
     private static ExtensionCoverage MeasureGuitarProExtensionCoverage(Score score)
     {
-        var coverage = new ExtensionCoverage();
+        var coverage = new ExtensionCoverage
+        {
+            TimelineBarsTotal = score.TimelineBars.Count,
+            TimelineBarsAttached = score.TimelineBars.Count(timelineBar => timelineBar.GetGuitarPro() is not null)
+        };
 
         foreach (var track in score.Tracks)
         {
@@ -963,6 +974,10 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
 
     private sealed class ExtensionCoverage
     {
+        public int TimelineBarsTotal { get; set; }
+
+        public int TimelineBarsAttached { get; set; }
+
         public int TracksTotal { get; set; }
 
         public int TracksAttached { get; set; }
@@ -989,6 +1004,11 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
 
         public IEnumerable<string> GetPartialKinds()
         {
+            if (IsPartial(TimelineBarsAttached, TimelineBarsTotal))
+            {
+                yield return $"timeline bars ({TimelineBarsAttached}/{TimelineBarsTotal})";
+            }
+
             if (IsPartial(TracksAttached, TracksTotal))
             {
                 yield return $"tracks ({TracksAttached}/{TracksTotal})";
@@ -1265,6 +1285,9 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
 
     private static GpMeasureMetadata GetMeasureMetadata(MeasureModel measure)
         => measure.GetGuitarPro()?.Metadata ?? new GpMeasureMetadata();
+
+    private static GpTimelineBarMetadata GetTimelineBarMetadata(TimelineBarModel timelineBar)
+        => timelineBar.GetGuitarPro()?.Metadata ?? new GpTimelineBarMetadata();
 
     private static GpMeasureStaffMetadata GetMeasureStaffMetadata(MeasureStaffModel staff)
         => staff.GetGuitarPro()?.Metadata ?? new GpMeasureStaffMetadata();

@@ -16,6 +16,9 @@ public class WriterRemainingFidelityTests
     private static MasterTrackMetadata MasterTrackMetadataOf(Score score)
         => score.GetRequiredGuitarPro().MasterTrack;
 
+    private static GpTimelineBarMetadata TimelineMetadataOf(TimelineBarModel timelineBar)
+        => timelineBar.GetRequiredGuitarPro().Metadata;
+
     private static TrackMetadata TrackMetadataOf(TrackModel track)
         => track.GetRequiredGuitarPro().Metadata;
 
@@ -124,6 +127,7 @@ public class WriterRemainingFidelityTests
 
         var score = await DeserializeAndMap(gpif);
         var measure = score.Tracks[0].Measures[0];
+        var timelineBar = score.TimelineBars[0];
         var scoreMetadata = ScoreMetadataOf(score);
 
         scoreMetadata.GpRevisionXml.Should().Contain("<GPRevision>12015</GPRevision>");
@@ -131,10 +135,10 @@ public class WriterRemainingFidelityTests
         scoreMetadata.SubTitle.Should().Be(" ");
         scoreMetadata.Copyright.Should().Be("   ");
         scoreMetadata.Tabber.Should().Be(" ");
-        measure.FreeTime.Should().BeTrue();
-        measure.HasExplicitEmptySection.Should().BeTrue();
-        MeasureMetadataOf(measure).DirectionsXml.Should().Contain("<Jump>DaCoda</Jump>");
-        MeasureMetadataOf(measure).DirectionsXml.Should().Contain("<Target>SegnoSegno</Target>");
+        timelineBar.FreeTime.Should().BeTrue();
+        timelineBar.HasExplicitEmptySection.Should().BeTrue();
+        TimelineMetadataOf(timelineBar).DirectionsXml.Should().Contain("<Jump>DaCoda</Jump>");
+        TimelineMetadataOf(timelineBar).DirectionsXml.Should().Contain("<Target>SegnoSegno</Target>");
 
         var roundTrip = await RoundTripThroughWrite(score);
         var root = roundTrip.Root!;
@@ -232,11 +236,11 @@ public class WriterRemainingFidelityTests
         """;
 
         var score = await DeserializeAndMap(gpif);
-        var measure = score.Tracks[0].Measures[0];
+        var timelineBar = score.TimelineBars[0];
 
-        measure.SectionLetter.Should().BeEmpty();
-        measure.SectionText.Should().BeEmpty();
-        measure.HasExplicitEmptySection.Should().BeTrue();
+        timelineBar.SectionLetter.Should().BeEmpty();
+        timelineBar.SectionText.Should().BeEmpty();
+        timelineBar.HasExplicitEmptySection.Should().BeTrue();
 
         var roundTrip = await RoundTripThroughWrite(score);
         var section = roundTrip.Root!.Element("MasterBars")!.Element("MasterBar")!.Element("Section")!;
@@ -272,7 +276,7 @@ public class WriterRemainingFidelityTests
         ScoreMetadataOf(score).ScoreXml.Should().Contain("<Score><Title>T</Title><Artist>A</Artist><Album>B</Album></Score>");
         MasterTrackMetadataOf(score).Xml.Should().Contain("<MasterTrack><Tracks>0</Tracks></MasterTrack>");
         TrackMetadataOf(score.Tracks[0]).Xml.Should().Contain("<Track id=\"0\"><Name>Track</Name></Track>");
-        MeasureMetadataOf(score.Tracks[0].Measures[0]).MasterBarXml.Should().Contain("<MasterBar><Time>4/4</Time><FreeTime /><Bars>1</Bars></MasterBar>");
+        TimelineMetadataOf(score.TimelineBars[0]).MasterBarXml.Should().Contain("<MasterBar><Time>4/4</Time><FreeTime /><Bars>1</Bars></MasterBar>");
         VoiceMetadataOf(score.Tracks[0].Measures[0].Voices[0]).Xml.Should().Contain("<Voice id=\"10\"><Beats>100</Beats></Voice>");
         BeatMetadataOf(score.Tracks[0].Measures[0].Beats[0]).Xml.Should().Contain("<Beat id=\"100\"><Rhythm ref=\"1000\" /><FreeText><![CDATA[Dist.]]></FreeText><Notes>200</Notes></Beat>");
         BeatMetadataOf(score.Tracks[0].Measures[0].Beats[0]).SourceRhythm!.Xml.Should().Contain("<Rhythm id=\"1000\"><NoteValue>Eighth</NoteValue><AugmentationDot count=\"1\" /></Rhythm>");

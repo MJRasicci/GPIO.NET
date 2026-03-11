@@ -79,6 +79,20 @@ public class MetadataMappingTests
             Title = "T",
             Artist = "A",
             Album = "B",
+            TimelineBars =
+            [
+                new TimelineBarModel
+                {
+                    Index = 0,
+                    TimeSignature = "4/4",
+                    KeyAccidentalCount = 1,
+                    KeyMode = "Major",
+                    KeyTransposeAs = "C",
+                    DirectionProperties = new Dictionary<string, string> { ["Jump"] = "DaCapo", ["Target"] = "Segno", ["Fine"] = "1" },
+                    Fermatas = [new FermataMetadata { Type = "Short", Offset = "Middle", Length = 1.2m }],
+                    XProperties = new Dictionary<string, int> { ["1124204545"] = 2 }
+                }
+            ],
             Tracks =
             [
                 new TrackModel
@@ -90,15 +104,8 @@ public class MetadataMappingTests
                         new MeasureModel
                         {
                             Index = 0,
-                            TimeSignature = "4/4",
-                            KeyAccidentalCount = 1,
-                            KeyMode = "Major",
-                            KeyTransposeAs = "C",
-                            DirectionProperties = new Dictionary<string,string> { ["Jump"] = "DaCapo", ["Target"] = "Segno", ["Fine"] = "1" },
-                            Fermatas = [ new FermataMetadata { Type = "Short", Offset = "Middle", Length = 1.2m } ],
-                            XProperties = new Dictionary<string,int> { ["1124204545"] = 2 },
                             Clef = "G2",
-                            BarProperties = new Dictionary<string,string> { ["BarDisplay"] = "Both" },
+                            BarProperties = new Dictionary<string, string> { ["BarDisplay"] = "Both" },
                             Voices = [ voice ],
                             Beats = [ beat ]
                         }
@@ -363,17 +370,18 @@ public class MetadataMappingTests
             readBackMasterTrack.AutomationTimeline[1].TrackId.Should().Be(0);
             readBackMasterTrack.AutomationTimeline[1].Type.Should().Be("Sound");
 
+            var timelineBar = readBack.TimelineBars[0];
             var measure = track.Measures[0];
-            measure.KeyAccidentalCount.Should().Be(1);
-            measure.KeyMode.Should().Be("Major");
-            measure.KeyTransposeAs.Should().Be("C");
-            measure.Fermatas.Should().ContainSingle();
-            measure.XProperties.Should().ContainKey("1124204545");
+            timelineBar.KeyAccidentalCount.Should().Be(1);
+            timelineBar.KeyMode.Should().Be("Major");
+            timelineBar.KeyTransposeAs.Should().Be("C");
+            timelineBar.Fermatas.Should().ContainSingle();
+            timelineBar.XProperties.Should().ContainKey("1124204545");
             measure.Clef.Should().Be("G2");
             measure.BarProperties.Should().ContainKey("BarDisplay");
-            measure.DirectionProperties.Should().ContainKey("Fine");
-            measure.Jump.Should().Be("DaCapo");
-            measure.Target.Should().Be("Segno");
+            timelineBar.DirectionProperties.Should().ContainKey("Fine");
+            timelineBar.Jump.Should().Be("DaCapo");
+            timelineBar.Target.Should().Be("Segno");
             VoiceMetadataOf(measure.Voices[0]).Properties.Should().ContainKey("PartedSlur");
             VoiceMetadataOf(measure.Voices[0]).DirectionTags.Should().Contain("Coda");
         }

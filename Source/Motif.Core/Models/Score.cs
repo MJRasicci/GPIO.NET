@@ -29,7 +29,7 @@ public sealed class Score : ExtensibleModel
     public IReadOnlyList<int> PlaybackMasterBarSequence { get; set; } = Array.Empty<int>();
 }
 
-public sealed class TimelineBarModel
+public sealed class TimelineBarModel : ExtensibleModel
 {
     public int Index { get; set; }
 

@@ -70,6 +70,38 @@ public static class GuitarProModelExtensions
         return extension;
     }
 
+    public static GpTimelineBarExtension? GetGuitarPro(this TimelineBarModel timelineBar)
+    {
+        ArgumentNullException.ThrowIfNull(timelineBar);
+
+        return timelineBar.GetExtension<GpTimelineBarExtension>();
+    }
+
+    public static GpTimelineBarExtension GetRequiredGuitarPro(this TimelineBarModel timelineBar)
+    {
+        ArgumentNullException.ThrowIfNull(timelineBar);
+
+        return timelineBar.GetRequiredExtension<GpTimelineBarExtension>();
+    }
+
+    public static GpTimelineBarExtension GetOrCreateGuitarPro(this TimelineBarModel timelineBar)
+    {
+        ArgumentNullException.ThrowIfNull(timelineBar);
+
+        var extension = timelineBar.GetGuitarPro();
+        if (extension is not null)
+        {
+            return extension;
+        }
+
+        extension = new GpTimelineBarExtension
+        {
+            Metadata = new GpTimelineBarMetadata()
+        };
+        timelineBar.SetExtension(extension);
+        return extension;
+    }
+
     public static GpStaffExtension? GetGuitarPro(this StaffModel staff)
     {
         ArgumentNullException.ThrowIfNull(staff);
@@ -299,6 +331,7 @@ public static class GuitarProModelExtensions
         ArgumentNullException.ThrowIfNull(score);
 
         var removedAny = score.RemoveExtension<GpScoreExtension>();
+        removedAny |= InvalidateTimelineBarExtensions(score);
 
         foreach (var track in score.Tracks)
         {
@@ -344,6 +377,8 @@ public static class GuitarProModelExtensions
         {
             result.ScoreUnmatched = true;
         }
+
+        ReattachTimelineBarExtensions(target, source, result);
 
         var sourceTracksById = new Dictionary<int, TrackModel>();
         foreach (var sourceTrack in source.Tracks)
@@ -401,9 +436,40 @@ public static class GuitarProModelExtensions
 
         return $"Source GP fidelity only partially reattached before write. "
                + $"Unmatched targets: score={(result.ScoreUnmatched ? 1 : 0)}, "
+               + $"timelineBars={result.TimelineBarsUnmatched}, "
                + $"tracks={result.TracksUnmatched}, measures={result.MeasuresUnmatched}, "
                + $"staffs={result.StaffsUnmatched}, voices={result.VoicesUnmatched}, "
                + $"beats={result.BeatsUnmatched}, notes={result.NotesUnmatched}.";
+    }
+
+    private static void ReattachTimelineBarExtensions(Score target, Score source, GpExtensionReattachmentResult result)
+    {
+        var sourceTimelineBarsByIndex = source.TimelineBars
+            .GroupBy(timelineBar => timelineBar.Index)
+            .ToDictionary(group => group.Key, group => group.First());
+
+        foreach (var targetTimelineBar in target.TimelineBars)
+        {
+            if (!sourceTimelineBarsByIndex.TryGetValue(targetTimelineBar.Index, out var sourceTimelineBar))
+            {
+                result.TimelineBarsUnmatched++;
+                continue;
+            }
+
+            var timelineBarExtension = sourceTimelineBar.GetGuitarPro();
+            if (timelineBarExtension is null)
+            {
+                result.TimelineBarsUnmatched++;
+                continue;
+            }
+
+            targetTimelineBar.SetExtension(new GpTimelineBarExtension
+            {
+                Metadata = timelineBarExtension.Metadata
+            });
+
+            result.TimelineBarsAttached++;
+        }
     }
 
     private static void ReattachMeasureHierarchyExtensions(TrackModel targetTrack, TrackModel sourceTrack, GpExtensionReattachmentResult result)
@@ -606,6 +672,18 @@ public static class GuitarProModelExtensions
             }
 
             removedAny |= InvalidateBeatExtensions(measure.Beats);
+        }
+
+        return removedAny;
+    }
+
+    private static bool InvalidateTimelineBarExtensions(Score score)
+    {
+        var removedAny = false;
+
+        foreach (var timelineBar in score.TimelineBars)
+        {
+            removedAny |= timelineBar.RemoveExtension<GpTimelineBarExtension>();
         }
 
         return removedAny;

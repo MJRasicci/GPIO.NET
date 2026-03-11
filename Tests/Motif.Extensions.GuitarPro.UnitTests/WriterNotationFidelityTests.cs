@@ -138,18 +138,19 @@ public class WriterNotationFidelityTests
         var score = await DeserializeAndMap(gpif);
 
         var measure = score.Tracks[0].Measures[0];
+        var timelineBar = score.TimelineBars[0];
         var beat = measure.Beats[0];
         var note = beat.Notes[0];
 
-        measure.DoubleBar.Should().BeTrue();
-        measure.TripletFeel.Should().Be("Triplet8th");
-        measure.RepeatStart.Should().BeFalse();
-        measure.RepeatStartAttributePresent.Should().BeTrue();
-        measure.RepeatEnd.Should().BeFalse();
-        measure.RepeatEndAttributePresent.Should().BeTrue();
-        measure.RepeatCount.Should().Be(0);
-        measure.RepeatCountAttributePresent.Should().BeTrue();
-        measure.XProperties.Should().Contain("1124073985", 2);
+        timelineBar.DoubleBar.Should().BeTrue();
+        timelineBar.TripletFeel.Should().Be("Triplet8th");
+        timelineBar.RepeatStart.Should().BeFalse();
+        timelineBar.RepeatStartAttributePresent.Should().BeTrue();
+        timelineBar.RepeatEnd.Should().BeFalse();
+        timelineBar.RepeatEndAttributePresent.Should().BeTrue();
+        timelineBar.RepeatCount.Should().Be(0);
+        timelineBar.RepeatCountAttributePresent.Should().BeTrue();
+        timelineBar.XProperties.Should().Contain("1124073985", 2);
         measure.BarXProperties.Should().Contain("1124139521", 7);
         beat.Hairpin.Should().Be("Crescendo");
         BeatMetadataOf(beat).Variation.Should().Be("2");

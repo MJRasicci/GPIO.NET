@@ -220,7 +220,7 @@ public class ScoreNavigationTests
     }
 
     [Fact]
-    public void RebuildPlaybackSequence_updates_score_from_first_populated_track()
+    public void RebuildPlaybackSequence_uses_explicitly_promoted_score_timeline()
     {
         var score = new Score
         {
@@ -240,6 +240,7 @@ public class ScoreNavigationTests
                 }
             ]
         };
+        score.TimelineBars = ScoreNavigation.BuildTimelineBars(score.Tracks[1].Measures);
 
         var sequence = ScoreNavigation.RebuildPlaybackSequence(score);
 
@@ -250,7 +251,7 @@ public class ScoreNavigationTests
     }
 
     [Fact]
-    public void EnsureTimelineBars_promotes_legacy_measure_timeline_state()
+    public void BuildTimelineBars_promotes_legacy_measure_timeline_state()
     {
         var score = new Score
         {
@@ -303,10 +304,9 @@ public class ScoreNavigationTests
             ]
         };
 
-        var timelineBars = ScoreNavigation.EnsureTimelineBars(score);
+        var timelineBars = ScoreNavigation.BuildTimelineBars(score.Tracks[1].Measures);
 
         timelineBars.Should().ContainSingle();
-        score.TimelineBars.Should().BeSameAs(timelineBars);
         timelineBars[0].Index.Should().Be(2);
         timelineBars[0].TimeSignature.Should().Be("7/8");
         timelineBars[0].DoubleBar.Should().BeTrue();
@@ -404,6 +404,7 @@ public class ScoreNavigationTests
     {
         var score = new Score
         {
+            TimelineBars = [TimelineBar(0)],
             Tracks =
             [
                 new TrackModel
@@ -426,6 +427,12 @@ public class ScoreNavigationTests
     {
         var score = new Score
         {
+            TimelineBars =
+            [
+                TimelineBar(0),
+                TimelineBar(1, repeatEnd: true, repeatCount: 2),
+                TimelineBar(2)
+            ],
             Tracks =
             [
                 new TrackModel
