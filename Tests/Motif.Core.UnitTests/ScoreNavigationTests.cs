@@ -245,6 +245,66 @@ public class ScoreNavigationTests
 
         sequence.Should().Equal(0, 1, 2, 1, 2, 3);
         score.PlaybackMasterBarSequence.Should().Equal(0, 1, 2, 1, 2, 3);
+        ScoreNavigation.HasCurrentPlaybackSequence(score).Should().BeTrue();
+    }
+
+    [Fact]
+    public void InvalidatePlaybackSequence_clears_cached_sequence_and_marks_it_stale()
+    {
+        var score = new Score
+        {
+            Tracks =
+            [
+                new TrackModel
+                {
+                    Measures = [Measure(0)]
+                }
+            ]
+        };
+
+        ScoreNavigation.RebuildPlaybackSequence(score);
+
+        ScoreNavigation.InvalidatePlaybackSequence(score);
+
+        score.PlaybackMasterBarSequence.Should().BeEmpty();
+        ScoreNavigation.HasCurrentPlaybackSequence(score).Should().BeFalse();
+    }
+
+    [Fact]
+    public void EnsurePlaybackSequence_rebuilds_only_when_the_cached_sequence_is_stale()
+    {
+        var score = new Score
+        {
+            Tracks =
+            [
+                new TrackModel
+                {
+                    Measures =
+                    [
+                        Measure(0),
+                        Measure(1, repeatEnd: true, repeatCount: 2),
+                        Measure(2)
+                    ]
+                }
+            ]
+        };
+
+        ScoreNavigation.HasCurrentPlaybackSequence(score).Should().BeFalse();
+
+        var rebuilt = ScoreNavigation.EnsurePlaybackSequence(score);
+
+        rebuilt.Should().Equal(0, 1, 0, 1, 2);
+        ScoreNavigation.HasCurrentPlaybackSequence(score).Should().BeTrue();
+
+        score.Tracks[0].Measures = [Measure(0), Measure(1), Measure(2)];
+        var stale = ScoreNavigation.EnsurePlaybackSequence(score);
+        stale.Should().Equal(0, 1, 0, 1, 2);
+
+        ScoreNavigation.InvalidatePlaybackSequence(score);
+        var refreshed = ScoreNavigation.EnsurePlaybackSequence(score);
+
+        refreshed.Should().Equal(0, 1, 2);
+        ScoreNavigation.HasCurrentPlaybackSequence(score).Should().BeTrue();
     }
 
     private static MeasureModel Measure(

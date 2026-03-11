@@ -9,6 +9,27 @@ public static class ScoreNavigation
 {
     private const int DirectionCount = 19;
 
+    /// <summary>
+    /// Returns true when <see cref="Score.PlaybackMasterBarSequence"/> was produced by the current score timeline.
+    /// </summary>
+    public static bool HasCurrentPlaybackSequence(Score score)
+    {
+        ArgumentNullException.ThrowIfNull(score);
+
+        return score.GetExtension<PlaybackSequenceStateExtension>()?.IsCurrent == true;
+    }
+
+    /// <summary>
+    /// Clears cached playback traversal after edits that may have changed navigation semantics.
+    /// </summary>
+    public static void InvalidatePlaybackSequence(Score score)
+    {
+        ArgumentNullException.ThrowIfNull(score);
+
+        score.PlaybackMasterBarSequence = Array.Empty<int>();
+        SetPlaybackSequenceState(score, isCurrent: false);
+    }
+
     public static IReadOnlyList<int> BuildPlaybackSequence(IReadOnlyList<MeasureModel> measures, bool anacrusis = false)
     {
         ArgumentNullException.ThrowIfNull(measures);
@@ -29,6 +50,18 @@ public static class ScoreNavigation
     }
 
     /// <summary>
+    /// Returns the current playback traversal, recomputing it when the cached sequence is stale.
+    /// </summary>
+    public static IReadOnlyList<int> EnsurePlaybackSequence(Score score)
+    {
+        ArgumentNullException.ThrowIfNull(score);
+
+        return HasCurrentPlaybackSequence(score)
+            ? score.PlaybackMasterBarSequence
+            : RebuildPlaybackSequence(score);
+    }
+
+    /// <summary>
     /// Recomputes <see cref="Score.PlaybackMasterBarSequence"/> from the current score timeline.
     /// </summary>
     public static IReadOnlyList<int> RebuildPlaybackSequence(Score score)
@@ -40,7 +73,20 @@ public static class ScoreNavigation
             ?? Array.Empty<MeasureModel>();
         var sequence = BuildPlaybackSequence(measures, score.Anacrusis);
         score.PlaybackMasterBarSequence = sequence;
+        SetPlaybackSequenceState(score, isCurrent: true);
         return sequence;
+    }
+
+    private static void SetPlaybackSequenceState(Score score, bool isCurrent)
+    {
+        var state = score.GetExtension<PlaybackSequenceStateExtension>();
+        if (state is null)
+        {
+            state = new PlaybackSequenceStateExtension();
+            score.SetExtension(state);
+        }
+
+        state.IsCurrent = isCurrent;
     }
 
     private static bool IsDirectionToken(MeasureState measure, string token)
@@ -95,6 +141,11 @@ public static class ScoreNavigation
             "DaDbleCoda" => "DaDoubleCoda",
             _ => normalized
         };
+    }
+
+    private sealed class PlaybackSequenceStateExtension : IModelExtension
+    {
+        public bool IsCurrent { get; set; }
     }
 
     private sealed class AndroidParityUnroller

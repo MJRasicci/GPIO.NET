@@ -16,7 +16,10 @@ public sealed class Score : ExtensibleModel
     public bool Anacrusis { get; set; }
 
     /// <summary>
-    /// Ordered master-bar indices representing navigation-aware playback traversal.
+    /// Ordered master-bar indices representing derived navigation-aware playback traversal.
+    /// Call <see cref="Motif.ScoreNavigation.RebuildPlaybackSequence(Motif.Models.Score)"/> after
+    /// traversal-affecting edits, or <see cref="Motif.ScoreNavigation.EnsurePlaybackSequence(Motif.Models.Score)"/>
+    /// when reading the cached value.
     /// </summary>
     public IReadOnlyList<int> PlaybackMasterBarSequence { get; set; } = Array.Empty<int>();
 }

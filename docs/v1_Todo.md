@@ -49,7 +49,8 @@
   Remaining: move surviving Core property/XProperty bags behind GP extensions or normalize them as typed semantics, remove the `*Model` suffix from Core types, keep genuinely cross-format semantics such as golpe in Core, add `GpStaffExtension` after the hierarchy refactor.
 
 - `[~]` Step 3 - Raw cache invariants
-  Remaining: define extension invalidation/preservation/regeneration policy, reuse/default rules, and fidelity diagnostics expectations.
+  Landed: explicit GP cache workflow via `InvalidateGuitarProExtensions`, reattachment result reporting from `ReattachGuitarProExtensionsFrom`, and CLI warning surfacing when a no-op source reattach is only partial.
+  Remaining: broaden writer-side diagnostics/defaulting/regeneration coverage beyond the current no-op/source-reattach path.
 
 - `[x]` Step 4 - Guitar Pro format I/O ownership
   Landed: GPIF/raw/archive/XML/mapper/unmapper live in the GP package; low-level GP seams are internal.
@@ -58,16 +59,16 @@
   Landed: `IScoreReader` / `IScoreWriter` live in Core and are implemented by `GuitarProReader` / `GuitarProWriter`.
 
 - `[~]` Step 6 - Navigation in Core
-  Landed: `ScoreNavigation`, `Score.Anacrusis`, Core-owned playback traversal recompute, Core navigation tests.
-  Remaining: define invalidation/recompute rules, and finalize the score-owned timeline abstraction/name that replaces the current `MeasurePositions` wording.
+  Landed: `ScoreNavigation`, `Score.Anacrusis`, explicit `HasCurrentPlaybackSequence` / `InvalidatePlaybackSequence` / `EnsurePlaybackSequence` workflow, Core-owned playback traversal recompute, Core navigation tests.
+  Remaining: finalize the score-owned timeline abstraction/name that replaces the current `MeasurePositions` wording.
 
 - `[~]` Step 7 - CLI
-  Landed: package-split CLI, source-extension reattachment for no-op JSON writes, format-pair routing, legacy flag compatibility, GPIF batch export.
+  Landed: package-split CLI, source-extension reattachment for no-op JSON writes, partial-reattachment raw-fidelity warnings, format-pair routing, legacy flag compatibility, GPIF batch export.
   Remaining: revisit routing once non-Guitar-Pro inputs/outputs exist.
 
 - `[~]` Step 8 - Tests
-  Landed: Core/GP test split, API surface tests, Core navigation coverage.
-  Remaining: hierarchy-refactor tests and extension invalidation/defaulting/regeneration tests.
+  Landed: Core/GP test split, API surface tests, Core navigation coverage, explicit navigation invalidation tests, GP extension invalidation/reattachment tests.
+  Remaining: hierarchy-refactor tests and deeper defaulting/regeneration coverage.
 
 - `[ ]` Step 9 - Public API review
   Remaining: rename Core `*Model` types, trim remaining GP leakage from `Motif.Core`, remove Core property/XProperty bags that are only preserving GP fidelity, rerun API surface tests after each cleanup pass.
@@ -77,11 +78,10 @@
 
 ## Next Up
 
-1. Finalize derived-state and extension-cache policy.
-   - Navigation recompute rules
-   - Extension invalidation/preservation/regeneration rules
-   - Diagnostics expectations when exact fidelity cannot be preserved
-   - Open design decision: explicit recompute workflow vs automatic invalidation/recompute
+1. Broaden derived-state and extension-cache diagnostics/docs.
+   - Push partial reattachment/defaulting/regeneration warnings through more writer surfaces
+   - Document the recommended edit workflow for library consumers (`invalidate -> edit -> reattach or regenerate -> rebuild navigation`)
+   - Add coverage around non-no-op edit paths that intentionally invalidate GP fidelity caches
 
 2. Land the hierarchy refactor.
    - Replace `Track.Measures` + `Measure.AdditionalStaffBars` with `Track.Staves` + a score-owned timeline collection

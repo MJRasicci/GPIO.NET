@@ -39,6 +39,46 @@ public sealed class GpNoteExtension : IModelExtension
     public required GpNoteMetadata Metadata { get; set; }
 }
 
+public sealed class GpExtensionReattachmentResult
+{
+    public bool ScoreAttached { get; internal set; }
+
+    public bool ScoreUnmatched { get; internal set; }
+
+    public int TracksAttached { get; internal set; }
+
+    public int TracksUnmatched { get; internal set; }
+
+    public int MeasuresAttached { get; internal set; }
+
+    public int MeasuresUnmatched { get; internal set; }
+
+    public int StaffsAttached { get; internal set; }
+
+    public int StaffsUnmatched { get; internal set; }
+
+    public int VoicesAttached { get; internal set; }
+
+    public int VoicesUnmatched { get; internal set; }
+
+    public int BeatsAttached { get; internal set; }
+
+    public int BeatsUnmatched { get; internal set; }
+
+    public int NotesAttached { get; internal set; }
+
+    public int NotesUnmatched { get; internal set; }
+
+    public bool HasUnmatchedTargets
+        => ScoreUnmatched
+           || TracksUnmatched > 0
+           || MeasuresUnmatched > 0
+           || StaffsUnmatched > 0
+           || VoicesUnmatched > 0
+           || BeatsUnmatched > 0
+           || NotesUnmatched > 0;
+}
+
 public sealed class GpMeasureMetadata
 {
     public string MasterBarXml { get; set; } = string.Empty;

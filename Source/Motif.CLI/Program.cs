@@ -190,13 +190,31 @@ static async Task WriteGuitarProArchiveAsync(CliOptions options, string outputPa
     }
 
     var isNoOpWrite = sourceScore is not null && IsNoOpWrite(sourceScore, editedScore);
+    string? partialReattachmentMessage = null;
     if (isNoOpWrite)
     {
-        editedScore.ReattachGuitarProExtensionsFrom(sourceScore!);
+        var reattachment = editedScore.ReattachGuitarProExtensionsFrom(sourceScore!);
+        if (reattachment.HasUnmatchedTargets)
+        {
+            partialReattachmentMessage =
+                $"Source GP fidelity only partially reattached before write. "
+                + $"Unmatched targets: score={(reattachment.ScoreUnmatched ? 1 : 0)}, "
+                + $"tracks={reattachment.TracksUnmatched}, measures={reattachment.MeasuresUnmatched}, "
+                + $"staffs={reattachment.StaffsUnmatched}, voices={reattachment.VoicesUnmatched}, "
+                + $"beats={reattachment.BeatsUnmatched}, notes={reattachment.NotesUnmatched}.";
+        }
     }
 
     var unmapper = new DefaultScoreUnmapper();
     var unmapResult = await unmapper.UnmapAsync(editedScore).ConfigureAwait(false);
+
+    if (!string.IsNullOrWhiteSpace(partialReattachmentMessage))
+    {
+        unmapResult.Diagnostics.Warn(
+            code: "GP_EXTENSION_REATTACHMENT_PARTIAL",
+            category: "RawFidelity",
+            message: partialReattachmentMessage);
+    }
 
     using var gpifBuffer = new MemoryStream();
     var serializer = new XmlGpifSerializer();

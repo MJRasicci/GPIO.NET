@@ -24,6 +24,7 @@ public class PublicApiSurfaceTests
         typeof(IGuitarProWriter).Should().NotBeNull();
         typeof(GpScoreExtension).Should().NotBeNull();
         typeof(GpTrackExtension).Should().NotBeNull();
+        typeof(GpExtensionReattachmentResult).Should().NotBeNull();
         typeof(WriteDiagnostics).Should().NotBeNull();
         typeof(WriteDiagnosticEntry).Should().NotBeNull();
 
