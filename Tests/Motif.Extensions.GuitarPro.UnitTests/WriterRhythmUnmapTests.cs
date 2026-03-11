@@ -16,24 +16,19 @@ public class WriterRhythmUnmapTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Beats =
-                            [
-                                new BeatModel { Id = 1, Duration = 0.375m },
-                                new BeatModel { Id = 2, Duration = 1m / 12m }
-                            ]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel { Id = 1, Duration = 0.375m },
+                            new BeatModel { Id = 2, Duration = 1m / 12m }
+                        ]
+                    })
             ]
         };
 
@@ -60,28 +55,23 @@ public class WriterRhythmUnmapTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Beats =
-                            [
-                                new BeatModel { Id = 1, Duration = 0.25m },
-                                new BeatModel { Id = 2, Duration = 0.25m }
-                            ]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel { Id = 1, Duration = 0.25m },
+                            new BeatModel { Id = 2, Duration = 0.25m }
+                        ]
+                    })
             ]
         };
-        score.Tracks[0].Measures[0].Beats[0].GetOrCreateGuitarPro().Metadata.SourceRhythmId = 3;
-        score.Tracks[0].Measures[0].Beats[1].GetOrCreateGuitarPro().Metadata.SourceRhythmId = 7;
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].GetOrCreateGuitarPro().Metadata.SourceRhythmId = 3;
+        score.Tracks[0].PrimaryMeasure(0).Beats[1].GetOrCreateGuitarPro().Metadata.SourceRhythmId = 7;
 
         var unmapper = new DefaultScoreUnmapper();
         var result = await unmapper.UnmapAsync(score, TestContext.Current.CancellationToken);
@@ -99,31 +89,26 @@ public class WriterRhythmUnmapTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Beats =
-                            [
-                                new BeatModel
-                                {
-                                    Id = 1,
-                                    Duration = 1m / 48m
-                                }
-                            ]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel
+                            {
+                                Id = 1,
+                                Duration = 1m / 48m
+                            }
+                        ]
+                    })
             ]
         };
-        score.Tracks[0].Measures[0].Beats[0].GetOrCreateGuitarPro().Metadata.SourceRhythmId = 10;
-        score.Tracks[0].Measures[0].Beats[0].GetRequiredGuitarPro().Metadata.SourceRhythm = new GpRhythmShapeMetadata
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].GetOrCreateGuitarPro().Metadata.SourceRhythmId = 10;
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].GetRequiredGuitarPro().Metadata.SourceRhythm = new GpRhythmShapeMetadata
         {
             NoteValue = "32nd",
             PrimaryTuplet = new TupletRatioModel
@@ -151,31 +136,26 @@ public class WriterRhythmUnmapTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Beats =
-                            [
-                                new BeatModel
-                                {
-                                    Id = 1,
-                                    Duration = 0.375m
-                                }
-                            ]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel
+                            {
+                                Id = 1,
+                                Duration = 0.375m
+                            }
+                        ]
+                    })
             ]
         };
-        score.Tracks[0].Measures[0].Beats[0].GetOrCreateGuitarPro().Metadata.SourceRhythmId = 4;
-        score.Tracks[0].Measures[0].Beats[0].GetRequiredGuitarPro().Metadata.SourceRhythm = new GpRhythmShapeMetadata
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].GetOrCreateGuitarPro().Metadata.SourceRhythmId = 4;
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].GetRequiredGuitarPro().Metadata.SourceRhythm = new GpRhythmShapeMetadata
         {
             NoteValue = "Quarter",
             AugmentationDots = 1,
@@ -205,31 +185,26 @@ public class WriterRhythmUnmapTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Beats =
-                            [
-                                new BeatModel
-                                {
-                                    Id = 1,
-                                    Duration = 0.4375m
-                                }
-                            ]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel
+                            {
+                                Id = 1,
+                                Duration = 0.4375m
+                            }
+                        ]
+                    })
             ]
         };
-        score.Tracks[0].Measures[0].Beats[0].GetOrCreateGuitarPro().Metadata.SourceRhythmId = 9;
-        score.Tracks[0].Measures[0].Beats[0].GetRequiredGuitarPro().Metadata.SourceRhythm = new GpRhythmShapeMetadata
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].GetOrCreateGuitarPro().Metadata.SourceRhythmId = 9;
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].GetRequiredGuitarPro().Metadata.SourceRhythm = new GpRhythmShapeMetadata
         {
             NoteValue = "Quarter",
             AugmentationDots = 2,

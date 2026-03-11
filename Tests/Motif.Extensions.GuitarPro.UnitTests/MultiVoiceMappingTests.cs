@@ -15,7 +15,7 @@ public class MultiVoiceMappingTests
         var score = await reader.ReadAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
 
         var measureWithVoices = score.Tracks
-            .SelectMany(t => t.Measures)
+            .SelectMany(t => t.Staves[0].Measures)
             .FirstOrDefault(m => m.Voices.Count > 1);
 
         measureWithVoices.Should().NotBeNull();
@@ -62,39 +62,34 @@ public class MultiVoiceMappingTests
             Title = "MultiVoice RoundTrip",
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Voices =
-                            [
-                                new MeasureVoiceModel
-                                {
-                                    VoiceIndex = 0,
-                                    Beats = [voice0Beat]
-                                },
-                                new MeasureVoiceModel
-                                {
-                                    VoiceIndex = 1,
-                                    Beats = [voice1Beat]
-                                }
-                            ],
-                            Beats = [voice0Beat]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Voices =
+                        [
+                            new MeasureVoiceModel
+                            {
+                                VoiceIndex = 0,
+                                Beats = [voice0Beat]
+                            },
+                            new MeasureVoiceModel
+                            {
+                                VoiceIndex = 1,
+                                Beats = [voice1Beat]
+                            }
+                        ],
+                        Beats = [voice0Beat]
+                    })
             ]
         };
 
-        score.Tracks[0].Measures[0].Voices[0].GetOrCreateGuitarPro().Metadata.Properties =
+        score.Tracks[0].PrimaryMeasure(0).Voices[0].GetOrCreateGuitarPro().Metadata.Properties =
             new Dictionary<string, string> { ["PartedSlur"] = "true" };
-        score.Tracks[0].Measures[0].Voices[1].GetOrCreateGuitarPro().Metadata.DirectionTags = ["Coda"];
+        score.Tracks[0].PrimaryMeasure(0).Voices[1].GetOrCreateGuitarPro().Metadata.DirectionTags = ["Coda"];
 
         var outFile = Path.Combine(Path.GetTempPath(), $"gpio-voice-{Guid.NewGuid():N}.gp");
         try
@@ -105,7 +100,7 @@ public class MultiVoiceMappingTests
             var reader = new Motif.Extensions.GuitarPro.GuitarProReader();
             var readBack = await reader.ReadAsync(outFile, cancellationToken: TestContext.Current.CancellationToken);
 
-            var measure = readBack.Tracks[0].Measures[0];
+            var measure = readBack.Tracks[0].PrimaryMeasure(0);
             measure.Voices.Should().HaveCount(2);
             measure.Voices[0].VoiceIndex.Should().Be(0);
             measure.Voices[1].VoiceIndex.Should().Be(1);

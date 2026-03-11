@@ -3,7 +3,7 @@ namespace Motif;
 using Motif.Models;
 
 /// <summary>
-/// Builds navigation-aware playback traversal from the Core measure timeline.
+/// Builds navigation-aware playback traversal from the score-owned timeline.
 /// </summary>
 public static class ScoreNavigation
 {
@@ -30,25 +30,6 @@ public static class ScoreNavigation
         SetPlaybackSequenceState(score, isCurrent: false);
     }
 
-    public static IReadOnlyList<int> BuildPlaybackSequence(IReadOnlyList<MeasureModel> measures, bool anacrusis = false)
-    {
-        ArgumentNullException.ThrowIfNull(measures);
-
-        var ordered = measures
-            .OrderBy(measure => measure.Index)
-            .Select(MeasureState.From)
-            .ToArray();
-
-        if (ordered.Length == 0)
-        {
-            return Array.Empty<int>();
-        }
-
-        var directions = DirectionMap.From(ordered);
-        var unroller = new AndroidParityUnroller(ordered, directions, anacrusis);
-        return unroller.Build();
-    }
-
     public static IReadOnlyList<int> BuildPlaybackSequence(IReadOnlyList<TimelineBarModel> timelineBars, bool anacrusis = false)
     {
         ArgumentNullException.ThrowIfNull(timelineBars);
@@ -66,19 +47,6 @@ public static class ScoreNavigation
         var directions = DirectionMap.From(ordered);
         var unroller = new AndroidParityUnroller(ordered, directions, anacrusis);
         return unroller.Build();
-    }
-
-    /// <summary>
-    /// Builds score-owned timeline bars from legacy measure-local timeline state.
-    /// </summary>
-    public static IReadOnlyList<TimelineBarModel> BuildTimelineBars(IReadOnlyList<MeasureModel> measures)
-    {
-        ArgumentNullException.ThrowIfNull(measures);
-
-        return measures
-            .OrderBy(measure => measure.Index)
-            .Select(BuildTimelineBar)
-            .ToArray();
     }
 
     /// <summary>
@@ -106,8 +74,6 @@ public static class ScoreNavigation
 
     /// <summary>
     /// Recomputes <see cref="Score.PlaybackMasterBarSequence"/> from the current score timeline.
-    /// Promote legacy measure-local state explicitly with <see cref="BuildTimelineBars(System.Collections.Generic.IReadOnlyList{Motif.Models.MeasureModel})"/>
-    /// before calling this method when working with compatibility <see cref="TrackModel.Measures"/>.
     /// </summary>
     public static IReadOnlyList<int> RebuildPlaybackSequence(Score score)
     {
@@ -119,41 +85,6 @@ public static class ScoreNavigation
         SetPlaybackSequenceState(score, isCurrent: true);
         return sequence;
     }
-
-    private static TimelineBarModel BuildTimelineBar(MeasureModel measure)
-        => new()
-        {
-            Index = measure.Index,
-            TimeSignature = measure.TimeSignature,
-            DoubleBar = measure.DoubleBar,
-            FreeTime = measure.FreeTime,
-            TripletFeel = measure.TripletFeel,
-            RepeatStart = measure.RepeatStart,
-            RepeatStartAttributePresent = measure.RepeatStartAttributePresent,
-            RepeatEnd = measure.RepeatEnd,
-            RepeatEndAttributePresent = measure.RepeatEndAttributePresent,
-            RepeatCount = measure.RepeatCount,
-            RepeatCountAttributePresent = measure.RepeatCountAttributePresent,
-            AlternateEndings = measure.AlternateEndings,
-            SectionLetter = measure.SectionLetter,
-            SectionText = measure.SectionText,
-            HasExplicitEmptySection = measure.HasExplicitEmptySection,
-            Jump = measure.Jump,
-            Target = measure.Target,
-            DirectionProperties = measure.DirectionProperties.ToDictionary(kv => kv.Key, kv => kv.Value),
-            KeyAccidentalCount = measure.KeyAccidentalCount,
-            KeyMode = measure.KeyMode,
-            KeyTransposeAs = measure.KeyTransposeAs,
-            Fermatas = measure.Fermatas
-                .Select(fermata => new FermataMetadata
-                {
-                    Type = fermata.Type,
-                    Offset = fermata.Offset,
-                    Length = fermata.Length
-                })
-                .ToArray(),
-            XProperties = measure.XProperties.ToDictionary(kv => kv.Key, kv => kv.Value)
-        };
 
     private static void SetPlaybackSequenceState(Score score, bool isCurrent)
     {
@@ -914,17 +845,6 @@ public static class ScoreNavigation
         IReadOnlyDictionary<string, string> DirectionProperties)
     {
         public bool HasAlternateEndings => AlternateEndingMask != 0;
-
-        public static MeasureState From(MeasureModel source)
-            => new(
-                MeasureIndex: source.Index,
-                RepeatStart: source.RepeatStart,
-                RepeatEnd: source.RepeatEnd,
-                RepeatCount: Math.Max(0, source.RepeatCount),
-                AlternateEndingMask: ParseAlternateEndingMask(source.AlternateEndings),
-                Jump: source.Jump,
-                Target: source.Target,
-                DirectionProperties: source.DirectionProperties);
 
         public static MeasureState From(TimelineBarModel source)
             => new(

@@ -22,7 +22,7 @@ public class WriterRemainingFidelityTests
     private static TrackMetadata TrackMetadataOf(TrackModel track)
         => track.GetRequiredGuitarPro().Metadata;
 
-    private static GpMeasureMetadata MeasureMetadataOf(MeasureModel measure)
+    private static GpMeasureStaffMetadata MeasureMetadataOf(StaffMeasureModel measure)
         => measure.GetRequiredGuitarPro().Metadata;
 
     private static GpVoiceMetadata VoiceMetadataOf(MeasureVoiceModel voice)
@@ -126,7 +126,7 @@ public class WriterRemainingFidelityTests
         """;
 
         var score = await DeserializeAndMap(gpif);
-        var measure = score.Tracks[0].Measures[0];
+        var measure = score.Tracks[0].PrimaryMeasure(0);
         var timelineBar = score.TimelineBars[0];
         var scoreMetadata = ScoreMetadataOf(score);
 
@@ -277,15 +277,15 @@ public class WriterRemainingFidelityTests
         MasterTrackMetadataOf(score).Xml.Should().Contain("<MasterTrack><Tracks>0</Tracks></MasterTrack>");
         TrackMetadataOf(score.Tracks[0]).Xml.Should().Contain("<Track id=\"0\"><Name>Track</Name></Track>");
         TimelineMetadataOf(score.TimelineBars[0]).MasterBarXml.Should().Contain("<MasterBar><Time>4/4</Time><FreeTime /><Bars>1</Bars></MasterBar>");
-        VoiceMetadataOf(score.Tracks[0].Measures[0].Voices[0]).Xml.Should().Contain("<Voice id=\"10\"><Beats>100</Beats></Voice>");
-        BeatMetadataOf(score.Tracks[0].Measures[0].Beats[0]).Xml.Should().Contain("<Beat id=\"100\"><Rhythm ref=\"1000\" /><FreeText><![CDATA[Dist.]]></FreeText><Notes>200</Notes></Beat>");
-        BeatMetadataOf(score.Tracks[0].Measures[0].Beats[0]).SourceRhythm!.Xml.Should().Contain("<Rhythm id=\"1000\"><NoteValue>Eighth</NoteValue><AugmentationDot count=\"1\" /></Rhythm>");
+        VoiceMetadataOf(score.Tracks[0].PrimaryMeasure(0).Voices[0]).Xml.Should().Contain("<Voice id=\"10\"><Beats>100</Beats></Voice>");
+        BeatMetadataOf(score.Tracks[0].PrimaryMeasure(0).Beats[0]).Xml.Should().Contain("<Beat id=\"100\"><Rhythm ref=\"1000\" /><FreeText><![CDATA[Dist.]]></FreeText><Notes>200</Notes></Beat>");
+        BeatMetadataOf(score.Tracks[0].PrimaryMeasure(0).Beats[0]).SourceRhythm!.Xml.Should().Contain("<Rhythm id=\"1000\"><NoteValue>Eighth</NoteValue><AugmentationDot count=\"1\" /></Rhythm>");
         fromJson!.GetGuitarPro().Should().BeNull();
         fromJson.Tracks[0].GetGuitarPro().Should().BeNull();
-        fromJson.Tracks[0].Measures[0].GetGuitarPro().Should().BeNull();
-        fromJson.Tracks[0].Measures[0].Voices[0].GetGuitarPro().Should().BeNull();
-        fromJson.Tracks[0].Measures[0].Beats[0].GetGuitarPro().Should().BeNull();
-        fromJson.Tracks[0].Measures[0].Beats[0].Notes[0].GetGuitarPro().Should().BeNull();
+        fromJson.Tracks[0].PrimaryMeasure(0).GetGuitarPro().Should().BeNull();
+        fromJson.Tracks[0].PrimaryMeasure(0).Voices[0].GetGuitarPro().Should().BeNull();
+        fromJson.Tracks[0].PrimaryMeasure(0).Beats[0].GetGuitarPro().Should().BeNull();
+        fromJson.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].GetGuitarPro().Should().BeNull();
         fromJson.ReattachGuitarProExtensionsFrom(score);
 
         var xml = await RoundTripThroughWriteText(fromJson);
@@ -328,7 +328,7 @@ public class WriterRemainingFidelityTests
 
         var score = await DeserializeAndMap(gpif);
         TrackMetadataOf(score.Tracks[0]).LetRingThroughout.Should().BeTrue();
-        score.Tracks[0].Measures[0].SimileMark.Should().Be("Simple");
+        score.Tracks[0].PrimaryMeasure(0).SimileMark.Should().Be("Simple");
 
         var roundTrip = await RoundTripThroughWrite(score);
         var track = roundTrip.Root!.Element("Tracks")!.Element("Track")!;
@@ -442,7 +442,7 @@ public class WriterRemainingFidelityTests
         """;
 
         var score = await DeserializeAndMap(gpif);
-        var beat = score.Tracks[0].Measures[0].Beats[0];
+        var beat = score.Tracks[0].PrimaryMeasure(0).Beats[0];
 
         beat.Brush.Should().BeTrue();
         beat.BrushDurationTicks.Should().Be(60);
@@ -486,7 +486,7 @@ public class WriterRemainingFidelityTests
         """;
 
         var score = await DeserializeAndMap(gpif);
-        score.Tracks[0].Measures[0].Beats[0].Notes[0].ShowStringNumber.Should().BeTrue();
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].ShowStringNumber.Should().BeTrue();
 
         var roundTrip = await RoundTripThroughJsonAndWrite(gpif);
         var properties = roundTrip.Root!
@@ -506,51 +506,46 @@ public class WriterRemainingFidelityTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Voices =
-                            [
-                                new MeasureVoiceModel
-                                {
-                                    VoiceIndex = 1,
-                                    Beats =
-                                    [
-                                        new BeatModel
-                                        {
-                                            Id = 100,
-                                            Duration = 0.25m
-                                        }
-                                    ]
-                                },
-                                new MeasureVoiceModel
-                                {
-                                    VoiceIndex = 3,
-                                    Beats =
-                                    [
-                                        new BeatModel
-                                        {
-                                            Id = 101,
-                                            Duration = 0.25m
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Voices =
+                        [
+                            new MeasureVoiceModel
+                            {
+                                VoiceIndex = 1,
+                                Beats =
+                                [
+                                    new BeatModel
+                                    {
+                                        Id = 100,
+                                        Duration = 0.25m
+                                    }
+                                ]
+                            },
+                            new MeasureVoiceModel
+                            {
+                                VoiceIndex = 3,
+                                Beats =
+                                [
+                                    new BeatModel
+                                    {
+                                        Id = 101,
+                                        Duration = 0.25m
+                                    }
+                                ]
+                            }
+                        ]
+                    })
             ]
         };
-        score.Tracks[0].Measures[0].GetOrCreateGuitarPro().Metadata.SourceBarId = 5;
-        score.Tracks[0].Measures[0].Voices[0].GetOrCreateGuitarPro().Metadata.SourceVoiceId = 10;
-        score.Tracks[0].Measures[0].Voices[1].GetOrCreateGuitarPro().Metadata.SourceVoiceId = 11;
+        score.Tracks[0].PrimaryMeasure(0).GetOrCreateGuitarPro().Metadata.SourceBarId = 5;
+        score.Tracks[0].PrimaryMeasure(0).Voices[0].GetOrCreateGuitarPro().Metadata.SourceVoiceId = 10;
+        score.Tracks[0].PrimaryMeasure(0).Voices[1].GetOrCreateGuitarPro().Metadata.SourceVoiceId = 11;
 
         var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
 

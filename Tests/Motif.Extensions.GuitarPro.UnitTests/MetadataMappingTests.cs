@@ -95,22 +95,18 @@ public class MetadataMappingTests
             ],
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            Clef = "G2",
-                            BarProperties = new Dictionary<string, string> { ["BarDisplay"] = "Both" },
-                            Voices = [ voice ],
-                            Beats = [ beat ]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Clef = "G2",
+                        BarProperties = new Dictionary<string, string> { ["BarDisplay"] = "Both" },
+                        Voices = [ voice ],
+                        Beats = [ beat ]
+                    })
             ]
         };
         score.GetOrCreateGuitarPro().Metadata = new ScoreMetadata
@@ -371,7 +367,7 @@ public class MetadataMappingTests
             readBackMasterTrack.AutomationTimeline[1].Type.Should().Be("Sound");
 
             var timelineBar = readBack.TimelineBars[0];
-            var measure = track.Measures[0];
+            var measure = track.PrimaryMeasure(0);
             timelineBar.KeyAccidentalCount.Should().Be(1);
             timelineBar.KeyMode.Should().Be("Major");
             timelineBar.KeyTransposeAs.Should().Be("C");
@@ -404,20 +400,15 @@ public class MetadataMappingTests
             Album = "B",
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Track",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Beats = [ new BeatModel { Id = 1, Duration = 0.25m } ]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Track",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats = [ new BeatModel { Id = 1, Duration = 0.25m } ]
+                    })
             ]
         };
         score.GetOrCreateGuitarPro().MasterTrack = new MasterTrackMetadata

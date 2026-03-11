@@ -137,7 +137,7 @@ public class WriterNotationFidelityTests
         var gpif = BuildGpif();
         var score = await DeserializeAndMap(gpif);
 
-        var measure = score.Tracks[0].Measures[0];
+        var measure = score.Tracks[0].PrimaryMeasure(0);
         var timelineBar = score.TimelineBars[0];
         var beat = measure.Beats[0];
         var note = beat.Notes[0];
@@ -207,54 +207,49 @@ public class WriterNotationFidelityTests
     public async Task Edited_known_xproperties_regenerate_instead_of_reusing_stale_source_xml()
     {
         var sourceScore = await DeserializeAndMap(BuildGpif());
-        var beat = sourceScore.Tracks[0].Measures[0].Beats[0];
+        var beat = sourceScore.Tracks[0].PrimaryMeasure(0).Beats[0];
         var note = beat.Notes[0];
 
         var score = new Score
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Lead",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Beats =
-                            [
-                                new BeatModel
-                                {
-                                    Id = beat.Id,
-                                    Duration = 0.25m,
-                                    BrushDurationTicks = 120,
-                                    XProperties = beat.XProperties,
-                                    Notes =
-                                    [
-                                        new NoteModel
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Lead",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel
+                            {
+                                Id = beat.Id,
+                                Duration = 0.25m,
+                                BrushDurationTicks = 120,
+                                XProperties = beat.XProperties,
+                                Notes =
+                                [
+                                    new NoteModel
+                                    {
+                                        Id = note.Id,
+                                        MidiPitch = 69,
+                                        XProperties = note.XProperties,
+                                        Articulation = new NoteArticulationModel
                                         {
-                                            Id = note.Id,
-                                            MidiPitch = 69,
-                                            XProperties = note.XProperties,
-                                            Articulation = new NoteArticulationModel
-                                            {
-                                                TrillSpeed = TrillSpeedKind.ThirtySecond
-                                            }
+                                            TrillSpeed = TrillSpeedKind.ThirtySecond
                                         }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
+                                    }
+                                ]
+                            }
+                        ]
+                    })
             ]
         };
-        score.Tracks[0].Measures[0].Beats[0].GetOrCreateGuitarPro().Metadata.BrushDurationXPropertyId = BeatMetadataOf(beat).BrushDurationXPropertyId;
-        score.Tracks[0].Measures[0].Beats[0].GetOrCreateGuitarPro().Metadata.XPropertiesXml = BeatMetadataOf(beat).XPropertiesXml;
-        score.Tracks[0].Measures[0].Beats[0].Notes[0].GetOrCreateGuitarPro().Metadata.XPropertiesXml = NoteMetadataOf(note).XPropertiesXml;
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].GetOrCreateGuitarPro().Metadata.BrushDurationXPropertyId = BeatMetadataOf(beat).BrushDurationXPropertyId;
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].GetOrCreateGuitarPro().Metadata.XPropertiesXml = BeatMetadataOf(beat).XPropertiesXml;
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].GetOrCreateGuitarPro().Metadata.XPropertiesXml = NoteMetadataOf(note).XPropertiesXml;
 
         var roundTrip = await RoundTripThroughWrite(score);
         var outputBeatXProperties = roundTrip.Root!.Element("Beats")!.Element("Beat")!.Element("XProperties")!;
@@ -270,50 +265,45 @@ public class WriterNotationFidelityTests
     public async Task Edited_note_pitch_regenerates_fret_instead_of_reusing_stale_source_value()
     {
         var sourceScore = await DeserializeAndMap(BuildGpif());
-        var beat = sourceScore.Tracks[0].Measures[0].Beats[0];
+        var beat = sourceScore.Tracks[0].PrimaryMeasure(0).Beats[0];
         var note = beat.Notes[0];
 
         var score = new Score
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Lead",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Beats =
-                            [
-                                new BeatModel
-                                {
-                                    Id = beat.Id,
-                                    Duration = beat.Duration,
-                                    Notes =
-                                    [
-                                        new NoteModel
-                                        {
-                                            Id = note.Id,
-                                            MidiPitch = 71,
-                                            StringNumber = note.StringNumber
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Lead",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel
+                            {
+                                Id = beat.Id,
+                                Duration = beat.Duration,
+                                Notes =
+                                [
+                                    new NoteModel
+                                    {
+                                        Id = note.Id,
+                                        MidiPitch = 71,
+                                        StringNumber = note.StringNumber
+                                    }
+                                ]
+                            }
+                        ]
+                    })
             ]
         };
         score.Tracks[0].GetOrCreateGuitarPro().Metadata = sourceScore.Tracks[0].GetRequiredGuitarPro().Metadata;
-        score.Tracks[0].Measures[0].Beats[0].Notes[0].GetOrCreateGuitarPro().Metadata.SourceMidiPitch = NoteMetadataOf(note).SourceMidiPitch;
-        score.Tracks[0].Measures[0].Beats[0].Notes[0].GetOrCreateGuitarPro().Metadata.SourceTransposedMidiPitch = NoteMetadataOf(note).SourceTransposedMidiPitch;
-        score.Tracks[0].Measures[0].Beats[0].Notes[0].GetOrCreateGuitarPro().Metadata.SourceFret = NoteMetadataOf(note).SourceFret;
-        score.Tracks[0].Measures[0].Beats[0].Notes[0].GetOrCreateGuitarPro().Metadata.SourceStringNumber = NoteMetadataOf(note).SourceStringNumber;
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].GetOrCreateGuitarPro().Metadata.SourceMidiPitch = NoteMetadataOf(note).SourceMidiPitch;
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].GetOrCreateGuitarPro().Metadata.SourceTransposedMidiPitch = NoteMetadataOf(note).SourceTransposedMidiPitch;
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].GetOrCreateGuitarPro().Metadata.SourceFret = NoteMetadataOf(note).SourceFret;
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].GetOrCreateGuitarPro().Metadata.SourceStringNumber = NoteMetadataOf(note).SourceStringNumber;
 
         var roundTrip = await RoundTripThroughWrite(score);
         var outputNote = roundTrip.Root!.Element("Notes")!.Element("Note")!;

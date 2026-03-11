@@ -78,16 +78,28 @@ public class WriterNotePropertyFidelityTests
                 {
                     Id = 0,
                     Name = "Piano",
-                    Measures =
+                    Staves =
                     [
-                        new MeasureModel
+                        new StaffModel
                         {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            AdditionalStaffBars =
+                            StaffIndex = 0,
+                            Measures =
                             [
-                                new MeasureStaffModel
+                                new StaffMeasureModel
                                 {
+                                    Index = 0,
+                                    StaffIndex = 0
+                                }
+                            ]
+                        },
+                        new StaffModel
+                        {
+                            StaffIndex = 1,
+                            Measures =
+                            [
+                                new StaffMeasureModel
+                                {
+                                    Index = 0,
                                     StaffIndex = 1,
                                     Beats =
                                     [
@@ -156,7 +168,7 @@ public class WriterNotePropertyFidelityTests
             """);
 
         var score = await DeserializeAndMap(gpif);
-        var note = score.Tracks[0].Measures[0].Beats[0].Notes[0];
+        var note = score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0];
 
         note.MidiPitch.Should().Be(36);
         NoteMetadataOf(note).SourceMidiPitch.Should().Be(36);
@@ -191,52 +203,47 @@ public class WriterNotePropertyFidelityTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Drums",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Beats =
-                            [
-                                new BeatModel
-                                {
-                                    Id = 1,
-                                    Duration = 0.25m,
-                                    Notes =
-                                    [
-                                        new NoteModel
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Drums",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel
+                            {
+                                Id = 1,
+                                Duration = 0.25m,
+                                Notes =
+                                [
+                                    new NoteModel
+                                    {
+                                        Id = 200,
+                                        MidiPitch = 38,
+                                        ConcertPitch = new PitchValueModel
                                         {
-                                            Id = 200,
-                                            MidiPitch = 38,
-                                            ConcertPitch = new PitchValueModel
-                                            {
-                                                Step = "C",
-                                                Accidental = string.Empty,
-                                                Octave = -1
-                                            },
-                                            TransposedPitch = new PitchValueModel
-                                            {
-                                                Step = "C",
-                                                Accidental = string.Empty,
-                                                Octave = -1
-                                            },
-                                            StringNumber = 0
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
+                                            Step = "C",
+                                            Accidental = string.Empty,
+                                            Octave = -1
+                                        },
+                                        TransposedPitch = new PitchValueModel
+                                        {
+                                            Step = "C",
+                                            Accidental = string.Empty,
+                                            Octave = -1
+                                        },
+                                        StringNumber = 0
+                                    }
+                                ]
+                            }
+                        ]
+                    })
             ]
         };
-        score.Tracks[0].Measures[0].Beats[0].Notes[0].GetOrCreateGuitarPro().Metadata.SourceMidiPitch = 36;
-        score.Tracks[0].Measures[0].Beats[0].Notes[0].GetOrCreateGuitarPro().Metadata.SourceTransposedMidiPitch = 36;
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].GetOrCreateGuitarPro().Metadata.SourceMidiPitch = 36;
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].GetOrCreateGuitarPro().Metadata.SourceTransposedMidiPitch = 36;
 
         var roundTrip = await RoundTripThroughWrite(score);
         var outputProperties = roundTrip.Root!
@@ -269,7 +276,7 @@ public class WriterNotePropertyFidelityTests
             """);
 
         var score = await DeserializeAndMap(gpif);
-        var note = score.Tracks[0].Measures[0].Beats[0].Notes[0];
+        var note = score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0];
 
         note.Velocity.Should().Be(72);
         note.Articulation.Bend.Should().NotBeNull();

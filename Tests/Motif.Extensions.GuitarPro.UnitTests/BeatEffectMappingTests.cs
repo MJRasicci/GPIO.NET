@@ -82,7 +82,7 @@ public class BeatEffectMappingTests
             """);
 
         var score = await DeserializeAndMap(gpif);
-        var beat = score.Tracks[0].Measures[0].Beats[0];
+        var beat = score.Tracks[0].PrimaryMeasure(0).Beats[0];
 
         beat.WhammyBar.Should().NotBeNull();
         beat.WhammyBar!.Enabled.Should().BeTrue();
@@ -107,7 +107,7 @@ public class BeatEffectMappingTests
             """);
 
         var score = await DeserializeAndMap(gpif);
-        var beat = score.Tracks[0].Measures[0].Beats[0];
+        var beat = score.Tracks[0].PrimaryMeasure(0).Beats[0];
 
         beat.WhammyBar.Should().NotBeNull();
         beat.WhammyBar!.Extended.Should().BeTrue();
@@ -125,7 +125,7 @@ public class BeatEffectMappingTests
             """);
 
         var score = await DeserializeAndMap(gpif);
-        var beat = score.Tracks[0].Measures[0].Beats[0];
+        var beat = score.Tracks[0].PrimaryMeasure(0).Beats[0];
         beat.Properties.Should().ContainKey("PrimaryPickupVolume");
         beat.Properties["PrimaryPickupVolume"].Should().Be("0.500000");
         beat.Properties.Should().ContainKey("PrimaryPickupTone");
@@ -145,7 +145,7 @@ public class BeatEffectMappingTests
     {
         var gpif = BuildGpif("");
         var score = await DeserializeAndMap(gpif);
-        score.Tracks[0].Measures[0].Beats[0].WhammyBar.Should().BeNull();
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].WhammyBar.Should().BeNull();
     }
 
     [Fact]
@@ -164,7 +164,7 @@ public class BeatEffectMappingTests
                 """);
 
         var score = await DeserializeAndMap(gpif);
-        score.Tracks[0].Measures[0].Beats[0].Notes[0].MidiPitch.Should().Be(36);
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].MidiPitch.Should().Be(36);
     }
 
     [Fact]
@@ -184,7 +184,7 @@ public class BeatEffectMappingTests
                 """);
 
         var score = await DeserializeAndMap(gpif);
-        var note = score.Tracks[0].Measures[0].Beats[0].Notes[0];
+        var note = score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0];
         note.Articulation.AntiAccent.Should().BeTrue();
         note.Articulation.AntiAccentValue.Should().Be("Normal");
 
@@ -203,31 +203,35 @@ public class BeatEffectMappingTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0, Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0, TimeSignature = "4/4",
-                            Beats =
-                            [
-                                new BeatModel
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel
+                            {
+                                Id = 1,
+                                Duration = 0.25m,
+                                WhammyBar = new WhammyBarModel
                                 {
-                                    Id = 1, Duration = 0.25m,
-                                    WhammyBar = new WhammyBarModel
-                                    {
-                                        Enabled = true, Extended = true,
-                                        OriginValue = 0m, MiddleValue = 1m, DestinationValue = 2m,
-                                        OriginOffset = 0m, MiddleOffset1 = 0.5m, MiddleOffset2 = 0.5m, DestinationOffset = 1m
-                                    },
-                                    Notes = [new NoteModel { Id = 1, MidiPitch = 60 }]
-                                }
-                            ]
-                        }
-                    ]
-                }
+                                    Enabled = true,
+                                    Extended = true,
+                                    OriginValue = 0m,
+                                    MiddleValue = 1m,
+                                    DestinationValue = 2m,
+                                    OriginOffset = 0m,
+                                    MiddleOffset1 = 0.5m,
+                                    MiddleOffset2 = 0.5m,
+                                    DestinationOffset = 1m
+                                },
+                                Notes = [new NoteModel { Id = 1, MidiPitch = 60 }]
+                            }
+                        ]
+                    })
             ]
         };
 
@@ -237,7 +241,7 @@ public class BeatEffectMappingTests
             await new Motif.Extensions.GuitarPro.GuitarProWriter().WriteAsync(score, outFile, TestContext.Current.CancellationToken);
             var readBack = await new Motif.Extensions.GuitarPro.GuitarProReader().ReadAsync(outFile, cancellationToken: TestContext.Current.CancellationToken);
 
-            var whammy = readBack.Tracks[0].Measures[0].Beats[0].WhammyBar;
+            var whammy = readBack.Tracks[0].PrimaryMeasure(0).Beats[0].WhammyBar;
             whammy.Should().NotBeNull();
             whammy!.Enabled.Should().BeTrue();
             whammy.Extended.Should().BeTrue();
@@ -267,7 +271,7 @@ public class BeatEffectMappingTests
             """);
 
         var score = await DeserializeAndMap(gpif);
-        score.Tracks[0].Measures[0].Beats[0].Rasgueado.Should().BeTrue();
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Rasgueado.Should().BeTrue();
     }
 
     [Fact]
@@ -275,7 +279,7 @@ public class BeatEffectMappingTests
     {
         var gpif = BuildGpif("");
         var score = await DeserializeAndMap(gpif);
-        score.Tracks[0].Measures[0].Beats[0].Rasgueado.Should().BeFalse();
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Rasgueado.Should().BeFalse();
     }
 
     [Fact]
@@ -295,7 +299,7 @@ public class BeatEffectMappingTests
             """);
 
         var score = await DeserializeAndMap(gpif);
-        var beat = score.Tracks[0].Measures[0].Beats[0];
+        var beat = score.Tracks[0].PrimaryMeasure(0).Beats[0];
 
         BeatMetadataOf(beat).HasTransposedPitchStemOrientationUserDefinedElement.Should().BeTrue();
         beat.Wah.Should().Be("Open");
@@ -330,7 +334,7 @@ public class BeatEffectMappingTests
         var gpif = BuildGpif("<DeadSlapped />");
 
         var score = await DeserializeAndMap(gpif);
-        score.Tracks[0].Measures[0].Beats[0].DeadSlapped.Should().BeTrue();
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].DeadSlapped.Should().BeTrue();
     }
 
     [Fact]
@@ -338,7 +342,7 @@ public class BeatEffectMappingTests
     {
         var gpif = BuildGpif("");
         var score = await DeserializeAndMap(gpif);
-        score.Tracks[0].Measures[0].Beats[0].DeadSlapped.Should().BeFalse();
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].DeadSlapped.Should().BeFalse();
     }
 
     // ── Arpeggio vs Brush ───────────────────────────────────────────────
@@ -349,7 +353,7 @@ public class BeatEffectMappingTests
         var gpif = BuildGpif("<Arpeggio>Down</Arpeggio>");
 
         var score = await DeserializeAndMap(gpif);
-        var beat = score.Tracks[0].Measures[0].Beats[0];
+        var beat = score.Tracks[0].PrimaryMeasure(0).Beats[0];
 
         beat.Arpeggio.Should().BeTrue();
         beat.Brush.Should().BeTrue();
@@ -362,7 +366,7 @@ public class BeatEffectMappingTests
         var gpif = BuildGpif("<Arpeggio>Up</Arpeggio>");
 
         var score = await DeserializeAndMap(gpif);
-        var beat = score.Tracks[0].Measures[0].Beats[0];
+        var beat = score.Tracks[0].PrimaryMeasure(0).Beats[0];
 
         beat.Arpeggio.Should().BeTrue();
         beat.Brush.Should().BeTrue();
@@ -379,7 +383,7 @@ public class BeatEffectMappingTests
             """);
 
         var score = await DeserializeAndMap(gpif);
-        var beat = score.Tracks[0].Measures[0].Beats[0];
+        var beat = score.Tracks[0].PrimaryMeasure(0).Beats[0];
 
         beat.Brush.Should().BeTrue();
         beat.Arpeggio.Should().BeFalse();
@@ -398,7 +402,7 @@ public class BeatEffectMappingTests
             """);
 
         var score = await DeserializeAndMap(gpif);
-        score.Tracks[0].Measures[0].Beats[0].BrushDurationTicks.Should().Be(120);
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].BrushDurationTicks.Should().Be(120);
     }
 
     [Fact]
@@ -412,7 +416,7 @@ public class BeatEffectMappingTests
             """);
 
         var score = await DeserializeAndMap(gpif);
-        score.Tracks[0].Measures[0].Beats[0].BrushDurationTicks.Should().Be(60);
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].BrushDurationTicks.Should().Be(60);
     }
 
     // ── Trill speed ─────────────────────────────────────────────────────
@@ -436,7 +440,7 @@ public class BeatEffectMappingTests
             noteXProperties: $"""<XProperty id="688062467"><Int>{rawValue}</Int></XProperty>""");
 
         var score = await DeserializeAndMap(gpif);
-        score.Tracks[0].Measures[0].Beats[0].Notes[0].Articulation.TrillSpeed.Should().Be(expected);
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].Articulation.TrillSpeed.Should().Be(expected);
     }
 
     [Fact]
@@ -452,7 +456,7 @@ public class BeatEffectMappingTests
                 """);
 
         var score = await DeserializeAndMap(gpif);
-        score.Tracks[0].Measures[0].Beats[0].Notes[0].Articulation.TrillSpeed.Should().Be(TrillSpeedKind.None);
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].Articulation.TrillSpeed.Should().Be(TrillSpeedKind.None);
     }
 
     [Theory]
@@ -466,36 +470,35 @@ public class BeatEffectMappingTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0, Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0, TimeSignature = "4/4",
-                            Beats =
-                            [
-                                new BeatModel
-                                {
-                                    Id = 1, Duration = 0.25m,
-                                    Notes =
-                                    [
-                                        new NoteModel
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel
+                            {
+                                Id = 1,
+                                Duration = 0.25m,
+                                Notes =
+                                [
+                                    new NoteModel
+                                    {
+                                        Id = 1,
+                                        MidiPitch = 64,
+                                        Articulation = new NoteArticulationModel
                                         {
-                                            Id = 1, MidiPitch = 64,
-                                            Articulation = new NoteArticulationModel
-                                            {
-                                                Trill = 7,
-                                                TrillSpeed = kind
-                                            }
+                                            Trill = 7,
+                                            TrillSpeed = kind
                                         }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
+                                    }
+                                ]
+                            }
+                        ]
+                    })
             ]
         };
 
@@ -504,7 +507,7 @@ public class BeatEffectMappingTests
         {
             await new Motif.Extensions.GuitarPro.GuitarProWriter().WriteAsync(score, outFile, TestContext.Current.CancellationToken);
             var readBack = await new Motif.Extensions.GuitarPro.GuitarProReader().ReadAsync(outFile, cancellationToken: TestContext.Current.CancellationToken);
-            readBack.Tracks[0].Measures[0].Beats[0].Notes[0].Articulation.TrillSpeed.Should().Be(kind);
+            readBack.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].Articulation.TrillSpeed.Should().Be(kind);
         }
         finally
         {
@@ -526,7 +529,7 @@ public class BeatEffectMappingTests
             noteXProperties: """<XProperty id="688062467"><Int>480</Int></XProperty>""");
 
         var score = await DeserializeAndMap(gpif);
-        var note = score.Tracks[0].Measures[0].Beats[0].Notes[0];
+        var note = score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0];
         note.Articulation.TrillSpeed.Should().Be(TrillSpeedKind.Sixteenth);
     }
 
@@ -538,7 +541,7 @@ public class BeatEffectMappingTests
         var gpif = BuildGpif("<Tremolo>1/8</Tremolo>");
 
         var score = await DeserializeAndMap(gpif);
-        var beat = score.Tracks[0].Measures[0].Beats[0];
+        var beat = score.Tracks[0].PrimaryMeasure(0).Beats[0];
 
         beat.Tremolo.Should().BeTrue();
         beat.TremoloValue.Should().Be("1/8");
@@ -549,7 +552,7 @@ public class BeatEffectMappingTests
     {
         var gpif = BuildGpif("");
         var score = await DeserializeAndMap(gpif);
-        var beat = score.Tracks[0].Measures[0].Beats[0];
+        var beat = score.Tracks[0].PrimaryMeasure(0).Beats[0];
         beat.Tremolo.Should().BeFalse();
         beat.TremoloValue.Should().BeEmpty();
     }
@@ -562,7 +565,7 @@ public class BeatEffectMappingTests
         var gpif = BuildGpif("<Chord>Am7</Chord>");
 
         var score = await DeserializeAndMap(gpif);
-        BeatMetadataOf(score.Tracks[0].Measures[0].Beats[0]).ChordId.Should().Be("Am7");
+        BeatMetadataOf(score.Tracks[0].PrimaryMeasure(0).Beats[0]).ChordId.Should().Be("Am7");
     }
 
     // ── FreeText ────────────────────────────────────────────────────────
@@ -573,7 +576,7 @@ public class BeatEffectMappingTests
         var gpif = BuildGpif("<FreeText>let ring</FreeText>");
 
         var score = await DeserializeAndMap(gpif);
-        score.Tracks[0].Measures[0].Beats[0].FreeText.Should().Be("let ring");
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].FreeText.Should().Be("let ring");
     }
 
     [Fact]
@@ -582,7 +585,7 @@ public class BeatEffectMappingTests
         var gpif = BuildGpif("<Dynamic>FF</Dynamic>");
 
         var score = await DeserializeAndMap(gpif);
-        score.Tracks[0].Measures[0].Beats[0].Dynamic.Should().Be("FF");
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Dynamic.Should().Be("FF");
     }
 
     [Fact]
@@ -592,32 +595,27 @@ public class BeatEffectMappingTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Beats =
-                            [
-                                new BeatModel
-                                {
-                                    Id = 1,
-                                    Duration = 0.25m,
-                                    Dynamic = "PP",
-                                    Notes =
-                                    [
-                                        new NoteModel { Id = 1, MidiPitch = 60 }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel
+                            {
+                                Id = 1,
+                                Duration = 0.25m,
+                                Dynamic = "PP",
+                                Notes =
+                                [
+                                    new NoteModel { Id = 1, MidiPitch = 60 }
+                                ]
+                            }
+                        ]
+                    })
             ]
         };
 
@@ -627,7 +625,7 @@ public class BeatEffectMappingTests
             await new Motif.Extensions.GuitarPro.GuitarProWriter().WriteAsync(score, outFile, TestContext.Current.CancellationToken);
             var readBack = await new Motif.Extensions.GuitarPro.GuitarProReader().ReadAsync(outFile, cancellationToken: TestContext.Current.CancellationToken);
 
-            readBack.Tracks[0].Measures[0].Beats[0].Dynamic.Should().Be("PP");
+            readBack.Tracks[0].PrimaryMeasure(0).Beats[0].Dynamic.Should().Be("PP");
         }
         finally
         {
@@ -644,64 +642,59 @@ public class BeatEffectMappingTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Beats =
-                            [
-                                new BeatModel
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel
+                            {
+                                Id = 1,
+                                Arpeggio = true,
+                                Brush = true,
+                                BrushIsUp = true,
+                                BrushDurationTicks = 120,
+                                Rasgueado = true,
+                                DeadSlapped = true,
+                                Tremolo = true,
+                                TremoloValue = "1/8",
+                                FreeText = "muted",
+                                WhammyBar = new WhammyBarModel
                                 {
-                                    Id = 1,
-                                    Arpeggio = true,
-                                    Brush = true,
-                                    BrushIsUp = true,
-                                    BrushDurationTicks = 120,
-                                    Rasgueado = true,
-                                    DeadSlapped = true,
-                                    Tremolo = true,
-                                    TremoloValue = "1/8",
-                                    FreeText = "muted",
-                                    WhammyBar = new WhammyBarModel
+                                    Enabled = true,
+                                    Extended = true,
+                                    OriginValue = 0m,
+                                    MiddleValue = 1m,
+                                    DestinationValue = 2m,
+                                    OriginOffset = 0m,
+                                    MiddleOffset1 = 0.5m,
+                                    MiddleOffset2 = 0.5m,
+                                    DestinationOffset = 1m
+                                },
+                                Duration = 0.25m,
+                                Notes =
+                                [
+                                    new NoteModel
                                     {
-                                        Enabled = true,
-                                        Extended = true,
-                                        OriginValue = 0m,
-                                        MiddleValue = 1m,
-                                        DestinationValue = 2m,
-                                        OriginOffset = 0m,
-                                        MiddleOffset1 = 0.5m,
-                                        MiddleOffset2 = 0.5m,
-                                        DestinationOffset = 1m
-                                    },
-                                    Duration = 0.25m,
-                                    Notes =
-                                    [
-                                        new NoteModel
+                                        Id = 1,
+                                        MidiPitch = 64,
+                                        Articulation = new NoteArticulationModel
                                         {
-                                            Id = 1,
-                                            MidiPitch = 64,
-                                            Articulation = new NoteArticulationModel
-                                            {
-                                                Trill = 7,
-                                                TrillSpeed = TrillSpeedKind.ThirtySecond
-                                            }
+                                            Trill = 7,
+                                            TrillSpeed = TrillSpeedKind.ThirtySecond
                                         }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
+                                    }
+                                ]
+                            }
+                        ]
+                    })
             ]
         };
-        score.Tracks[0].Measures[0].Beats[0].GetOrCreateGuitarPro().Metadata.ChordId = "Dm";
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].GetOrCreateGuitarPro().Metadata.ChordId = "Dm";
 
         var outFile = Path.Combine(Path.GetTempPath(), $"gpio-beatfx-{Guid.NewGuid():N}.gp");
         try
@@ -712,7 +705,7 @@ public class BeatEffectMappingTests
             var reader = new Motif.Extensions.GuitarPro.GuitarProReader();
             var readBack = await reader.ReadAsync(outFile, cancellationToken: TestContext.Current.CancellationToken);
 
-            var beat = readBack.Tracks[0].Measures[0].Beats[0];
+            var beat = readBack.Tracks[0].PrimaryMeasure(0).Beats[0];
             beat.Arpeggio.Should().BeTrue();
             beat.Brush.Should().BeTrue();
             beat.BrushIsUp.Should().BeTrue();
@@ -753,37 +746,32 @@ public class BeatEffectMappingTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Beats =
-                            [
-                                new BeatModel
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel
+                            {
+                                Id = 1,
+                                Duration = 0.25m,
+                                WhammyBar = new WhammyBarModel
                                 {
-                                    Id = 1,
-                                    Duration = 0.25m,
-                                    WhammyBar = new WhammyBarModel
-                                    {
-                                        Enabled = true,
-                                        OriginValue = 0m,
-                                        DestinationValue = -1m
-                                    },
-                                    Notes =
-                                    [
-                                        new NoteModel { Id = 1, MidiPitch = 60 }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
+                                    Enabled = true,
+                                    OriginValue = 0m,
+                                    DestinationValue = -1m
+                                },
+                                Notes =
+                                [
+                                    new NoteModel { Id = 1, MidiPitch = 60 }
+                                ]
+                            }
+                        ]
+                    })
             ]
         };
 
@@ -793,7 +781,7 @@ public class BeatEffectMappingTests
             await new Motif.Extensions.GuitarPro.GuitarProWriter().WriteAsync(score, outFile, TestContext.Current.CancellationToken);
             var readBack = await new Motif.Extensions.GuitarPro.GuitarProReader().ReadAsync(outFile, cancellationToken: TestContext.Current.CancellationToken);
 
-            var beat = readBack.Tracks[0].Measures[0].Beats[0];
+            var beat = readBack.Tracks[0].PrimaryMeasure(0).Beats[0];
             beat.WhammyBar.Should().NotBeNull();
             beat.WhammyBar!.Enabled.Should().BeTrue();
             beat.WhammyBar.OriginValue.Should().Be(0m);

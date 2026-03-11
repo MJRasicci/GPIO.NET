@@ -74,7 +74,7 @@ public class PropertyArticulationMappingTests
         var mapper = new DefaultScoreMapper();
         var score = await mapper.MapAsync(raw, TestContext.Current.CancellationToken);
 
-        var beat = score.Tracks[0].Measures[0].Beats[0];
+        var beat = score.Tracks[0].PrimaryMeasure(0).Beats[0];
         var note = beat.Notes[0];
         var articulation = beat.Notes[0].Articulation;
 

@@ -71,7 +71,7 @@ public class HopoSemanticsMappingTests
         var score = await mapper.MapAsync(raw, TestContext.Current.CancellationToken);
 
         var notes = score.Tracks[0]
-            .Measures[0]
+            .PrimaryMeasure(0)
             .Voices[0]
             .Beats
             .SelectMany(b => b.Notes)
@@ -93,4 +93,3 @@ public class HopoSemanticsMappingTests
         notes[203].Articulation.HopoType.Should().Be(HopoTypeKind.PullOff);
     }
 }
-

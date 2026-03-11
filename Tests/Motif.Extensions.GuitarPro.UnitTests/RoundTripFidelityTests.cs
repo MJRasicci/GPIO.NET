@@ -98,10 +98,10 @@ public class RoundTripFidelityTests
             .OrderBy(t => t.Id)
             .Select(t =>
             {
-                var notes = t.Measures.SelectMany(m => m.Beats).SelectMany(b => b.Notes).ToArray();
+                var notes = t.Staves[0].Measures.SelectMany(m => m.Beats).SelectMany(b => b.Notes).ToArray();
                 return new TrackMetrics(
-                    Measures: t.Measures.Count,
-                    Beats: t.Measures.SelectMany(m => m.Beats).Count(),
+                    Measures: t.Staves[0].Measures.Count,
+                    Beats: t.Staves[0].Measures.SelectMany(m => m.Beats).Count(),
                     Notes: notes.Length,
                     SlideNotes: notes.Count(n => n.Articulation.Slides.Count > 0),
                     HarmonicNotes: notes.Count(n => n.Articulation.Harmonic is not null),

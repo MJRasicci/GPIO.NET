@@ -94,7 +94,7 @@ public class BeatStemOrientationTests
         var mapper = new DefaultScoreMapper();
         var score = await mapper.MapAsync(sourceRaw, TestContext.Current.CancellationToken);
 
-        var beat = score.Tracks[0].Measures[0].Beats.Single();
+        var beat = score.Tracks[0].PrimaryMeasure(0).Beats.Single();
         BeatMetadataOf(beat).TransposedPitchStemOrientation.Should().Be("Undefined");
         BeatMetadataOf(beat).UserTransposedPitchStemOrientation.Should().Be("Downward");
         BeatMetadataOf(beat).ConcertPitchStemOrientation.Should().Be("Upward");

@@ -11,10 +11,10 @@ using System.Text.Json;
 
 public class WriterReferenceReuseTests
 {
-    private static GpMeasureMetadata MeasureMetadataOf(MeasureModel measure)
+    private static GpMeasureStaffMetadata MeasureMetadataOf(StaffMeasureModel measure)
         => measure.GetRequiredGuitarPro().Metadata;
 
-    private static GpMeasureStaffMetadata StaffMetadataOf(MeasureStaffModel staff)
+    private static GpMeasureStaffMetadata StaffMetadataOf(StaffMeasureModel staff)
         => staff.GetRequiredGuitarPro().Metadata;
 
     private static GpVoiceMetadata VoiceMetadataOf(MeasureVoiceModel voice)
@@ -48,36 +48,31 @@ public class WriterReferenceReuseTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Voices =
-                            [
-                                new MeasureVoiceModel
-                                {
-                                    VoiceIndex = 0,
-                                    Beats =
-                                    [
-                                        CreateBeat(0, CreateNote(0, 48), CreateNote(1, 52)),
-                                        CreateBeat(0, CreateNote(0, 48), CreateNote(1, 52)),
-                                        CreateBeat(0, CreateNote(0, 48), CreateNote(1, 52)),
-                                        CreateBeat(1, CreateNote(2, 55))
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Voices =
+                        [
+                            new MeasureVoiceModel
+                            {
+                                VoiceIndex = 0,
+                                Beats =
+                                [
+                                    CreateBeat(0, CreateNote(0, 48), CreateNote(1, 52)),
+                                    CreateBeat(0, CreateNote(0, 48), CreateNote(1, 52)),
+                                    CreateBeat(0, CreateNote(0, 48), CreateNote(1, 52)),
+                                    CreateBeat(1, CreateNote(2, 55))
+                                ]
+                            }
+                        ]
+                    })
             ]
         };
-        score.Tracks[0].Measures[0].Voices[0].GetOrCreateGuitarPro().Metadata.SourceVoiceId = 0;
+        score.Tracks[0].PrimaryMeasure(0).Voices[0].GetOrCreateGuitarPro().Metadata.SourceVoiceId = 0;
 
         var unmapper = new DefaultScoreUnmapper();
         var result = await unmapper.UnmapAsync(score, TestContext.Current.CancellationToken);
@@ -101,35 +96,30 @@ public class WriterReferenceReuseTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Voices =
-                            [
-                                new MeasureVoiceModel
-                                {
-                                    VoiceIndex = 0,
-                                    Beats =
-                                    [
-                                        CreateBeat(10, CreateNote(0, 48)),
-                                        CreateBeat(11, CreateNote(0, 50)),
-                                        CreateBeat(11, CreateNote(0, 50))
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Voices =
+                        [
+                            new MeasureVoiceModel
+                            {
+                                VoiceIndex = 0,
+                                Beats =
+                                [
+                                    CreateBeat(10, CreateNote(0, 48)),
+                                    CreateBeat(11, CreateNote(0, 50)),
+                                    CreateBeat(11, CreateNote(0, 50))
+                                ]
+                            }
+                        ]
+                    })
             ]
         };
-        score.Tracks[0].Measures[0].Voices[0].GetOrCreateGuitarPro().Metadata.SourceVoiceId = 0;
+        score.Tracks[0].PrimaryMeasure(0).Voices[0].GetOrCreateGuitarPro().Metadata.SourceVoiceId = 0;
 
         var unmapper = new DefaultScoreUnmapper();
         var result = await unmapper.UnmapAsync(score, TestContext.Current.CancellationToken);
@@ -150,34 +140,29 @@ public class WriterReferenceReuseTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Voices =
-                            [
-                                new MeasureVoiceModel
-                                {
-                                    VoiceIndex = 0,
-                                    Beats =
-                                    [
-                                        CreateBeatWithPalmMute(0, true, CreateNote(0, 48), CreateNote(1, 52, palmMuted: true)),
-                                        CreateBeat(2, CreateNote(0, 48), CreateNote(2, 55))
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Voices =
+                        [
+                            new MeasureVoiceModel
+                            {
+                                VoiceIndex = 0,
+                                Beats =
+                                [
+                                    CreateBeatWithPalmMute(0, true, CreateNote(0, 48), CreateNote(1, 52, palmMuted: true)),
+                                    CreateBeat(2, CreateNote(0, 48), CreateNote(2, 55))
+                                ]
+                            }
+                        ]
+                    })
             ]
         };
-        score.Tracks[0].Measures[0].Voices[0].GetOrCreateGuitarPro().Metadata.SourceVoiceId = 0;
+        score.Tracks[0].PrimaryMeasure(0).Voices[0].GetOrCreateGuitarPro().Metadata.SourceVoiceId = 0;
 
         var unmapper = new DefaultScoreUnmapper();
         var result = await unmapper.UnmapAsync(score, TestContext.Current.CancellationToken);
@@ -198,24 +183,19 @@ public class WriterReferenceReuseTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Voices = [],
-                            Beats = []
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Voices = [],
+                        Beats = []
+                    })
             ]
         };
-        score.Tracks[0].Measures[0].GetOrCreateGuitarPro().Metadata.SourceBarId = 5;
+        score.Tracks[0].PrimaryMeasure(0).GetOrCreateGuitarPro().Metadata.SourceBarId = 5;
 
         var unmapper = new DefaultScoreUnmapper();
         var result = await unmapper.UnmapAsync(score, TestContext.Current.CancellationToken);
@@ -246,20 +226,15 @@ public class WriterReferenceReuseTests
             ],
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Beats = []
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats = []
+                    })
             ]
         };
 
@@ -279,25 +254,28 @@ public class WriterReferenceReuseTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            XProperties = new Dictionary<string, int>
-                            {
-                                ["687931393"] = 60
-                            }
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0
+                    })
             ]
         };
+        score.TimelineBars =
+        [
+            new TimelineBarModel
+            {
+                Index = 0,
+                TimeSignature = "4/4",
+                XProperties = new Dictionary<string, int>
+                {
+                    ["687931393"] = 60
+                }
+            }
+        ];
 
         var unmapper = new DefaultScoreUnmapper();
         var result = await unmapper.UnmapAsync(score, TestContext.Current.CancellationToken);
@@ -318,17 +296,17 @@ public class WriterReferenceReuseTests
         var piano = score.Tracks.Single(track => track.Name == "Piano");
         var drums = score.Tracks.Single(track => track.Name == "Drums");
 
-        piano.Measures.Should().ContainSingle();
-        MeasureMetadataOf(piano.Measures[0]).SourceBarId.Should().Be(0);
-        piano.Measures[0].Clef.Should().Be("G2");
-        piano.Measures[0].AdditionalStaffBars.Should().ContainSingle();
-        piano.Measures[0].AdditionalStaffBars[0].StaffIndex.Should().Be(1);
-        StaffMetadataOf(piano.Measures[0].AdditionalStaffBars[0]).SourceBarId.Should().Be(1);
-        piano.Measures[0].AdditionalStaffBars[0].Clef.Should().Be("F4");
+        piano.Staves[0].Measures.Should().ContainSingle();
+        MeasureMetadataOf(piano.PrimaryMeasure(0)).SourceBarId.Should().Be(0);
+        piano.PrimaryMeasure(0).Clef.Should().Be("G2");
+        piano.Staves.Should().HaveCount(2);
+        piano.StaffMeasure(1).StaffIndex.Should().Be(1);
+        StaffMetadataOf(piano.StaffMeasure(1)).SourceBarId.Should().Be(1);
+        piano.StaffMeasure(1).Clef.Should().Be("F4");
 
-        drums.Measures.Should().ContainSingle();
-        MeasureMetadataOf(drums.Measures[0]).SourceBarId.Should().Be(2);
-        drums.Measures[0].Clef.Should().Be("Neutral");
+        drums.Staves[0].Measures.Should().ContainSingle();
+        MeasureMetadataOf(drums.PrimaryMeasure(0)).SourceBarId.Should().Be(2);
+        drums.PrimaryMeasure(0).Clef.Should().Be("Neutral");
     }
 
     [Fact]
@@ -345,37 +323,43 @@ public class WriterReferenceReuseTests
     }
 
     [Fact]
-    public async Task Unmapper_preserves_multistaff_master_bar_slot_counts_for_staff_only_tracks()
+    public async Task Unmapper_synthesizes_empty_multistaff_slots_when_staff_measures_are_removed()
     {
         var sourceRaw = CreateMultiStaffRawDocument();
         var score = await new DefaultScoreMapper().MapAsync(sourceRaw, TestContext.Current.CancellationToken);
 
         foreach (var track in score.Tracks)
         {
-            track.Measures = [];
+            track.Staves[0].Measures = [];
         }
 
         var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
 
         result.Diagnostics.Warnings.Should().BeEmpty();
-        AssertStructuralCountsEqual(sourceRaw, result.RawDocument);
-        SplitRefs(result.RawDocument.MasterBars[0].BarsReferenceList).Should().Equal([0, 1, 2]);
-        result.RawDocument.BarsById[0].Clef.Should().Be("G2");
-        result.RawDocument.BarsById[1].Clef.Should().Be("F4");
-        result.RawDocument.BarsById[2].Clef.Should().Be("Neutral");
+        result.RawDocument.BarsById.Should().HaveCount(3);
+        result.RawDocument.VoicesById.Keys.Should().Equal([11]);
+        result.RawDocument.BeatsById.Keys.Should().Equal([101]);
+        result.RawDocument.NotesById.Keys.Should().Equal([201]);
+        result.RawDocument.RhythmsById.Keys.Should().Equal([1000]);
+
+        var barRefs = SplitRefs(result.RawDocument.MasterBars[0].BarsReferenceList);
+        barRefs.Should().HaveCount(3);
+        result.RawDocument.BarsById[barRefs[0]].VoicesReferenceList.Should().Be("-1 -1 -1 -1");
+        result.RawDocument.BarsById[barRefs[0]].Clef.Should().BeEmpty();
+        result.RawDocument.BarsById[barRefs[1]].Clef.Should().Be("F4");
+        result.RawDocument.BarsById[barRefs[1]].VoicesReferenceList.Should().Be("11 -1 -1 -1");
+        result.RawDocument.BarsById[barRefs[2]].VoicesReferenceList.Should().Be("-1 -1 -1 -1");
+        result.RawDocument.BarsById[barRefs[2]].Clef.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task Unmapper_prefers_staff_hierarchy_when_both_staff_and_measure_shapes_are_present()
+    public async Task Unmapper_uses_current_staff_hierarchy_for_multistaff_tracks()
     {
         var score = await new DefaultScoreMapper().MapAsync(CreateMultiStaffRawDocument(), TestContext.Current.CancellationToken);
         var piano = score.Tracks.Single(track => track.Name == "Piano");
 
         piano.Staves[0].Measures[0].Clef = "Neutral";
         piano.Staves[1].Measures[0].Clef = "G2";
-
-        piano.Measures[0].Clef.Should().Be("G2");
-        piano.Measures[0].AdditionalStaffBars[0].Clef.Should().Be("F4");
 
         var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
 
@@ -657,39 +641,42 @@ public class WriterReferenceReuseTests
     private static Score CreateTupletScore()
         => new()
         {
+            TimelineBars =
+            [
+                new TimelineBarModel
+                {
+                    Index = 0,
+                    TimeSignature = "4/4",
+                    SectionLetter = "A",
+                    SectionText = "Intro"
+                }
+            ],
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Lead Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            SectionLetter = "A",
-                            SectionText = "Intro",
-                            Beats =
-                            [
-                                new BeatModel
-                                {
-                                    Id = 1,
-                                    Duration = 1m / 48m,
-                                    Notes =
-                                    [
-                                        new NoteModel
-                                        {
-                                            Id = 1,
-                                            MidiPitch = 64
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Lead Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel
+                            {
+                                Id = 1,
+                                Duration = 1m / 48m,
+                                Notes =
+                                [
+                                    new NoteModel
+                                    {
+                                        Id = 1,
+                                        MidiPitch = 64
+                                    }
+                                ]
+                            }
+                        ]
+                    })
             ]
         };
     private static IReadOnlyList<int> SplitRefs(string refs)

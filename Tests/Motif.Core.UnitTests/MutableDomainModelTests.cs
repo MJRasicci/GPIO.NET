@@ -11,10 +11,11 @@ public class MutableDomainModelTests
     {
         var score = new Score();
         var track = new TrackModel();
-        var staff = new StaffModel();
-        var staffMeasure = new StaffMeasureModel();
+        var primaryStaff = new StaffModel();
+        var secondaryStaff = new StaffModel();
+        var primaryStaffMeasure = new StaffMeasureModel();
+        var secondaryStaffMeasure = new StaffMeasureModel();
         var timelineBar = new TimelineBarModel();
-        var measure = new MeasureModel();
         var beat = new BeatModel();
         var note = new NoteModel();
 
@@ -26,21 +27,26 @@ public class MutableDomainModelTests
 
         track.Id = 1;
         track.Name = "Lead";
-        track.Staves = [staff];
+        track.Staves = [primaryStaff, secondaryStaff];
 
-        staff.StaffIndex = 0;
-        staff.Measures = [staffMeasure];
+        primaryStaff.StaffIndex = 0;
+        primaryStaff.Measures = [primaryStaffMeasure];
 
-        staffMeasure.Index = 0;
-        staffMeasure.StaffIndex = 0;
-        staffMeasure.Clef = "Treble";
+        secondaryStaff.StaffIndex = 1;
+        secondaryStaff.Measures = [secondaryStaffMeasure];
+
+        primaryStaffMeasure.Index = 0;
+        primaryStaffMeasure.StaffIndex = 0;
+        primaryStaffMeasure.Clef = "Treble";
+
+        secondaryStaffMeasure.Index = 0;
+        secondaryStaffMeasure.StaffIndex = 1;
+        secondaryStaffMeasure.Clef = "Bass";
 
         timelineBar.Index = 0;
         timelineBar.TimeSignature = "4/4";
 
-        measure.Index = 0;
-        measure.TimeSignature = "4/4";
-        measure.Voices =
+        primaryStaffMeasure.Voices =
         [
             new MeasureVoiceModel
             {
@@ -61,8 +67,7 @@ public class MutableDomainModelTests
         };
 
         beat.Notes = [note];
-        measure.Beats = [beat];
-        track.Measures = [measure];
+        primaryStaffMeasure.Beats = [beat];
         score.Tracks = [track];
 
         score.Title = "Mutable Motif";
@@ -72,17 +77,8 @@ public class MutableDomainModelTests
         timelineBar.SectionLetter = "A";
 
         track.Name = "Rhythm";
-        staffMeasure.Clef = "Bass";
-
-        measure.TimeSignature = "7/8";
-        measure.AdditionalStaffBars =
-        [
-            new MeasureStaffModel
-            {
-                StaffIndex = 1,
-                Clef = "Bass"
-            }
-        ];
+        primaryStaffMeasure.Clef = "Bass";
+        secondaryStaffMeasure.Clef = "Tenor";
 
         beat.Dynamic = "ff";
         beat.FreeText = "eighth pulse";
@@ -108,16 +104,18 @@ public class MutableDomainModelTests
         score.Tracks.Should().ContainSingle().Which.Should().BeSameAs(track);
 
         track.Name.Should().Be("Rhythm");
-        track.Staves.Should().ContainSingle().Which.Should().BeSameAs(staff);
-        track.Measures.Should().ContainSingle().Which.Should().BeSameAs(measure);
+        track.Staves.Should().HaveCount(2);
+        track.Staves[0].Should().BeSameAs(primaryStaff);
+        track.Staves[1].Should().BeSameAs(secondaryStaff);
 
-        staff.StaffIndex.Should().Be(0);
-        staff.Measures.Should().ContainSingle().Which.Should().BeSameAs(staffMeasure);
+        primaryStaff.StaffIndex.Should().Be(0);
+        primaryStaff.Measures.Should().ContainSingle().Which.Should().BeSameAs(primaryStaffMeasure);
+        secondaryStaff.StaffIndex.Should().Be(1);
+        secondaryStaff.Measures.Should().ContainSingle().Which.Should().BeSameAs(secondaryStaffMeasure);
 
-        staffMeasure.Clef.Should().Be("Bass");
-        measure.TimeSignature.Should().Be("7/8");
-        measure.AdditionalStaffBars.Should().ContainSingle();
-        measure.Beats.Should().ContainSingle().Which.Should().BeSameAs(beat);
+        primaryStaffMeasure.Clef.Should().Be("Bass");
+        secondaryStaffMeasure.Clef.Should().Be("Tenor");
+        primaryStaffMeasure.Beats.Should().ContainSingle().Which.Should().BeSameAs(beat);
 
         beat.Dynamic.Should().Be("ff");
         beat.FreeText.Should().Be("eighth pulse");

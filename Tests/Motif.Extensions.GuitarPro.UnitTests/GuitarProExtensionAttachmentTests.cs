@@ -10,7 +10,7 @@ using System.Text.Json;
 public class GuitarProExtensionAttachmentTests
 {
     [Fact]
-    public async Task Reader_attaches_score_track_timeline_measure_voice_beat_and_note_guitar_pro_extensions()
+    public async Task Reader_attaches_score_track_timeline_staff_measure_voice_beat_and_note_guitar_pro_extensions()
     {
         var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "test.gp");
 
@@ -25,13 +25,13 @@ public class GuitarProExtensionAttachmentTests
         score.Tracks[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Track");
         score.TimelineBars[0].GetGuitarPro().Should().NotBeNull();
         score.TimelineBars[0].GetRequiredGuitarPro().Metadata.MasterBarXml.Should().Contain("<MasterBar");
-        score.Tracks[0].Measures[0].GetGuitarPro().Should().NotBeNull();
-        score.Tracks[0].Measures[0].Voices[0].GetGuitarPro().Should().NotBeNull();
-        score.Tracks[0].Measures[0].Voices[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Voice");
-        score.Tracks[0].Measures[0].Beats[0].GetGuitarPro().Should().NotBeNull();
-        score.Tracks[0].Measures[0].Beats[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Beat");
-        score.Tracks[0].Measures[0].Beats[0].Notes[0].GetGuitarPro().Should().NotBeNull();
-        score.Tracks[0].Measures[0].Beats[0].Notes[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Note");
+        score.Tracks[0].PrimaryMeasure(0).GetGuitarPro().Should().NotBeNull();
+        score.Tracks[0].PrimaryMeasure(0).Voices[0].GetGuitarPro().Should().NotBeNull();
+        score.Tracks[0].PrimaryMeasure(0).Voices[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Voice");
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].GetGuitarPro().Should().NotBeNull();
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Beat");
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].GetGuitarPro().Should().NotBeNull();
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Note");
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public class GuitarProExtensionAttachmentTests
     }
 
     [Fact]
-    public async Task Json_round_trip_can_reattach_score_track_measure_voice_beat_and_note_guitar_pro_extensions_from_source_score()
+    public async Task Json_round_trip_can_reattach_score_track_staff_measure_voice_beat_and_note_guitar_pro_extensions_from_source_score()
     {
         var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "test.gp");
         var sourceScore = await new GuitarProReader().ReadAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
@@ -64,10 +64,10 @@ public class GuitarProExtensionAttachmentTests
         fromJson!.GetGuitarPro().Should().BeNull();
         fromJson.TimelineBars[0].GetGuitarPro().Should().BeNull();
         fromJson.Tracks[0].GetGuitarPro().Should().BeNull();
-        fromJson.Tracks[0].Measures[0].GetGuitarPro().Should().BeNull();
-        fromJson.Tracks[0].Measures[0].Voices[0].GetGuitarPro().Should().BeNull();
-        fromJson.Tracks[0].Measures[0].Beats[0].GetGuitarPro().Should().BeNull();
-        fromJson.Tracks[0].Measures[0].Beats[0].Notes[0].GetGuitarPro().Should().BeNull();
+        fromJson.Tracks[0].PrimaryMeasure(0).GetGuitarPro().Should().BeNull();
+        fromJson.Tracks[0].PrimaryMeasure(0).Voices[0].GetGuitarPro().Should().BeNull();
+        fromJson.Tracks[0].PrimaryMeasure(0).Beats[0].GetGuitarPro().Should().BeNull();
+        fromJson.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].GetGuitarPro().Should().BeNull();
 
         var reattachment = fromJson.ReattachGuitarProExtensionsFrom(sourceScore);
 
@@ -75,14 +75,14 @@ public class GuitarProExtensionAttachmentTests
         fromJson.GetRequiredGuitarPro().MasterTrack.TrackIds.Should().NotBeEmpty();
         fromJson.TimelineBars[0].GetRequiredGuitarPro().Metadata.MasterBarXml.Should().Contain("<MasterBar");
         fromJson.Tracks[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Track");
-        fromJson.Tracks[0].Measures[0].Voices[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Voice");
-        fromJson.Tracks[0].Measures[0].Beats[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Beat");
-        fromJson.Tracks[0].Measures[0].Beats[0].Notes[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Note");
+        fromJson.Tracks[0].PrimaryMeasure(0).Voices[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Voice");
+        fromJson.Tracks[0].PrimaryMeasure(0).Beats[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Beat");
+        fromJson.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].GetRequiredGuitarPro().Metadata.Xml.Should().Contain("<Note");
         reattachment.ScoreAttached.Should().BeTrue();
         reattachment.HasUnmatchedTargets.Should().BeFalse();
         reattachment.TimelineBarsAttached.Should().Be(fromJson.TimelineBars.Count);
         reattachment.TracksAttached.Should().Be(fromJson.Tracks.Count);
-        reattachment.MeasuresAttached.Should().Be(fromJson.Tracks.Sum(track => track.Measures.Count));
+        reattachment.StaffsAttached.Should().Be(fromJson.Tracks.Sum(track => track.Staves.Sum(staff => staff.Measures.Count)));
         reattachment.VoicesAttached.Should().BeGreaterThan(0);
         reattachment.BeatsAttached.Should().BeGreaterThan(0);
         reattachment.NotesAttached.Should().BeGreaterThan(0);
@@ -99,11 +99,6 @@ public class GuitarProExtensionAttachmentTests
         });
 
         fromJson.Should().NotBeNull();
-        foreach (var track in fromJson!.Tracks)
-        {
-            track.Measures = [];
-        }
-
         fromJson.Tracks[0].Staves[0].GetGuitarPro().Should().BeNull();
         fromJson.Tracks[0].Staves[0].Measures[0].GetGuitarPro().Should().BeNull();
         fromJson.Tracks[0].Staves[0].Measures[0].Voices[0].GetGuitarPro().Should().BeNull();
@@ -136,20 +131,20 @@ public class GuitarProExtensionAttachmentTests
         score.TimelineBars[0].GetGuitarPro().Should().BeNull();
         score.Tracks[0].GetGuitarPro().Should().BeNull();
         score.Tracks[0].Staves[0].GetGuitarPro().Should().BeNull();
-        score.Tracks[0].Measures[0].GetGuitarPro().Should().BeNull();
+        score.Tracks[0].PrimaryMeasure(0).GetGuitarPro().Should().BeNull();
         score.Tracks[0].Staves[0].Measures[0].GetGuitarPro().Should().BeNull();
-        score.Tracks[0].Measures[0].Voices[0].GetGuitarPro().Should().BeNull();
-        score.Tracks[0].Measures[0].Beats[0].GetGuitarPro().Should().BeNull();
-        score.Tracks[0].Measures[0].Beats[0].Notes[0].GetGuitarPro().Should().BeNull();
+        score.Tracks[0].PrimaryMeasure(0).Voices[0].GetGuitarPro().Should().BeNull();
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].GetGuitarPro().Should().BeNull();
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].GetGuitarPro().Should().BeNull();
     }
 
     [Fact]
-    public async Task ReattachGuitarProExtensionsFrom_matches_timeline_bars_and_measures_by_index_and_clears_stale_target_extensions()
+    public async Task ReattachGuitarProExtensionsFrom_matches_timeline_bars_and_staff_measures_by_index_and_clears_stale_target_extensions()
     {
         var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "test.gp");
         var sourceScore = await new GuitarProReader().ReadAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
         var sourceTrack = sourceScore.Tracks[0];
-        var sourceMeasure = sourceTrack.Measures[0];
+        var sourceMeasure = sourceTrack.PrimaryMeasure(0);
         var sourceTimelineBar = sourceScore.TimelineBars[0];
 
         var target = new Score
@@ -167,36 +162,34 @@ public class GuitarProExtensionAttachmentTests
             ],
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = sourceTrack.Id,
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 999,
-                            Beats =
-                            [
-                                new BeatModel
-                                {
-                                    Id = -1,
-                                    Notes =
-                                    [
-                                        new NoteModel
-                                        {
-                                            Id = -2
-                                        }
-                                    ]
-                                }
-                            ]
-                        },
-                        new MeasureModel
-                        {
-                            Index = sourceMeasure.Index,
-                            Beats = sourceMeasure.Beats.Select(CloneBeat).ToArray()
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    sourceTrack.Id,
+                    sourceTrack.Name,
+                    new StaffMeasureModel
+                    {
+                        Index = 999,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel
+                            {
+                                Id = -1,
+                                Notes =
+                                [
+                                    new NoteModel
+                                    {
+                                        Id = -2
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    new StaffMeasureModel
+                    {
+                        Index = sourceMeasure.Index,
+                        StaffIndex = 0,
+                        Beats = sourceMeasure.Beats.Select(CloneBeat).ToArray()
+                    })
             ]
         };
         target.TimelineBars[0].SetExtension(new GpTimelineBarExtension
@@ -206,9 +199,9 @@ public class GuitarProExtensionAttachmentTests
                 MasterBarXml = "<stale />"
             }
         });
-        target.Tracks[0].Measures[0].SetExtension(new GpMeasureExtension
+        target.Tracks[0].PrimaryMeasure(0).SetExtension(new GpMeasureStaffExtension
         {
-            Metadata = new GpMeasureMetadata
+            Metadata = new GpMeasureStaffMetadata
             {
                 BarXml = "<stale />"
             }
@@ -218,13 +211,13 @@ public class GuitarProExtensionAttachmentTests
 
         reattachment.TimelineBarsAttached.Should().Be(1);
         reattachment.TimelineBarsUnmatched.Should().BeGreaterThan(0);
-        reattachment.MeasuresAttached.Should().Be(1);
-        reattachment.MeasuresUnmatched.Should().BeGreaterThan(0);
+        reattachment.StaffsAttached.Should().Be(1);
+        reattachment.StaffsUnmatched.Should().BeGreaterThan(0);
         reattachment.HasUnmatchedTargets.Should().BeTrue();
         target.TimelineBars[1].GetRequiredGuitarPro().Metadata.MasterBarXml
             .Should().Be(sourceTimelineBar.GetRequiredGuitarPro().Metadata.MasterBarXml);
         target.TimelineBars[0].GetGuitarPro().Should().BeNull();
-        target.Tracks[0].Measures[0].GetGuitarPro().Should().BeNull();
+        target.Tracks[0].PrimaryMeasure(0).GetGuitarPro().Should().BeNull();
     }
 
     private static BeatModel CloneBeat(BeatModel beat)

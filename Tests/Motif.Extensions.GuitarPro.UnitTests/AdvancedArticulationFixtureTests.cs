@@ -19,7 +19,7 @@ public class AdvancedArticulationFixtureTests
         var score = await reader.ReadAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
 
         var notes = score.Tracks
-            .SelectMany(t => t.Measures)
+            .SelectMany(t => t.Staves[0].Measures)
             .SelectMany(m => m.Beats)
             .SelectMany(b => b.Notes)
             .ToArray();
@@ -29,7 +29,7 @@ public class AdvancedArticulationFixtureTests
         notes.Any(n => n.Articulation.Bend is not null).Should().BeTrue();
         notes.Any(n => n.Articulation.Harmonic is not null).Should().BeTrue();
         score.Tracks
-            .SelectMany(t => t.Measures)
+            .SelectMany(t => t.Staves[0].Measures)
             .SelectMany(m => m.Beats)
             .Any(b => b.PalmMuted)
             .Should().BeTrue();

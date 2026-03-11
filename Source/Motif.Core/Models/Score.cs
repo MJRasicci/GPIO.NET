@@ -85,8 +85,6 @@ public sealed class TrackModel : ExtensibleModel
     public string Name { get; set; } = string.Empty;
 
     public IReadOnlyList<StaffModel> Staves { get; set; } = Array.Empty<StaffModel>();
-
-    public IReadOnlyList<MeasureModel> Measures { get; set; } = Array.Empty<MeasureModel>();
 }
 
 public sealed class StaffModel : ExtensibleModel
@@ -96,90 +94,10 @@ public sealed class StaffModel : ExtensibleModel
     public IReadOnlyList<StaffMeasureModel> Measures { get; set; } = Array.Empty<StaffMeasureModel>();
 }
 
-public sealed class MeasureModel : ExtensibleModel
-{
-    public int Index { get; set; }
-
-    public string TimeSignature { get; set; } = string.Empty;
-
-    public bool DoubleBar { get; set; }
-
-    public bool FreeTime { get; set; }
-
-    public string TripletFeel { get; set; } = string.Empty;
-
-    public string Clef { get; set; } = string.Empty;
-
-    public string SimileMark { get; set; } = string.Empty;
-
-    public bool RepeatStart { get; set; }
-
-    public bool RepeatStartAttributePresent { get; set; }
-
-    public bool RepeatEnd { get; set; }
-
-    public bool RepeatEndAttributePresent { get; set; }
-
-    public int RepeatCount { get; set; }
-
-    public bool RepeatCountAttributePresent { get; set; }
-
-    public string AlternateEndings { get; set; } = string.Empty;
-
-    public string SectionLetter { get; set; } = string.Empty;
-
-    public string SectionText { get; set; } = string.Empty;
-
-    public bool HasExplicitEmptySection { get; set; }
-
-    public string Jump { get; set; } = string.Empty;
-
-    public string Target { get; set; } = string.Empty;
-
-    public IReadOnlyDictionary<string, string> DirectionProperties { get; set; } = new Dictionary<string, string>();
-
-    public int? KeyAccidentalCount { get; set; }
-
-    public string KeyMode { get; set; } = string.Empty;
-
-    public string KeyTransposeAs { get; set; } = string.Empty;
-
-    public IReadOnlyList<FermataMetadata> Fermatas { get; set; } = Array.Empty<FermataMetadata>();
-
-    public IReadOnlyDictionary<string, int> XProperties { get; set; } = new Dictionary<string, int>();
-
-    public IReadOnlyDictionary<string, string> BarProperties { get; set; } = new Dictionary<string, string>();
-
-    public IReadOnlyDictionary<string, int> BarXProperties { get; set; } = new Dictionary<string, int>();
-
-    public IReadOnlyList<MeasureStaffModel> AdditionalStaffBars { get; set; } = Array.Empty<MeasureStaffModel>();
-
-    public IReadOnlyList<MeasureVoiceModel> Voices { get; set; } = Array.Empty<MeasureVoiceModel>();
-
-    public IReadOnlyList<BeatModel> Beats { get; set; } = Array.Empty<BeatModel>();
-}
-
 public sealed class StaffMeasureModel : ExtensibleModel
 {
     public int Index { get; set; }
 
-    public int StaffIndex { get; set; }
-
-    public string Clef { get; set; } = string.Empty;
-
-    public string SimileMark { get; set; } = string.Empty;
-
-    public IReadOnlyDictionary<string, string> BarProperties { get; set; } = new Dictionary<string, string>();
-
-    public IReadOnlyDictionary<string, int> BarXProperties { get; set; } = new Dictionary<string, int>();
-
-    public IReadOnlyList<MeasureVoiceModel> Voices { get; set; } = Array.Empty<MeasureVoiceModel>();
-
-    public IReadOnlyList<BeatModel> Beats { get; set; } = Array.Empty<BeatModel>();
-}
-
-public sealed class MeasureStaffModel : ExtensibleModel
-{
     public int StaffIndex { get; set; }
 
     public string Clef { get; set; } = string.Empty;

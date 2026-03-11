@@ -28,8 +28,8 @@ public class WriterRoundTripTests
 
             readBack.Title.Should().Be("RoundTrip");
             readBack.Tracks.Should().HaveCount(1);
-            readBack.Tracks[0].Measures.Should().NotBeEmpty();
-            readBack.Tracks[0].Measures[0].Beats.Should().NotBeEmpty();
+            readBack.Tracks[0].Staves[0].Measures.Should().NotBeEmpty();
+            readBack.Tracks[0].PrimaryMeasure(0).Beats.Should().NotBeEmpty();
         }
         finally
         {
@@ -60,8 +60,8 @@ public class WriterRoundTripTests
 
         readBack.Title.Should().Be("RoundTrip");
         readBack.Tracks.Should().HaveCount(1);
-        readBack.Tracks[0].Measures.Should().HaveCount(1);
-        readBack.Tracks[0].Measures[0].Beats.Should().HaveCount(1);
+        readBack.Tracks[0].Staves[0].Measures.Should().HaveCount(1);
+        readBack.Tracks[0].PrimaryMeasure(0).Beats.Should().HaveCount(1);
     }
 
     [Fact]
@@ -178,38 +178,41 @@ public class WriterRoundTripTests
             Title = "RoundTrip",
             Artist = "GPIO",
             Album = "Tests",
+            TimelineBars =
+            [
+                new TimelineBarModel
+                {
+                    Index = 0,
+                    TimeSignature = "4/4"
+                }
+            ],
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Beats =
-                            [
-                                new BeatModel
-                                {
-                                    Id = 1,
-                                    Duration = 0.25m,
-                                    Notes =
-                                    [
-                                        new NoteModel
-                                        {
-                                            Id = 1,
-                                            MidiPitch = 64,
-                                            Articulation = new NoteArticulationModel { LetRing = true }
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel
+                            {
+                                Id = 1,
+                                Duration = 0.25m,
+                                Notes =
+                                [
+                                    new NoteModel
+                                    {
+                                        Id = 1,
+                                        MidiPitch = 64,
+                                        Articulation = new NoteArticulationModel { LetRing = true }
+                                    }
+                                ]
+                            }
+                        ]
+                    })
             ]
         };
 }

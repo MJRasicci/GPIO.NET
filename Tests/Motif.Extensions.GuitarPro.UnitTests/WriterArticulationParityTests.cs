@@ -12,73 +12,68 @@ public class WriterArticulationParityTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Beats =
-                            [
-                                new BeatModel
-                                {
-                                    Id = 1,
-                                    GraceType = "BeforeBeat",
-                                    PickStrokeDirection = "Up",
-                                    VibratoWithTremBarStrength = "Slight",
-                                    Slapped = true,
-                                    Popped = true,
-                                    PalmMuted = true,
-                                    Brush = true,
-                                    BrushIsUp = true,
-                                    Duration = 0.25m,
-                                    Notes =
-                                    [
-                                        new NoteModel
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel
+                            {
+                                Id = 1,
+                                GraceType = "BeforeBeat",
+                                PickStrokeDirection = "Up",
+                                VibratoWithTremBarStrength = "Slight",
+                                Slapped = true,
+                                Popped = true,
+                                PalmMuted = true,
+                                Brush = true,
+                                BrushIsUp = true,
+                                Duration = 0.25m,
+                                Notes =
+                                [
+                                    new NoteModel
+                                    {
+                                        Id = 1,
+                                        MidiPitch = 64,
+                                        Articulation = new NoteArticulationModel
                                         {
-                                            Id = 1,
-                                            MidiPitch = 64,
-                                            Articulation = new NoteArticulationModel
+                                            LeftFingering = "I",
+                                            RightFingering = "M",
+                                            Ornament = "Turn",
+                                            LetRing = true,
+                                            AntiAccent = true,
+                                            PalmMuted = true,
+                                            HopoOrigin = true,
+                                            Slides = [SlideType.Shift, SlideType.OutUp],
+                                            Harmonic = new HarmonicModel
                                             {
-                                                LeftFingering = "I",
-                                                RightFingering = "M",
-                                                Ornament = "Turn",
-                                                LetRing = true,
-                                                AntiAccent = true,
-                                                PalmMuted = true,
-                                                HopoOrigin = true,
-                                                Slides = [SlideType.Shift, SlideType.OutUp],
-                                                Harmonic = new HarmonicModel
-                                                {
-                                                    Enabled = true,
-                                                    Type = 2,
-                                                    Kind = HarmonicTypeKind.Artificial,
-                                                    Fret = 12m
-                                                },
-                                                Bend = new BendModel
-                                                {
-                                                    Enabled = true,
-                                                    Type = BendTypeKind.Bend,
-                                                    OriginOffset = 0m,
-                                                    OriginValue = 0m,
-                                                    MiddleOffset1 = 0.12m,
-                                                    MiddleOffset2 = 0.12m,
-                                                    MiddleValue = 0.5m,
-                                                    DestinationOffset = 0.25m,
-                                                    DestinationValue = 1m
-                                                }
+                                                Enabled = true,
+                                                Type = 2,
+                                                Kind = HarmonicTypeKind.Artificial,
+                                                Fret = 12m
+                                            },
+                                            Bend = new BendModel
+                                            {
+                                                Enabled = true,
+                                                Type = BendTypeKind.Bend,
+                                                OriginOffset = 0m,
+                                                OriginValue = 0m,
+                                                MiddleOffset1 = 0.12m,
+                                                MiddleOffset2 = 0.12m,
+                                                MiddleValue = 0.5m,
+                                                DestinationOffset = 0.25m,
+                                                DestinationValue = 1m
                                             }
                                         }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
+                                    }
+                                ]
+                            }
+                        ]
+                    })
             ]
         };
 
@@ -91,7 +86,7 @@ public class WriterArticulationParityTests
             var reader = new Motif.Extensions.GuitarPro.GuitarProReader();
             var readBack = await reader.ReadAsync(outFile, cancellationToken: TestContext.Current.CancellationToken);
 
-            var beat = readBack.Tracks[0].Measures[0].Beats[0];
+            var beat = readBack.Tracks[0].PrimaryMeasure(0).Beats[0];
             var note = beat.Notes[0];
             beat.GraceType.Should().Be("BeforeBeat");
             beat.PickStrokeDirection.Should().Be("Up");

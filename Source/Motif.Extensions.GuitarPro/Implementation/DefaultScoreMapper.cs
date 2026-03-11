@@ -21,21 +21,18 @@ internal sealed class DefaultScoreMapper : IScoreMapper
             .OrderBy(masterBar => masterBar.Index)
             .Select(MapTimelineBar)
             .ToArray();
-        var timelineBarsByIndex = timelineBars.ToDictionary(timelineBar => timelineBar.Index);
         var barSlotStartByTrackId = BuildBarSlotStartByTrackId(orderedTracks);
 
         var tracks = orderedTracks
             .Select(track =>
             {
                 var isStringedTrack = IsStringedTrack(track);
-                var measures = MapMeasures(
+                var staves = MapTrackStaves(
                     source,
                     track,
                     barSlotStartByTrackId[track.Id],
                     GetTrackStaffCount(track),
-                    timelineBarsByIndex,
                     isStringedTrack);
-                ApplyTieDurationStitching(measures);
                 var trackMetadata = new TrackMetadata
                 {
                     Xml = track.Xml,
@@ -183,8 +180,7 @@ internal sealed class DefaultScoreMapper : IScoreMapper
                 {
                     Id = track.Id,
                     Name = track.Name,
-                    Staves = BuildTrackStaves(trackMetadata, measures),
-                    Measures = measures
+                    Staves = AttachTrackStaffExtensions(trackMetadata, staves)
                 };
 
                 mappedTrack.SetExtension(new GpTrackExtension
@@ -286,41 +282,11 @@ internal sealed class DefaultScoreMapper : IScoreMapper
         return ValueTask.FromResult(score);
     }
 
-    private static IReadOnlyList<StaffModel> BuildTrackStaves(TrackMetadata trackMetadata, IReadOnlyList<MeasureModel> measures)
+    private static IReadOnlyList<StaffModel> AttachTrackStaffExtensions(TrackMetadata trackMetadata, IReadOnlyList<StaffModel> staves)
     {
-        var highestAdditionalStaffIndex = measures
-            .SelectMany(measure => measure.AdditionalStaffBars)
-            .Select(staff => staff.StaffIndex)
-            .DefaultIfEmpty(-1)
-            .Max();
-        var totalStaffCount = Math.Max(1, Math.Max(trackMetadata.Staffs.Count, highestAdditionalStaffIndex + 1));
-        var staffMeasures = Enumerable.Range(0, totalStaffCount)
-            .Select(_ => new List<StaffMeasureModel>(measures.Count))
-            .ToArray();
-
-        foreach (var measure in measures.OrderBy(m => m.Index))
+        for (var staffIndex = 0; staffIndex < staves.Count; staffIndex++)
         {
-            staffMeasures[0].Add(CreatePrimaryStaffMeasure(measure));
-
-            var additionalStaffsByIndex = measure.AdditionalStaffBars
-                .ToDictionary(staff => staff.StaffIndex);
-            for (var staffIndex = 1; staffIndex < totalStaffCount; staffIndex++)
-            {
-                staffMeasures[staffIndex].Add(
-                    additionalStaffsByIndex.TryGetValue(staffIndex, out var additionalStaff)
-                        ? CreateStaffMeasure(measure.Index, additionalStaff)
-                        : CreateEmptyStaffMeasure(measure.Index, staffIndex));
-            }
-        }
-
-        var staves = new List<StaffModel>(totalStaffCount);
-        for (var staffIndex = 0; staffIndex < totalStaffCount; staffIndex++)
-        {
-            var staff = new StaffModel
-            {
-                StaffIndex = staffIndex,
-                Measures = staffMeasures[staffIndex]
-            };
+            var staff = staves[staffIndex];
 
             if (staffIndex < trackMetadata.Staffs.Count)
             {
@@ -329,65 +295,9 @@ internal sealed class DefaultScoreMapper : IScoreMapper
                     Metadata = CloneStaffMetadata(trackMetadata.Staffs[staffIndex])
                 });
             }
-
-            staves.Add(staff);
         }
 
         return staves;
-    }
-
-    private static StaffMeasureModel CreatePrimaryStaffMeasure(MeasureModel measure)
-    {
-        var measureMetadata = measure.GetRequiredGuitarPro().Metadata;
-        var staffMeasure = new StaffMeasureModel
-        {
-            Index = measure.Index,
-            StaffIndex = 0,
-            Clef = measure.Clef,
-            SimileMark = measure.SimileMark,
-            BarProperties = measure.BarProperties,
-            BarXProperties = measure.BarXProperties,
-            Voices = measure.Voices,
-            Beats = measure.Beats
-        };
-        staffMeasure.SetExtension(new GpMeasureStaffExtension
-        {
-            Metadata = new GpMeasureStaffMetadata
-            {
-                BarXml = measureMetadata.BarXml,
-                SourceBarId = measureMetadata.SourceBarId,
-                BarXPropertiesXml = measureMetadata.BarXPropertiesXml
-            }
-        });
-
-        return staffMeasure;
-    }
-
-    private static StaffMeasureModel CreateStaffMeasure(int index, MeasureStaffModel source)
-    {
-        var metadata = source.GetRequiredGuitarPro().Metadata;
-        var staffMeasure = new StaffMeasureModel
-        {
-            Index = index,
-            StaffIndex = source.StaffIndex,
-            Clef = source.Clef,
-            SimileMark = source.SimileMark,
-            BarProperties = source.BarProperties,
-            BarXProperties = source.BarXProperties,
-            Voices = source.Voices,
-            Beats = source.Beats
-        };
-        staffMeasure.SetExtension(new GpMeasureStaffExtension
-        {
-            Metadata = new GpMeasureStaffMetadata
-            {
-                BarXml = metadata.BarXml,
-                SourceBarId = metadata.SourceBarId,
-                BarXPropertiesXml = metadata.BarXPropertiesXml
-            }
-        });
-
-        return staffMeasure;
     }
 
     private static StaffMeasureModel CreateEmptyStaffMeasure(int index, int staffIndex)
@@ -436,95 +346,41 @@ internal sealed class DefaultScoreMapper : IScoreMapper
     private static int GetTrackStaffCount(GpifTrack track)
         => Math.Max(1, track.Staffs.Count);
 
-    private static List<MeasureModel> MapMeasures(
+    private static IReadOnlyList<StaffModel> MapTrackStaves(
         GpifDocument source,
         GpifTrack track,
         int trackBarSlotStart,
         int staffCount,
-        IReadOnlyDictionary<int, TimelineBarModel> timelineBarsByIndex,
         bool isStringedTrack)
     {
-        var measures = new List<MeasureModel>(source.MasterBars.Count);
+        var staffMeasures = Enumerable.Range(0, Math.Max(1, staffCount))
+            .Select(staffIndex => new StaffModel
+            {
+                StaffIndex = staffIndex,
+                Measures = new List<StaffMeasureModel>(source.MasterBars.Count)
+            })
+            .ToArray();
 
         foreach (var masterBar in source.MasterBars.OrderBy(m => m.Index))
         {
             var barRefs = ReferenceListParser.SplitRefs(masterBar.BarsReferenceList);
-            var primaryStaff = trackBarSlotStart < barRefs.Count
-                ? MapStaffBar(source, track, barRefs[trackBarSlotStart], staffIndex: 0, isStringedTrack)
-                : null;
-            var additionalStaffBars = new List<MeasureStaffModel>(Math.Max(0, staffCount - 1));
-            for (var staffIndex = 1; staffIndex < staffCount; staffIndex++)
+            for (var staffIndex = 0; staffIndex < staffMeasures.Length; staffIndex++)
             {
                 var barSlot = trackBarSlotStart + staffIndex;
-                if (barSlot >= barRefs.Count)
-                {
-                    continue;
-                }
-
-                var additionalStaff = MapStaffBar(source, track, barRefs[barSlot], staffIndex, isStringedTrack);
-                if (additionalStaff is not null)
-                {
-                    additionalStaffBars.Add(additionalStaff);
-                }
+                var staffMeasure = barSlot < barRefs.Count
+                    ? MapStaffBar(source, track, barRefs[barSlot], masterBar.Index, staffIndex, isStringedTrack)
+                    : null;
+                ((List<StaffMeasureModel>)staffMeasures[staffIndex].Measures).Add(
+                    staffMeasure ?? CreateEmptyStaffMeasure(masterBar.Index, staffIndex));
             }
-
-            var voices = primaryStaff?.Voices ?? Array.Empty<MeasureVoiceModel>();
-            var beats = primaryStaff?.Beats ?? Array.Empty<BeatModel>();
-            var timelineBar = timelineBarsByIndex.TryGetValue(masterBar.Index, out var existingTimelineBar)
-                ? existingTimelineBar
-                : MapTimelineBar(masterBar);
-
-            var measure = new MeasureModel
-            {
-                Index = timelineBar.Index,
-                TimeSignature = timelineBar.TimeSignature,
-                DoubleBar = timelineBar.DoubleBar,
-                FreeTime = timelineBar.FreeTime,
-                TripletFeel = timelineBar.TripletFeel,
-                Clef = primaryStaff?.Clef ?? string.Empty,
-                SimileMark = primaryStaff?.SimileMark ?? string.Empty,
-                RepeatStart = timelineBar.RepeatStart,
-                RepeatStartAttributePresent = timelineBar.RepeatStartAttributePresent,
-                RepeatEnd = timelineBar.RepeatEnd,
-                RepeatEndAttributePresent = timelineBar.RepeatEndAttributePresent,
-                RepeatCount = timelineBar.RepeatCount,
-                RepeatCountAttributePresent = timelineBar.RepeatCountAttributePresent,
-                AlternateEndings = timelineBar.AlternateEndings,
-                SectionLetter = timelineBar.SectionLetter,
-                SectionText = timelineBar.SectionText,
-                HasExplicitEmptySection = timelineBar.HasExplicitEmptySection,
-                Jump = timelineBar.Jump,
-                Target = timelineBar.Target,
-                DirectionProperties = timelineBar.DirectionProperties.ToDictionary(kv => kv.Key, kv => kv.Value),
-                KeyAccidentalCount = timelineBar.KeyAccidentalCount,
-                KeyMode = timelineBar.KeyMode,
-                KeyTransposeAs = timelineBar.KeyTransposeAs,
-                Fermatas = timelineBar.Fermatas.Select(f => new FermataMetadata
-                {
-                    Type = f.Type,
-                    Offset = f.Offset,
-                    Length = f.Length
-                }).ToArray(),
-                XProperties = timelineBar.XProperties.ToDictionary(kv => kv.Key, kv => kv.Value),
-                BarProperties = primaryStaff?.BarProperties ?? new Dictionary<string, string>(),
-                BarXProperties = primaryStaff?.BarXProperties ?? new Dictionary<string, int>(),
-                AdditionalStaffBars = additionalStaffBars,
-                Voices = voices,
-                Beats = beats
-            };
-            measure.SetExtension(new GpMeasureExtension
-            {
-                Metadata = new GpMeasureMetadata
-                {
-                    BarXml = primaryStaff?.GetRequiredGuitarPro().Metadata.BarXml ?? string.Empty,
-                    SourceBarId = primaryStaff?.GetRequiredGuitarPro().Metadata.SourceBarId ?? -1,
-                    BarXPropertiesXml = primaryStaff?.GetRequiredGuitarPro().Metadata.BarXPropertiesXml ?? string.Empty
-                }
-            });
-            measures.Add(measure);
         }
 
-        return measures;
+        foreach (var staff in staffMeasures)
+        {
+            ApplyTieDurationStitching(staff.Measures);
+        }
+
+        return staffMeasures;
     }
 
     private static TimelineBarModel MapTimelineBar(GpifMasterBar masterBar)
@@ -572,10 +428,11 @@ internal sealed class DefaultScoreMapper : IScoreMapper
         return timelineBar;
     }
 
-    private static MeasureStaffModel? MapStaffBar(
+    private static StaffMeasureModel? MapStaffBar(
         GpifDocument source,
         GpifTrack track,
         int barId,
+        int measureIndex,
         int staffIndex,
         bool isStringedTrack)
     {
@@ -617,8 +474,9 @@ internal sealed class DefaultScoreMapper : IScoreMapper
             ?? voices.FirstOrDefault()?.Beats
             ?? Array.Empty<BeatModel>();
 
-        var staffMeasure = new MeasureStaffModel
+        var staffMeasure = new StaffMeasureModel
         {
+            Index = measureIndex,
             StaffIndex = staffIndex,
             Clef = bar.Clef,
             SimileMark = bar.SimileMark,
@@ -1026,7 +884,7 @@ internal sealed class DefaultScoreMapper : IScoreMapper
 
         foreach (var track in tracks.OrderBy(t => t.Id))
         {
-            foreach (var measure in track.Measures.OrderBy(m => m.Index))
+            foreach (var measure in EnumeratePrimaryStaffMeasures(track))
             {
                 if (measure.Voices.Count > 0)
                 {
@@ -1061,6 +919,19 @@ internal sealed class DefaultScoreMapper : IScoreMapper
             .ThenBy(e => e.BeatOffset)
             .ThenBy(e => e.BeatId)
             .ToArray();
+    }
+
+    private static IReadOnlyList<StaffMeasureModel> EnumeratePrimaryStaffMeasures(TrackModel track)
+    {
+        var primaryStaff = track.Staves
+            .OrderBy(staff => staff.StaffIndex)
+            .FirstOrDefault(staff => staff.StaffIndex == 0)
+            ?? track.Staves.OrderBy(staff => staff.StaffIndex).FirstOrDefault();
+
+        return primaryStaff?.Measures
+            .OrderBy(measure => measure.Index)
+            .ToArray()
+            ?? Array.Empty<StaffMeasureModel>();
     }
 
     private static void AppendDynamicEvents(
@@ -1175,7 +1046,7 @@ internal sealed class DefaultScoreMapper : IScoreMapper
         return midiPitch.Value - (octave * 12) + chromatic;
     }
 
-    private static void ApplyTieDurationStitching(List<MeasureModel> measures)
+    private static void ApplyTieDurationStitching(IReadOnlyList<StaffMeasureModel> measures)
     {
         var carryByPitch = new Dictionary<int, NoteModel>();
 

@@ -20,20 +20,15 @@ public class WriterDiagnosticsTests
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Beats = [ new BeatModel { Id = 1, Duration = 0.17m } ]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Beats = [ new BeatModel { Id = 1, Duration = 0.17m } ]
+                    })
             ]
         };
 
@@ -93,36 +88,34 @@ public class WriterDiagnosticsTests
         var fixturePath = FixturePath("test.gp");
         var sourceScore = await new GuitarProReader().ReadAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
         var sourceTrack = sourceScore.Tracks[0];
-        var sourceMeasure = sourceTrack.Measures[0];
+        var sourceMeasure = sourceTrack.PrimaryMeasure(0);
 
         var editedScore = new Score
         {
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = sourceTrack.Id,
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 999,
-                            Beats =
-                            [
-                                new BeatModel
-                                {
-                                    Id = -1,
-                                    Notes = [new NoteModel { Id = -2 }]
-                                }
-                            ]
-                        },
-                        new MeasureModel
-                        {
-                            Index = sourceMeasure.Index,
-                            Beats = sourceMeasure.Beats.Select(CloneBeat).ToArray()
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    sourceTrack.Id,
+                    sourceTrack.Name,
+                    new StaffMeasureModel
+                    {
+                        Index = 999,
+                        StaffIndex = 0,
+                        Beats =
+                        [
+                            new BeatModel
+                            {
+                                Id = -1,
+                                Notes = [new NoteModel { Id = -2 }]
+                            }
+                        ]
+                    },
+                    new StaffMeasureModel
+                    {
+                        Index = sourceMeasure.Index,
+                        StaffIndex = 0,
+                        Beats = sourceMeasure.Beats.Select(CloneBeat).ToArray()
+                    })
             ]
         };
 
@@ -142,7 +135,7 @@ public class WriterDiagnosticsTests
         var fixturePath = FixturePath("test.gp");
         var score = await new GuitarProReader().ReadAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
 
-        score.Tracks[0].Measures[0].Beats[0].Notes[0].RemoveExtension<GpNoteExtension>();
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].RemoveExtension<GpNoteExtension>();
 
         var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
 
@@ -188,7 +181,7 @@ public class WriterDiagnosticsTests
                 </Staves>
                 """));
 
-        score.Tracks[0].GetRequiredGuitarPro().Metadata.Staffs[0].CapoFret = 2;
+        score.Tracks[0].Staves[0].GetRequiredGuitarPro().Metadata.CapoFret = 2;
 
         var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
 
@@ -226,7 +219,7 @@ public class WriterDiagnosticsTests
                 </Note>
                 """));
 
-        score.Tracks[0].Measures[0].Beats[0].Notes[0].MidiPitch = 47;
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].MidiPitch = 47;
 
         var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
 
@@ -253,7 +246,7 @@ public class WriterDiagnosticsTests
                 </Note>
                 """));
 
-        score.Tracks[0].Measures[0].Beats[0].Notes[0].MidiPitch = 38;
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].MidiPitch = 38;
 
         var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
 
@@ -269,7 +262,7 @@ public class WriterDiagnosticsTests
     public async Task Unmapper_warns_when_source_rhythm_shape_is_regenerated()
     {
         var score = await DeserializeAndMapAsync(BuildSingleNoteGpif());
-        score.Tracks[0].Measures[0].Beats[0].Duration = 0.5m;
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Duration = 0.5m;
 
         var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
 

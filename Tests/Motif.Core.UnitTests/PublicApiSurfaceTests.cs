@@ -35,7 +35,6 @@ public class PublicApiSurfaceTests
         new Score().Tracks.Should().BeEmpty();
         new Score().TimelineBars.Should().BeEmpty();
         new TrackModel().Staves.Should().BeEmpty();
-        new TrackModel().Measures.Should().BeEmpty();
         new StaffModel().Measures.Should().BeEmpty();
 
         var json = score.ToJson();

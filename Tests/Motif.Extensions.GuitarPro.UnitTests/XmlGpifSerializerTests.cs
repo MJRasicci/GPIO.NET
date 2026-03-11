@@ -15,22 +15,25 @@ public class XmlGpifSerializerTests
     {
         var score = new Score
         {
+            TimelineBars =
+            [
+                new TimelineBarModel
+                {
+                    Index = 0,
+                    TimeSignature = "4/4",
+                    SectionText = "Intro"
+                }
+            ],
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            SectionText = "Intro"
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0
+                    })
             ]
         };
 
@@ -117,36 +120,39 @@ public class XmlGpifSerializerTests
         var score = new Score
         {
             Title = "Formatting Test",
+            TimelineBars =
+            [
+                new TimelineBarModel
+                {
+                    Index = 0,
+                    TimeSignature = "4/4"
+                }
+            ],
             Tracks =
             [
-                new TrackModel
-                {
-                    Id = 0,
-                    Name = "Guitar",
-                    Measures =
-                    [
-                        new MeasureModel
-                        {
-                            Index = 0,
-                            TimeSignature = "4/4",
-                            Voices =
-                            [
-                                new MeasureVoiceModel
-                                {
-                                    VoiceIndex = 0,
-                                    Beats =
-                                    [
-                                        new BeatModel
-                                        {
-                                            Id = 1,
-                                            Duration = 0.25m
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
+                HierarchyTestHelpers.SingleStaffTrack(
+                    0,
+                    "Guitar",
+                    new StaffMeasureModel
+                    {
+                        Index = 0,
+                        StaffIndex = 0,
+                        Voices =
+                        [
+                            new MeasureVoiceModel
+                            {
+                                VoiceIndex = 0,
+                                Beats =
+                                [
+                                    new BeatModel
+                                    {
+                                        Id = 1,
+                                        Duration = 0.25m
+                                    }
+                                ]
+                            }
+                        ]
+                    })
             ]
         };
 

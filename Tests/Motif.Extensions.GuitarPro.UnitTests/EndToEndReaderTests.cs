@@ -20,9 +20,9 @@ public class EndToEndReaderTests
 
         var firstTrack = score.Tracks[0];
         firstTrack.Staves.Should().NotBeEmpty();
-        firstTrack.Measures.Should().NotBeEmpty();
+        firstTrack.Staves[0].Measures.Should().NotBeEmpty();
 
-        firstTrack.Measures.SelectMany(m => m.Beats).Count().Should().BeGreaterThan(0);
+        firstTrack.Staves[0].Measures.SelectMany(m => m.Beats).Count().Should().BeGreaterThan(0);
 
         var json = score.ToJson();
         json.Should().Contain("\"Tracks\"");

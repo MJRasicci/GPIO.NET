@@ -24,11 +24,6 @@ public sealed class GpStaffExtension : IModelExtension
     public required StaffMetadata Metadata { get; set; }
 }
 
-public sealed class GpMeasureExtension : IModelExtension
-{
-    public required GpMeasureMetadata Metadata { get; set; }
-}
-
 public sealed class GpMeasureStaffExtension : IModelExtension
 {
     public required GpMeasureStaffMetadata Metadata { get; set; }
@@ -63,10 +58,6 @@ public sealed class GpExtensionReattachmentResult
 
     public int TracksUnmatched { get; internal set; }
 
-    public int MeasuresAttached { get; internal set; }
-
-    public int MeasuresUnmatched { get; internal set; }
-
     public int StaffsAttached { get; internal set; }
 
     public int StaffsUnmatched { get; internal set; }
@@ -87,7 +78,6 @@ public sealed class GpExtensionReattachmentResult
         => ScoreUnmatched
            || TimelineBarsUnmatched > 0
            || TracksUnmatched > 0
-           || MeasuresUnmatched > 0
            || StaffsUnmatched > 0
            || VoicesUnmatched > 0
            || BeatsUnmatched > 0
@@ -101,21 +91,6 @@ public sealed class GpTimelineBarMetadata
     public string DirectionsXml { get; set; } = string.Empty;
 
     public string MasterBarXPropertiesXml { get; set; } = string.Empty;
-}
-
-public sealed class GpMeasureMetadata
-{
-    public string MasterBarXml { get; set; } = string.Empty;
-
-    public string BarXml { get; set; } = string.Empty;
-
-    public int SourceBarId { get; set; } = -1;
-
-    public string DirectionsXml { get; set; } = string.Empty;
-
-    public string MasterBarXPropertiesXml { get; set; } = string.Empty;
-
-    public string BarXPropertiesXml { get; set; } = string.Empty;
 }
 
 public sealed class GpMeasureStaffMetadata
