@@ -231,7 +231,9 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
             var timelineBar = m < orderedTimelineBars.Length
                 ? orderedTimelineBars[m]
                 : null;
-            var timelineIndex = timelineBar?.Index ?? fallbackMeasure?.Index ?? m;
+            var timelineIndex = timelineBar?.Index
+                ?? (primaryTimelineTrack is null ? null : GetTrackBarIndexAtPosition(primaryTimelineTrack, m))
+                ?? m;
             var masterBar = CreateMasterBar(timelineBar, fallbackMeasure);
             if (masterBar is not null)
             {
@@ -878,20 +880,17 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
                 coverage.TracksAttached++;
             }
 
-            if (track.Measures.Count == 0 && track.Staves.Count > 0)
+            if (track.Staves.Count > 0)
             {
-                foreach (var staff in track.Staves)
+                foreach (var staffBar in EnumeratePreferredStaffBars(track))
                 {
-                    foreach (var staffMeasure in staff.Measures)
+                    coverage.StaffsTotal++;
+                    if (staffBar.GetGuitarPro() is not null)
                     {
-                        coverage.StaffsTotal++;
-                        if (staffMeasure.GetGuitarPro() is not null)
-                        {
-                            coverage.StaffsAttached++;
-                        }
-
-                        AppendMeasureContentCoverage(staffMeasure.Voices, staffMeasure.Beats, coverage);
+                        coverage.StaffsAttached++;
                     }
+
+                    AppendMeasureContentCoverage(staffBar.Voices, staffBar.Beats, coverage);
                 }
 
                 continue;
@@ -1673,13 +1672,32 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
             ? track.Measures[measurePosition]
             : null;
 
+    private static int? GetTrackBarIndexAtPosition(TrackModel track, int measurePosition)
+    {
+        var fallbackMeasure = GetTrackFallbackMeasureAtPosition(track, measurePosition);
+        if (fallbackMeasure is not null)
+        {
+            return fallbackMeasure.Index;
+        }
+
+        foreach (var staff in track.Staves.OrderBy(staff => staff.StaffIndex))
+        {
+            if (measurePosition >= 0 && measurePosition < staff.Measures.Count)
+            {
+                return staff.Measures[measurePosition].Index;
+            }
+        }
+
+        return null;
+    }
+
     private static IReadOnlyList<MeasureStaffModel> ResolveTrackStaffBars(
         TrackModel track,
         MeasureModel? fallbackMeasure,
         int timelineIndex,
         int measurePosition)
     {
-        if (track.Staves.Count == 0 || track.Measures.Count > 0)
+        if (track.Staves.Count == 0)
         {
             return fallbackMeasure is null
                 ? CreateEmptyStaffBars(Math.Max(1, ResolveTrackStaffMetadata(track).Count))
@@ -1808,10 +1826,15 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
             Voices = source.Voices,
             Beats = source.Beats
         };
-        staffMeasure.SetExtension(new GpMeasureStaffExtension
+        var extension = source.GetGuitarPro();
+        if (extension is not null)
         {
-            Metadata = GetMeasureStaffMetadata(source)
-        });
+            staffMeasure.SetExtension(new GpMeasureStaffExtension
+            {
+                Metadata = extension.Metadata
+            });
+        }
+
         return staffMeasure;
     }
 
@@ -1845,40 +1868,25 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
 
     private static IEnumerable<MeasureStaffModel> EnumeratePreferredStaffBars(TrackModel track)
     {
-        if (track.Staves.Count > 0 && track.Measures.Count == 0)
+        for (var measurePosition = 0; measurePosition < GetTrackMeasureCount(track); measurePosition++)
         {
-            return track.Staves
-                .OrderBy(staff => staff.StaffIndex)
-                .SelectMany(staff => staff.Measures.OrderBy(measure => measure.Index))
-                .Select(ToMeasureStaffModel);
+            var fallbackMeasure = GetTrackFallbackMeasureAtPosition(track, measurePosition);
+            var timelineIndex = GetTrackBarIndexAtPosition(track, measurePosition) ?? measurePosition;
+            foreach (var staffBar in ResolveTrackStaffBars(track, fallbackMeasure, timelineIndex, measurePosition))
+            {
+                yield return staffBar;
+            }
         }
-
-        return track.Measures.SelectMany(measure => ResolveMeasureStaffBars(track, measure));
     }
 
     private static IEnumerable<MeasureVoiceModel> EnumeratePreferredVoices(TrackModel track)
-    {
-        if (track.Staves.Count > 0 && track.Measures.Count == 0)
-        {
-            return track.Staves
-                .SelectMany(staff => staff.Measures)
-                .SelectMany(measure => measure.Voices);
-        }
-
-        return track.Measures.SelectMany(measure => measure.Voices);
-    }
+        => EnumeratePreferredStaffBars(track)
+            .SelectMany(staffBar => ResolveMeasureVoices(staffBar.Voices, staffBar.Beats));
 
     private static IEnumerable<BeatModel> EnumeratePreferredBeats(TrackModel track)
-    {
-        if (track.Staves.Count > 0 && track.Measures.Count == 0)
-        {
-            return track.Staves
-                .SelectMany(staff => staff.Measures)
-                .SelectMany(measure => measure.Voices.Count > 0 ? measure.Voices.SelectMany(voice => voice.Beats) : measure.Beats);
-        }
-
-        return track.Measures.SelectMany(measure => measure.Voices.Count > 0 ? measure.Voices.SelectMany(voice => voice.Beats) : measure.Beats);
-    }
+        => EnumeratePreferredStaffBars(track)
+            .SelectMany(staffBar => ResolveMeasureVoices(staffBar.Voices, staffBar.Beats))
+            .SelectMany(voice => voice.Beats);
 
     private static IReadOnlyList<MeasureVoiceModel> ResolveMeasureVoices(IReadOnlyList<MeasureVoiceModel> measureVoices, IReadOnlyList<BeatModel> measureBeats)
     {

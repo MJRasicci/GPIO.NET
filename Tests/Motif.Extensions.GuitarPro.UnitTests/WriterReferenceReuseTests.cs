@@ -366,6 +366,25 @@ public class WriterReferenceReuseTests
     }
 
     [Fact]
+    public async Task Unmapper_prefers_staff_hierarchy_when_both_staff_and_measure_shapes_are_present()
+    {
+        var score = await new DefaultScoreMapper().MapAsync(CreateMultiStaffRawDocument(), TestContext.Current.CancellationToken);
+        var piano = score.Tracks.Single(track => track.Name == "Piano");
+
+        piano.Staves[0].Measures[0].Clef = "Neutral";
+        piano.Staves[1].Measures[0].Clef = "G2";
+
+        piano.Measures[0].Clef.Should().Be("G2");
+        piano.Measures[0].AdditionalStaffBars[0].Clef.Should().Be("F4");
+
+        var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
+
+        result.Diagnostics.Warnings.Should().BeEmpty();
+        result.RawDocument.BarsById[0].Clef.Should().Be("Neutral");
+        result.RawDocument.BarsById[1].Clef.Should().Be("G2");
+    }
+
+    [Fact]
     public void To_json_drops_source_rhythm_shape_from_core_json()
     {
         var json = CreateTupletScore().ToJson();

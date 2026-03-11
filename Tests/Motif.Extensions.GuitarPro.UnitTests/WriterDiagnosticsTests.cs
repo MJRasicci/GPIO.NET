@@ -153,6 +153,22 @@ public class WriterDiagnosticsTests
     }
 
     [Fact]
+    public async Task Unmapper_warns_when_staff_bar_extensions_are_partial_even_with_compatibility_measures_present()
+    {
+        var fixturePath = FixturePath("test.gp");
+        var score = await new GuitarProReader().ReadAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
+
+        score.Tracks[0].Staves[0].Measures[0].RemoveExtension<GpMeasureStaffExtension>();
+
+        var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
+
+        result.Diagnostics.Warnings.Should().Contain(entry =>
+            entry.Code == "GP_EXTENSION_GRAPH_PARTIAL"
+            && entry.Category == "RawFidelity"
+            && entry.Message.Contains("staff bars", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Unmapper_warns_when_source_track_staves_xml_is_regenerated()
     {
         var score = await DeserializeAndMapAsync(BuildSingleNoteGpif(

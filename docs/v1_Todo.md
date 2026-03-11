@@ -46,7 +46,7 @@
   Landed: `IModelExtension` / `IExtensibleModel`, typed helpers, GP extension attachments, Core-only JSON.
 
 - `[~]` Step 2 - Split Core domain vs Guitar Pro fidelity
-  Landed: initial score-owned timeline slice via `Score.TimelineBars`; navigation and GP master-bar export now consume a score-level timeline source instead of implicitly depending on the first populated track; GP master-bar fidelity metadata now attaches to `TimelineBarModel` rather than piggybacking on `MeasureModel`; the GP mapper now projects `Track.Staves` / `StaffMeasure` wrappers with `GpStaffExtension`, and the unmapper can now write staff-only tracks from that hierarchy when the compatibility `Track.Measures` shape is absent.
+  Landed: initial score-owned timeline slice via `Score.TimelineBars`; navigation and GP master-bar export now consume a score-level timeline source instead of implicitly depending on the first populated track; GP master-bar fidelity metadata now attaches to `TimelineBarModel` rather than piggybacking on `MeasureModel`; the GP mapper now projects `Track.Staves` / `StaffMeasure` wrappers with `GpStaffExtension`, and the unmapper plus GP fidelity diagnostics/reattachment now prefer that staff hierarchy even while the compatibility `Track.Measures` shape still exists.
   Remaining: finish removing `Track.Measures` + `Measure.AdditionalStaffBars` in favor of `Track.Staves` + score timeline ownership everywhere, move surviving Core property/XProperty bags behind GP extensions or normalize them as typed semantics, remove the `*Model` suffix from Core types, keep genuinely cross-format semantics such as golpe in Core.
 
 - `[x]` Step 3 - Raw cache invariants

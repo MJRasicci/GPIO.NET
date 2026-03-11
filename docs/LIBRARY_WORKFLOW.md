@@ -48,6 +48,7 @@ Typical traversal-affecting edits include:
 - `ScoreNavigation` and the Guitar Pro writer consume it as the canonical timeline source.
 - `ScoreNavigation.EnsureTimelineBars(score)` returns the current score-owned timeline when you need a non-null list.
 - `ScoreNavigation.BuildTimelineBars(legacyMeasures)` explicitly promotes legacy measure-local timeline data during migration.
+- When a track exposes `Track.Staves`, the Guitar Pro writer and GP fidelity workflows now prefer that staff hierarchy over the compatibility `Track.Measures` shape.
 - The measure-level duplicates on `Track.Measures` still exist temporarily for compatibility and will be removed as the full hierarchy refactor lands.
 - Prefer editing timeline-global state such as repeats, sections, jump targets, key changes, and fermatas through `Score.TimelineBars`.
 

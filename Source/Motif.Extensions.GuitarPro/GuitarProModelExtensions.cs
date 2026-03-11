@@ -701,11 +701,6 @@ public static class GuitarProModelExtensions
             {
                 removedAny |= staffMeasure.RemoveExtension<GpMeasureStaffExtension>();
 
-                if (track.Measures.Count > 0)
-                {
-                    continue;
-                }
-
                 foreach (var voice in staffMeasure.Voices)
                 {
                     removedAny |= voice.RemoveExtension<GpVoiceExtension>();
@@ -867,12 +862,9 @@ public static class GuitarProModelExtensions
         {
             if (!sourceStaffsByIndex.TryGetValue(targetStaff.StaffIndex, out var sourceStaff))
             {
-                if (targetTrack.Measures.Count == 0)
+                foreach (var targetStaffMeasure in targetStaff.Measures)
                 {
-                    foreach (var targetStaffMeasure in targetStaff.Measures)
-                    {
-                        CountUnmatchedStaffMeasureSubtree(targetStaffMeasure, result);
-                    }
+                    CountUnmatchedStaffMeasureSubtree(targetStaffMeasure, result);
                 }
 
                 continue;
@@ -895,10 +887,7 @@ public static class GuitarProModelExtensions
             {
                 if (!sourceMeasuresByIndex.TryGetValue(targetStaffMeasure.Index, out var sourceStaffMeasure))
                 {
-                    if (targetTrack.Measures.Count == 0)
-                    {
-                        CountUnmatchedStaffMeasureSubtree(targetStaffMeasure, result);
-                    }
+                    CountUnmatchedStaffMeasureSubtree(targetStaffMeasure, result);
 
                     continue;
                 }
@@ -913,14 +902,9 @@ public static class GuitarProModelExtensions
 
                     result.StaffsAttached++;
                 }
-                else if (targetTrack.Measures.Count == 0)
+                else
                 {
                     result.StaffsUnmatched++;
-                }
-
-                if (targetTrack.Measures.Count > 0)
-                {
-                    continue;
                 }
 
                 ReattachBeatExtensions(targetStaffMeasure.Beats, sourceStaffMeasure.Beats, result);
