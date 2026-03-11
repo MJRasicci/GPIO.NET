@@ -688,12 +688,13 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
     private static void AppendGuitarProFidelityDiagnostics(Score score, WriteDiagnostics diagnostics)
     {
         var fidelityState = score.GetGuitarProFidelityState();
-        if (fidelityState?.HasSourceContext != true)
+        var hasScoreLevelSourceContext = fidelityState?.HasSourceContext == true || score.GetGuitarPro() is not null;
+        if (!hasScoreLevelSourceContext)
         {
             return;
         }
 
-        if (fidelityState.FidelityInvalidated)
+        if (fidelityState?.FidelityInvalidated == true)
         {
             diagnostics.Warn(
                 code: "GP_SOURCE_FIDELITY_INVALIDATED",
@@ -701,13 +702,181 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
                 message: "Guitar Pro source fidelity extensions were invalidated before write; raw GPIF metadata will be regenerated from Core data where exact source preservation is no longer available.");
         }
 
-        if (fidelityState.LastReattachment?.HasUnmatchedTargets == true)
+        var lastReattachment = fidelityState?.LastReattachment;
+        if (lastReattachment?.HasUnmatchedTargets == true)
         {
             diagnostics.Warn(
                 code: "GP_EXTENSION_REATTACHMENT_PARTIAL",
                 category: "RawFidelity",
-                message: GuitarProModelExtensions.FormatPartialReattachmentMessage(fidelityState.LastReattachment));
+                message: GuitarProModelExtensions.FormatPartialReattachmentMessage(lastReattachment));
         }
+
+        if (fidelityState?.FidelityInvalidated == true || lastReattachment?.HasUnmatchedTargets == true)
+        {
+            return;
+        }
+
+        var coverage = MeasureGuitarProExtensionCoverage(score);
+        var partialCoverage = coverage.GetPartialKinds().ToArray();
+        if (partialCoverage.Length == 0)
+        {
+            return;
+        }
+
+        diagnostics.Warn(
+            code: "GP_EXTENSION_GRAPH_PARTIAL",
+            category: "RawFidelity",
+            message: $"Guitar Pro source fidelity is only attached to part of the score tree; writer will regenerate missing raw metadata for {string.Join(", ", partialCoverage)}.");
+    }
+
+    private static ExtensionCoverage MeasureGuitarProExtensionCoverage(Score score)
+    {
+        var coverage = new ExtensionCoverage();
+
+        foreach (var track in score.Tracks)
+        {
+            coverage.TracksTotal++;
+            if (track.GetGuitarPro() is not null)
+            {
+                coverage.TracksAttached++;
+            }
+
+            foreach (var measure in track.Measures)
+            {
+                coverage.MeasuresTotal++;
+                if (measure.GetGuitarPro() is not null)
+                {
+                    coverage.MeasuresAttached++;
+                }
+
+                foreach (var staff in measure.AdditionalStaffBars)
+                {
+                    coverage.StaffsTotal++;
+                    if (staff.GetGuitarPro() is not null)
+                    {
+                        coverage.StaffsAttached++;
+                    }
+
+                    AppendMeasureContentCoverage(staff.Voices, staff.Beats, coverage);
+                }
+
+                AppendMeasureContentCoverage(measure.Voices, measure.Beats, coverage);
+            }
+        }
+
+        return coverage;
+    }
+
+    private static void AppendMeasureContentCoverage(
+        IReadOnlyList<MeasureVoiceModel> voices,
+        IReadOnlyList<BeatModel> beats,
+        ExtensionCoverage coverage)
+    {
+        if (voices.Count > 0)
+        {
+            AppendVoiceCoverage(voices, coverage);
+            return;
+        }
+
+        AppendBeatCoverage(beats, coverage);
+    }
+
+    private static void AppendVoiceCoverage(IReadOnlyList<MeasureVoiceModel> voices, ExtensionCoverage coverage)
+    {
+        foreach (var voice in voices)
+        {
+            coverage.VoicesTotal++;
+            if (voice.GetGuitarPro() is not null)
+            {
+                coverage.VoicesAttached++;
+            }
+
+            AppendBeatCoverage(voice.Beats, coverage);
+        }
+    }
+
+    private static void AppendBeatCoverage(IReadOnlyList<BeatModel> beats, ExtensionCoverage coverage)
+    {
+        foreach (var beat in beats)
+        {
+            coverage.BeatsTotal++;
+            if (beat.GetGuitarPro() is not null)
+            {
+                coverage.BeatsAttached++;
+            }
+
+            foreach (var note in beat.Notes)
+            {
+                coverage.NotesTotal++;
+                if (note.GetGuitarPro() is not null)
+                {
+                    coverage.NotesAttached++;
+                }
+            }
+        }
+    }
+
+    private sealed class ExtensionCoverage
+    {
+        public int TracksTotal { get; set; }
+
+        public int TracksAttached { get; set; }
+
+        public int MeasuresTotal { get; set; }
+
+        public int MeasuresAttached { get; set; }
+
+        public int StaffsTotal { get; set; }
+
+        public int StaffsAttached { get; set; }
+
+        public int VoicesTotal { get; set; }
+
+        public int VoicesAttached { get; set; }
+
+        public int BeatsTotal { get; set; }
+
+        public int BeatsAttached { get; set; }
+
+        public int NotesTotal { get; set; }
+
+        public int NotesAttached { get; set; }
+
+        public IEnumerable<string> GetPartialKinds()
+        {
+            if (IsPartial(TracksAttached, TracksTotal))
+            {
+                yield return $"tracks ({TracksAttached}/{TracksTotal})";
+            }
+
+            if (IsPartial(MeasuresAttached, MeasuresTotal))
+            {
+                yield return $"measures ({MeasuresAttached}/{MeasuresTotal})";
+            }
+
+            if (IsPartial(StaffsAttached, StaffsTotal))
+            {
+                yield return $"staff bars ({StaffsAttached}/{StaffsTotal})";
+            }
+
+            if (IsPartial(VoicesAttached, VoicesTotal))
+            {
+                yield return $"voices ({VoicesAttached}/{VoicesTotal})";
+            }
+
+            if (IsPartial(BeatsAttached, BeatsTotal))
+            {
+                yield return $"beats ({BeatsAttached}/{BeatsTotal})";
+            }
+
+            if (IsPartial(NotesAttached, NotesTotal))
+            {
+                yield return $"notes ({NotesAttached}/{NotesTotal})";
+            }
+        }
+
+        private static bool IsPartial(int attached, int total)
+            => total > 0 && attached < total;
     }
 
     private static IReadOnlyList<GpifNoteProperty> BuildCoreNoteProperties(int? midiPitch, int? stringNumber, int? fret)

@@ -3,6 +3,7 @@ namespace Motif.Extensions.GuitarPro.UnitTests;
 using FluentAssertions;
 using Motif.Extensions.GuitarPro;
 using Motif.Extensions.GuitarPro.Implementation;
+using Motif.Extensions.GuitarPro.Models;
 using Motif.Models;
 using Motif.Extensions.GuitarPro.Models.Raw;
 using Motif.Extensions.GuitarPro.Models.Write;
@@ -133,6 +134,22 @@ public class WriterDiagnosticsTests
             entry.Code == "GP_EXTENSION_REATTACHMENT_PARTIAL"
             && entry.Category == "RawFidelity"
             && entry.Message.Contains("Unmatched targets:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Unmapper_warns_when_guitar_pro_extension_graph_is_partial_without_explicit_state_markers()
+    {
+        var fixturePath = FixturePath("test.gp");
+        var score = await new GuitarProReader().ReadAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
+
+        score.Tracks[0].Measures[0].Beats[0].Notes[0].RemoveExtension<GpNoteExtension>();
+
+        var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
+
+        result.Diagnostics.Warnings.Should().Contain(entry =>
+            entry.Code == "GP_EXTENSION_GRAPH_PARTIAL"
+            && entry.Category == "RawFidelity"
+            && entry.Message.Contains("notes", StringComparison.Ordinal));
     }
 
     [Fact]
