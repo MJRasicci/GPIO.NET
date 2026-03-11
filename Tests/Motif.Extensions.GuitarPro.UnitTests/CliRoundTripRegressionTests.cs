@@ -133,6 +133,48 @@ public class CliRoundTripRegressionTests
     }
 
     [Fact]
+    public async Task Cli_can_route_by_extensions_and_explicit_format_flags_without_legacy_mode_switches()
+    {
+        var sourceGp = FixturePath("schema-reference.gp");
+        File.Exists(sourceGp).Should().BeTrue();
+
+        var repoRoot = FindRepositoryRoot();
+        var toolProject = Path.Combine(repoRoot, "Source", "Motif.CLI", "Motif.CLI.csproj");
+        Directory.Exists(Path.GetDirectoryName(toolProject)!).Should().BeTrue();
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"motif-cli-format-routing-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        var jsonPath = Path.Combine(tempDir, "schema-reference.json");
+        var explicitJsonPath = Path.Combine(tempDir, "schema-reference.data");
+        var explicitOutputPath = Path.Combine(tempDir, "schema-reference.roundtrip.data");
+
+        try
+        {
+            await RunDotNetAsync(
+                $"run --project \"{toolProject}\" -- \"{sourceGp}\" \"{jsonPath}\"",
+                repoRoot);
+
+            File.Exists(jsonPath).Should().BeTrue();
+
+            File.Copy(jsonPath, explicitJsonPath, overwrite: true);
+            await RunDotNetAsync(
+                $"run --project \"{toolProject}\" -- \"{explicitJsonPath}\" \"{explicitOutputPath}\" --input-format json --output-format gp --source-gp \"{sourceGp}\"",
+                repoRoot);
+
+            using var archive = ZipFile.OpenRead(explicitOutputPath);
+            archive.GetEntry("Content/score.gpif").Should().NotBeNull();
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task Batch_roundtrip_diagnostics_writes_summary_and_file_results_for_fixture_directory()
     {
         var sourceGp = FixturePath("schema-reference.gp");
@@ -189,6 +231,46 @@ public class CliRoundTripRegressionTests
 
             var diagnostics = await File.ReadAllLinesAsync(diagnosticsPath, TestContext.Current.CancellationToken);
             diagnostics.Should().NotBeEmpty();
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Batch_export_can_extract_gpif_when_output_format_is_gpif()
+    {
+        var sourceGp = FixturePath("schema-reference.gp");
+        File.Exists(sourceGp).Should().BeTrue();
+
+        var repoRoot = FindRepositoryRoot();
+        var toolProject = Path.Combine(repoRoot, "Source", "Motif.CLI", "Motif.CLI.csproj");
+        Directory.Exists(Path.GetDirectoryName(toolProject)!).Should().BeTrue();
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"motif-cli-batch-gpif-{Guid.NewGuid():N}");
+        var inputDir = Path.Combine(tempDir, "input");
+        var outputDir = Path.Combine(tempDir, "output");
+        Directory.CreateDirectory(Path.Combine(inputDir, "nested"));
+        Directory.CreateDirectory(outputDir);
+
+        var copiedGp = Path.Combine(inputDir, "nested", "schema-reference.gp");
+        File.Copy(sourceGp, copiedGp, overwrite: true);
+
+        var extractedGpif = Path.Combine(outputDir, "nested", "schema-reference.score.gpif");
+
+        try
+        {
+            await RunDotNetAsync(
+                $"run --project \"{toolProject}\" -- --batch-input-dir \"{inputDir}\" --batch-output-dir \"{outputDir}\" --output-format gpif",
+                repoRoot);
+
+            File.Exists(extractedGpif).Should().BeTrue();
+            var gpif = await File.ReadAllTextAsync(extractedGpif, TestContext.Current.CancellationToken);
+            gpif.Should().Contain("<GPIF");
         }
         finally
         {

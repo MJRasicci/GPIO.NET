@@ -27,25 +27,51 @@ try
         var outputRoot = options.BatchOutputDir;
         Directory.CreateDirectory(outputRoot);
 
+        if (options.InputFormat != CliFormat.GuitarPro)
+        {
+            throw new InvalidOperationException("Batch mode currently supports Guitar Pro input only.");
+        }
+
         var files = Directory.GetFiles(inputRoot, "*.gp", SearchOption.AllDirectories);
         var failures = new List<BatchFailure>();
         var ok = 0;
+        var reader = options.OutputFormat == CliFormat.Json ? new GuitarProReader() : null;
 
         foreach (var file in files)
         {
             var rel = Path.GetRelativePath(inputRoot, file);
-            var outPath = Path.Combine(outputRoot, Path.ChangeExtension(rel, ".json"));
+            var outPath = Path.Combine(outputRoot, BuildBatchOutputRelativePath(rel, options.OutputFormat));
             Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
 
             try
             {
-                var reader = new GuitarProReader();
-                var score = await reader.ReadAsync(file).ConfigureAwait(false);
-                var mappedJson = score.ToJson(
-                    indented: options.JsonIndented,
-                    ignoreNullValues: options.JsonIgnoreNull,
-                    ignoreDefaultValues: options.JsonIgnoreDefaults);
-                await File.WriteAllTextAsync(outPath, mappedJson).ConfigureAwait(false);
+                switch (options.OutputFormat)
+                {
+                    case CliFormat.Json:
+                    {
+                        var score = await reader!.ReadAsync(file).ConfigureAwait(false);
+                        var mappedJson = score.ToJson(
+                            indented: options.JsonIndented,
+                            ignoreNullValues: options.JsonIgnoreNull,
+                            ignoreDefaultValues: options.JsonIgnoreDefaults);
+                        await File.WriteAllTextAsync(outPath, mappedJson).ConfigureAwait(false);
+                        break;
+                    }
+
+                    case CliFormat.Gpif:
+                        await ExtractGpifAsync(file, outPath).ConfigureAwait(false);
+                        break;
+
+                    case CliFormat.MusicXml:
+                        throw new NotImplementedException("MusicXML output is planned but not implemented yet.");
+
+                    case CliFormat.Midi:
+                        throw new NotImplementedException("MIDI output is planned but not implemented yet.");
+
+                    default:
+                        throw new InvalidOperationException($"Unsupported batch conversion gp -> {FormatToken(options.OutputFormat)}.");
+                }
+
                 ok++;
             }
             catch (Exception ex)
@@ -79,110 +105,27 @@ try
 
     if (!File.Exists(options.InputPath))
     {
-        Console.Error.WriteLine($"Input file not found: {options.InputPath}");
+        await Console.Error.WriteLineAsync($"Input file not found: {options.InputPath}").ConfigureAwait(false);
         return 2;
     }
 
-    var outputPath = options.OutputPath ?? BuildDefaultOutputPath(options.InputPath, options.Format, options.FromJson);
+    var outputPath = options.OutputPath ?? BuildDefaultOutputPath(options.InputPath, options.OutputFormat);
 
-    if (options.FromJson)
+    if (!string.IsNullOrWhiteSpace(options.SourceGpPath)
+        && (options.InputFormat != CliFormat.Json || options.OutputFormat != CliFormat.GuitarPro))
     {
-        if (options.Format != OutputFormat.Json)
-        {
-            throw new InvalidOperationException("--from-json currently supports --format json only.");
-        }
-
-        if (!string.IsNullOrWhiteSpace(options.SourceGpPath) && !File.Exists(options.SourceGpPath))
-        {
-            throw new InvalidOperationException("--source-gp requires <path-to-existing.gp>.");
-        }
-
-        var json = await File.ReadAllTextAsync(options.InputPath).ConfigureAwait(false);
-        var editedScore = JsonSerializer.Deserialize(json, CliJsonContext.Default.Score)
-                          ?? throw new InvalidDataException("Unable to deserialize mapped score JSON.");
-
-        var sourceScore = default(Score);
-        if (!string.IsNullOrWhiteSpace(options.SourceGpPath))
-        {
-            var reader = new GuitarProReader();
-            sourceScore = await reader.ReadAsync(options.SourceGpPath).ConfigureAwait(false);
-        }
-
-        var isNoOpWrite = sourceScore is not null && IsNoOpWrite(sourceScore, editedScore);
-        if (isNoOpWrite)
-        {
-            editedScore.ReattachGuitarProExtensionsFrom(sourceScore!);
-        }
-
-        var unmapper = new DefaultScoreUnmapper();
-        var unmapResult = await unmapper.UnmapAsync(editedScore).ConfigureAwait(false);
-
-        await using var gpifBuffer = new MemoryStream();
-        var serializer = new XmlGpifSerializer();
-        await serializer.SerializeAsync(unmapResult.RawDocument, gpifBuffer).ConfigureAwait(false);
-
-        if (isNoOpWrite)
-        {
-            var sourceGpifBytes = await ReadScoreGpifBytesAsync(options.SourceGpPath!).ConfigureAwait(false);
-            var sourceRaw = await DeserializeRawGpifAsync(sourceGpifBytes).ConfigureAwait(false);
-            GpifWriteFidelityDiagnostics.AppendNoOpSourceFidelityWarnings(
-                sourceRaw,
-                unmapResult.RawDocument,
-                sourceGpifBytes,
-                gpifBuffer.ToArray(),
-                unmapResult.Diagnostics);
-        }
-
-        gpifBuffer.Position = 0;
-
-        if (!string.IsNullOrWhiteSpace(options.SourceGpPath) && !AreSamePath(options.SourceGpPath, outputPath))
-        {
-            EnsureOutputDirectory(outputPath);
-            File.Copy(options.SourceGpPath, outputPath, overwrite: true);
-        }
-
-        var archiveWriter = new ZipGpArchiveWriter();
-        await archiveWriter.WriteArchiveAsync(gpifBuffer, outputPath).ConfigureAwait(false);
-
-        Console.WriteLine($"GP archive written: {outputPath}");
-        if (!string.IsNullOrWhiteSpace(options.SourceGpPath))
-        {
-            Console.WriteLine($"Archive template preserved from: {options.SourceGpPath}");
-        }
-
-        Console.WriteLine($"Warnings: {unmapResult.Diagnostics.Warnings.Count}");
-
-        if (unmapResult.Diagnostics.Warnings.Count > 0)
-        {
-            foreach (var warning in unmapResult.Diagnostics.Warnings)
-            {
-                Console.WriteLine($" - [{warning.Code}] {warning.Category}: {warning.Message}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(options.DiagnosticsOutPath))
-            {
-                EnsureOutputDirectory(options.DiagnosticsOutPath);
-                if (options.DiagnosticsAsJson)
-                {
-                    var jsonDiagnostics = JsonSerializer.Serialize(unmapResult.Diagnostics.Entries.ToArray(), CliJsonContext.Default.WriteDiagnosticEntryArray);
-                    await File.WriteAllTextAsync(options.DiagnosticsOutPath, jsonDiagnostics).ConfigureAwait(false);
-                }
-                else
-                {
-                    var lines = unmapResult.Diagnostics.Entries.Select(d => $"[{d.Severity}] [{d.Code}] {d.Category}: {d.Message}").ToArray();
-                    await File.WriteAllLinesAsync(options.DiagnosticsOutPath, lines).ConfigureAwait(false);
-                }
-
-                Console.WriteLine($"Diagnostics written: {options.DiagnosticsOutPath}");
-            }
-        }
-
-        return 0;
+        throw new InvalidOperationException("--source-gp is only supported for JSON -> .gp writes.");
     }
 
-    switch (options.Format)
+    switch ((options.InputFormat, options.OutputFormat))
     {
-        case OutputFormat.Json:
+        case (CliFormat.Json, CliFormat.GuitarPro):
+        {
+            await WriteGuitarProArchiveAsync(options, outputPath).ConfigureAwait(false);
+            return 0;
+        }
+
+        case (CliFormat.GuitarPro, CliFormat.Json):
         {
             var reader = new GuitarProReader();
             var score = await reader.ReadAsync(options.InputPath).ConfigureAwait(false);
@@ -198,35 +141,24 @@ try
             Console.WriteLine($"Title: {score.Title}");
             Console.WriteLine($"Tracks: {score.Tracks.Count}");
             Console.WriteLine($"Playback bars: {score.PlaybackMasterBarSequence.Count}");
-            break;
+            return 0;
         }
 
-        case OutputFormat.Gpif:
-        {
-            await using var archive = await ZipFile.OpenReadAsync(options.InputPath, CancellationToken.None).ConfigureAwait(false);
-            var entry = archive.GetEntry("Content/score.gpif")
-                        ?? throw new InvalidDataException("Archive does not contain Content/score.gpif");
-
-            EnsureOutputDirectory(outputPath);
-            await using var inStream = await entry.OpenAsync(CancellationToken.None).ConfigureAwait(false);
-            await using var outStream = File.Create(outputPath);
-            await inStream.CopyToAsync(outStream).ConfigureAwait(false);
-
+        case (CliFormat.GuitarPro, CliFormat.Gpif):
+            await ExtractGpifAsync(options.InputPath, outputPath).ConfigureAwait(false);
             Console.WriteLine($"Extracted GPIF written: {outputPath}");
-            break;
-        }
+            return 0;
 
-        case OutputFormat.MusicXml:
+        case (_, CliFormat.MusicXml):
             throw new NotImplementedException("MusicXML output is planned but not implemented yet.");
 
-        case OutputFormat.Midi:
+        case (_, CliFormat.Midi):
             throw new NotImplementedException("MIDI output is planned but not implemented yet.");
 
         default:
-            throw new ArgumentOutOfRangeException();
+            throw new InvalidOperationException(
+                $"Unsupported conversion {FormatToken(options.InputFormat)} -> {FormatToken(options.OutputFormat)}.");
     }
-
-    return 0;
 }
 catch (OperationCanceledException ex) when (ex.Message == "help")
 {
@@ -235,25 +167,119 @@ catch (OperationCanceledException ex) when (ex.Message == "help")
 }
 catch (Exception ex)
 {
-    Console.Error.WriteLine(ex.Message);
+    await Console.Error.WriteLineAsync(ex.Message).ConfigureAwait(false);
     return 1;
 }
 
-static string BuildDefaultOutputPath(string inputPath, OutputFormat format, bool fromJson)
+static async Task WriteGuitarProArchiveAsync(CliOptions options, string outputPath)
 {
-    if (fromJson)
+    if (!string.IsNullOrWhiteSpace(options.SourceGpPath) && !File.Exists(options.SourceGpPath))
     {
-        var directory = Path.GetDirectoryName(inputPath) ?? Environment.CurrentDirectory;
-        var baseName = Path.GetFileNameWithoutExtension(inputPath);
-        return Path.Combine(directory, baseName + ".gp");
+        throw new InvalidOperationException("--source-gp requires <path-to-existing.gp>.");
     }
 
-    var extension = format switch
+    var json = await File.ReadAllTextAsync(options.InputPath).ConfigureAwait(false);
+    var editedScore = JsonSerializer.Deserialize(json, CliJsonContext.Default.Score)
+                      ?? throw new InvalidDataException("Unable to deserialize mapped score JSON.");
+
+    var sourceScore = default(Score);
+    if (!string.IsNullOrWhiteSpace(options.SourceGpPath))
     {
-        OutputFormat.Json => ".mapped.json",
-        OutputFormat.Gpif => ".score.gpif",
-        OutputFormat.MusicXml => ".mxl",
-        OutputFormat.Midi => ".mid",
+        var reader = new GuitarProReader();
+        sourceScore = await reader.ReadAsync(options.SourceGpPath).ConfigureAwait(false);
+    }
+
+    var isNoOpWrite = sourceScore is not null && IsNoOpWrite(sourceScore, editedScore);
+    if (isNoOpWrite)
+    {
+        editedScore.ReattachGuitarProExtensionsFrom(sourceScore!);
+    }
+
+    var unmapper = new DefaultScoreUnmapper();
+    var unmapResult = await unmapper.UnmapAsync(editedScore).ConfigureAwait(false);
+
+    using var gpifBuffer = new MemoryStream();
+    var serializer = new XmlGpifSerializer();
+    await serializer.SerializeAsync(unmapResult.RawDocument, gpifBuffer).ConfigureAwait(false);
+
+    if (isNoOpWrite)
+    {
+        var sourceGpifBytes = await ReadScoreGpifBytesAsync(options.SourceGpPath!).ConfigureAwait(false);
+        var sourceRaw = await DeserializeRawGpifAsync(sourceGpifBytes).ConfigureAwait(false);
+        GpifWriteFidelityDiagnostics.AppendNoOpSourceFidelityWarnings(
+            sourceRaw,
+            unmapResult.RawDocument,
+            sourceGpifBytes,
+            gpifBuffer.ToArray(),
+            unmapResult.Diagnostics);
+    }
+
+    gpifBuffer.Position = 0;
+
+    if (!string.IsNullOrWhiteSpace(options.SourceGpPath) && !AreSamePath(options.SourceGpPath, outputPath))
+    {
+        EnsureOutputDirectory(outputPath);
+        File.Copy(options.SourceGpPath, outputPath, overwrite: true);
+    }
+
+    var archiveWriter = new ZipGpArchiveWriter();
+    await archiveWriter.WriteArchiveAsync(gpifBuffer, outputPath).ConfigureAwait(false);
+
+    Console.WriteLine($"GP archive written: {outputPath}");
+    if (!string.IsNullOrWhiteSpace(options.SourceGpPath))
+    {
+        Console.WriteLine($"Archive template preserved from: {options.SourceGpPath}");
+    }
+
+    Console.WriteLine($"Warnings: {unmapResult.Diagnostics.Warnings.Count}");
+
+    if (unmapResult.Diagnostics.Warnings.Count > 0)
+    {
+        foreach (var warning in unmapResult.Diagnostics.Warnings)
+        {
+            Console.WriteLine($" - [{warning.Code}] {warning.Category}: {warning.Message}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.DiagnosticsOutPath))
+        {
+            EnsureOutputDirectory(options.DiagnosticsOutPath);
+            if (options.DiagnosticsAsJson)
+            {
+                var jsonDiagnostics = JsonSerializer.Serialize(unmapResult.Diagnostics.Entries.ToArray(), CliJsonContext.Default.WriteDiagnosticEntryArray);
+                await File.WriteAllTextAsync(options.DiagnosticsOutPath, jsonDiagnostics).ConfigureAwait(false);
+            }
+            else
+            {
+                var lines = unmapResult.Diagnostics.Entries.Select(d => $"[{d.Severity}] [{d.Code}] {d.Category}: {d.Message}").ToArray();
+                await File.WriteAllLinesAsync(options.DiagnosticsOutPath, lines).ConfigureAwait(false);
+            }
+
+            Console.WriteLine($"Diagnostics written: {options.DiagnosticsOutPath}");
+        }
+    }
+}
+
+static async Task ExtractGpifAsync(string inputPath, string outputPath)
+{
+    await using var archive = await ZipFile.OpenReadAsync(inputPath, CancellationToken.None).ConfigureAwait(false);
+    var entry = archive.GetEntry("Content/score.gpif")
+                ?? throw new InvalidDataException("Archive does not contain Content/score.gpif");
+
+    EnsureOutputDirectory(outputPath);
+    await using var inStream = await entry.OpenAsync(CancellationToken.None).ConfigureAwait(false);
+    await using var outStream = File.Create(outputPath);
+    await inStream.CopyToAsync(outStream).ConfigureAwait(false);
+}
+
+static string BuildDefaultOutputPath(string inputPath, CliFormat outputFormat)
+{
+    var extension = outputFormat switch
+    {
+        CliFormat.Json => ".mapped.json",
+        CliFormat.GuitarPro => ".gp",
+        CliFormat.Gpif => ".score.gpif",
+        CliFormat.MusicXml => ".mxl",
+        CliFormat.Midi => ".mid",
         _ => ".out"
     };
 
@@ -261,6 +287,16 @@ static string BuildDefaultOutputPath(string inputPath, OutputFormat format, bool
     var outBaseName = Path.GetFileNameWithoutExtension(inputPath);
     return Path.Combine(outDirectory, outBaseName + extension);
 }
+
+static string BuildBatchOutputRelativePath(string relativeInputPath, CliFormat outputFormat)
+    => outputFormat switch
+    {
+        CliFormat.Json => Path.ChangeExtension(relativeInputPath, ".json"),
+        CliFormat.Gpif => Path.ChangeExtension(relativeInputPath, ".score.gpif"),
+        CliFormat.MusicXml => Path.ChangeExtension(relativeInputPath, ".mxl"),
+        CliFormat.Midi => Path.ChangeExtension(relativeInputPath, ".mid"),
+        _ => throw new InvalidOperationException($"Unsupported batch output format {FormatToken(outputFormat)}.")
+    };
 
 static void EnsureOutputDirectory(string outputPath)
 {
@@ -302,45 +338,57 @@ static async Task<byte[]> ReadScoreGpifBytesAsync(string gpPath)
 
 static async Task<Motif.Extensions.GuitarPro.Models.Raw.GpifDocument> DeserializeRawGpifAsync(byte[] gpifBytes)
 {
-    await using var stream = new MemoryStream(gpifBytes, writable: false);
+    using var stream = new MemoryStream(gpifBytes, writable: false);
     var deserializer = new XmlGpifDeserializer();
     return await deserializer.DeserializeAsync(stream).ConfigureAwait(false);
 }
 
+static string FormatToken(CliFormat format)
+    => format switch
+    {
+        CliFormat.Json => "json",
+        CliFormat.GuitarPro => "gp",
+        CliFormat.Gpif => "gpif",
+        CliFormat.MusicXml => "musicxml",
+        CliFormat.Midi => "midi",
+        _ => throw new ArgumentOutOfRangeException(nameof(format))
+    };
+
 static void PrintHelp()
 {
     var helpText = """
-Motif CLI — Guitar Pro file parser and writer
+Motif CLI — score inspection and conversion
 
 USAGE
-  gpio <input> [output] [options]
-  gpio --batch-input-dir <dir> --batch-output-dir <dir> [options]
-  gpio --help
+  motif-cli <input> [output] [options]
+  motif-cli --batch-input-dir <dir> --batch-output-dir <dir> [options]
+  motif-cli --help
 
-READ MODES  (default: --format json)
-  gpio song.gp
-    Read a .gp file and export a mapped domain model JSON.
+FORMAT ROUTING
+  Input/output formats are inferred from file extensions when possible.
+  Use --input-format / --output-format when extensions are missing or ambiguous.
+  --format remains an alias for --output-format.
+  --from-json remains a compatibility alias for --input-format json.
+
+SINGLE FILE
+  motif-cli song.gp
+    Read a .gp file and export mapped score JSON.
     Output: song.mapped.json
 
-  gpio song.gp --format gpif
+  motif-cli song.gp song.score.gpif
+  motif-cli song.gp --output-format gpif
     Extract the raw GPIF XML embedded in the .gp archive.
-    Output: song.score.gpif
 
-  gpio song.gp --out out.json --format json
+  motif-cli song.json output.gp
+    Read mapped score JSON and write a .gp archive.
+    Uses the built-in default archive payload and replaces Content/score.gpif.
 
-  --format musicxml  (planned, not yet implemented)
-  --format midi      (planned, not yet implemented)
+  motif-cli song.json output.gp --source-gp original.gp
+    Preserve non-score archive entries by copying original.gp and replacing only
+    Content/score.gpif.
 
-WRITE MODES  (--from-json)
-  gpio song.mapped.json --from-json
-    Round-trip: read mapped JSON and write a new .gp archive.
-    Uses built-in default archive sidecar content and replaces Content/score.gpif.
-    Output: song.gp
-
-  gpio song.mapped.json --from-json --source-gp original.gp
-    Round-trip with archive template preservation:
-    copies original.gp and replaces only Content/score.gpif.
-    Preserves stylesheets, score views, preferences, and other zip entries.
+  motif-cli score.data out.data --input-format json --output-format gp
+    Explicit format routing when extensions are not usable.
 
   --diagnostics-out <path>
     Write writer diagnostics to a file.
@@ -349,16 +397,19 @@ WRITE MODES  (--from-json)
     Write the diagnostics file as JSON instead of plain text.
 
 BATCH EXPORT
-  gpio --batch-input-dir ./songs --batch-output-dir ./json
+  motif-cli --batch-input-dir ./songs --batch-output-dir ./json
     Export every .gp file found under ./songs to mapped JSON under ./json,
     mirroring the source directory structure.
 
-  gpio --batch-input-dir ./songs --batch-output-dir ./analysis --batch-roundtrip-diagnostics
+  motif-cli --batch-input-dir ./songs --batch-output-dir ./gpif --output-format gpif
+    Extract raw GPIF for every .gp file under ./songs.
+
+  motif-cli --batch-input-dir ./songs --batch-output-dir ./analysis --batch-roundtrip-diagnostics
     Run a no-edit mapped JSON/full-write roundtrip for every .gp file under ./songs
     and write aggregate drift diagnostics plus JSONL file/diagnostic streams under ./analysis.
 
-  gpio --batch-input-dir ./songs --batch-output-dir ./json --continue-on-error=false
-  gpio --batch-input-dir ./songs --batch-output-dir ./json --failure-log ./failures.jsonl
+  motif-cli --batch-input-dir ./songs --batch-output-dir ./json --continue-on-error=false
+  motif-cli --batch-input-dir ./songs --batch-output-dir ./json --failure-log ./failures.jsonl
 
   --continue-on-error[=true|false]
     Skip files that fail to parse and continue the batch (default: true).
@@ -368,21 +419,26 @@ BATCH EXPORT
     (default: <batch-output-dir>/batch-failures.jsonl).
 
 OPTIONS
-  --format <json|gpif|musicxml|midi>   Output format (default: json; musicxml and midi are planned)
-  --out <path>                   Explicit output file path
-  --from-json                    Input is mapped JSON; output is a .gp archive
-  --source-gp <path>             Custom archive template for --from-json writes
-  --batch-input-dir <dir>        Source directory for batch export
-  --batch-output-dir <dir>       Destination directory for batch export
+  --input-format <json|gp|gpif|musicxml|midi>
+                                Explicit input format
+  --output-format <json|gp|gpif|musicxml|midi>
+                                Explicit output format
+  --format <json|gp|gpif|musicxml|midi>
+                                Alias for --output-format
+  --out <path>                  Explicit output file path
+  --from-json                   Compatibility alias for --input-format json
+  --source-gp <path>            Custom archive template for JSON -> .gp writes
+  --batch-input-dir <dir>       Source directory for batch export
+  --batch-output-dir <dir>      Destination directory for batch export
   --batch-roundtrip-diagnostics  In batch mode, run roundtrip diagnostics instead of JSON export
-  --continue-on-error[=bool]     Skip failed files in batch mode (default: true)
-  --failure-log <path>           Batch failure log path
-  --diagnostics-out <path>       Write diagnostics to a file (write mode, or batch summary override)
-  --diagnostics-json             Emit diagnostics as JSON
-  --json-indent[=bool]           Indent JSON output (default: true)
-  --json-ignore-null[=bool]      Omit null fields from JSON (default: false)
-  --json-ignore-default[=bool]   Omit default-value fields from JSON (default: false)
-  --help, -h                     Show this help
+  --continue-on-error[=bool]    Skip failed files in batch mode (default: true)
+  --failure-log <path>          Batch failure log path
+  --diagnostics-out <path>      Write diagnostics to a file (write mode, or batch summary override)
+  --diagnostics-json            Emit diagnostics as JSON
+  --json-indent[=bool]          Indent JSON output (default: true)
+  --json-ignore-null[=bool]     Omit null fields from JSON (default: false)
+  --json-ignore-default[=bool]  Omit default-value fields from JSON (default: false)
+  --help, -h                    Show this help
 
 EXIT CODES
   0    Success

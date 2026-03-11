@@ -105,6 +105,9 @@ Source/Motif.CLI
 dotnet run --project Source/Motif.CLI -- <input> [output] [options]
 ```
 
+Formats are inferred from file extensions when possible. Use `--input-format` /
+`--output-format` when extensions are missing or ambiguous.
+
 ---
 
 ## Supported Workflows
@@ -112,20 +115,20 @@ dotnet run --project Source/Motif.CLI -- <input> [output] [options]
 ### Convert `.gp` -> JSON
 
 ```
-dotnet run --project Source/Motif.CLI -- input.gp score.json --format json
+dotnet run --project Source/Motif.CLI -- input.gp score.json
 ```
 
 ### Extract raw GPIF
 
 ```
-dotnet run --project Source/Motif.CLI -- input.gp score.gpif --format gpif
+dotnet run --project Source/Motif.CLI -- input.gp score.gpif
 ```
 
 ### Edit JSON -> Write back to `.gp`
 
 ```
 dotnet run --project Source/Motif.CLI -- score.json output.gp \
-  --from-json --source-gp input.gp --format json
+  --source-gp input.gp
 ```
 
 ---
@@ -144,7 +147,9 @@ dotnet run --project Source/Motif.CLI -- score.json output.gp \
 
 ### General
 
-- `--format json|gpif|midi`
+- `--input-format json|gp|gpif|musicxml|midi`
+- `--output-format json|gp|gpif|musicxml|midi`
+- `--format json|gp|gpif|musicxml|midi` (alias for `--output-format`)
 - `--out <path>`
 
 ### JSON Options
@@ -155,7 +160,7 @@ dotnet run --project Source/Motif.CLI -- score.json output.gp \
 
 ### Write Modes
 
-- `--from-json` — treat input as mapped JSON
+- `--from-json` — compatibility alias for `--input-format json`
 - `--source-gp <path>` — original file for preserving archive payload
 
 ### Diagnostics

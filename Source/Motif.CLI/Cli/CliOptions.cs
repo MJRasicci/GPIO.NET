@@ -6,15 +6,15 @@ internal sealed class CliOptions
 
     public string? OutputPath { get; init; }
 
-    public OutputFormat Format { get; init; } = OutputFormat.Json;
+    public CliFormat InputFormat { get; init; } = CliFormat.GuitarPro;
+
+    public CliFormat OutputFormat { get; init; } = CliFormat.Json;
 
     public bool JsonIndented { get; init; } = true;
 
     public bool JsonIgnoreNull { get; init; }
 
     public bool JsonIgnoreDefaults { get; init; }
-
-    public bool FromJson { get; init; }
 
     public string? SourceGpPath { get; init; }
 

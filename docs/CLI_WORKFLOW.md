@@ -3,7 +3,7 @@
 ## 1) Export a GP file to editable mapped JSON
 
 ```bash
-dotnet run --project Source/Motif.CLI -- input.gp score.json --format json
+dotnet run --project Source/Motif.CLI -- input.gp score.json
 ```
 
 ## 2) Edit `score.json`
@@ -14,7 +14,7 @@ Edit the mapped score JSON and then write it back out through the full roundtrip
 
 ```bash
 dotnet run --project Source/Motif.CLI -- score.json output.gp \
-  --from-json --source-gp input.gp --format json \
+  --source-gp input.gp \
   --diagnostics-out write-diagnostics.json --diagnostics-json
 ```
 
@@ -28,5 +28,18 @@ Use this for non-GP-originated scores. The writer seeds a default empty archive 
 
 ```bash
 dotnet run --project Source/Motif.CLI -- score.json output.gp \
-  --from-json --format json
+  --output-format gp
 ```
+
+## 5) Extract raw GPIF
+
+```bash
+dotnet run --project Source/Motif.CLI -- input.gp score.gpif
+```
+
+## Notes
+
+- Formats are inferred from file extensions when possible.
+- Use `--input-format` / `--output-format` when extensions are missing or ambiguous.
+- `--format` remains an alias for `--output-format`.
+- `--from-json` remains supported as a compatibility alias for `--input-format json`.

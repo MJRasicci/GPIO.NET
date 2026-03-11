@@ -1,5 +1,6 @@
 namespace Motif.Extensions.GuitarPro.Implementation;
 
+using Motif;
 using Motif.Extensions.GuitarPro.Abstractions;
 using Motif.Extensions.GuitarPro.Models;
 using Motif.Models;
@@ -8,18 +9,6 @@ using Motif.Extensions.GuitarPro.Utilities;
 
 internal sealed class DefaultScoreMapper : IScoreMapper
 {
-    private readonly INavigationResolver navigationResolver;
-
-    public DefaultScoreMapper()
-        : this(new DefaultNavigationResolver())
-    {
-    }
-
-    public DefaultScoreMapper(INavigationResolver navigationResolver)
-    {
-        this.navigationResolver = navigationResolver;
-    }
-
     public ValueTask<Score> MapAsync(GpifDocument source, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -275,8 +264,10 @@ internal sealed class DefaultScoreMapper : IScoreMapper
             Artist = source.Score.Artist,
             Album = source.Score.Album,
             Tracks = tracks,
-            PlaybackMasterBarSequence = navigationResolver.BuildPlaybackSequence(source.MasterBars, source.MasterTrack.Anacrusis)
+            Anacrusis = source.MasterTrack.Anacrusis
         };
+
+        ScoreNavigation.RebuildPlaybackSequence(score);
 
         score.SetExtension(new GpScoreExtension
         {

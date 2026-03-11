@@ -1,16 +1,21 @@
-namespace Motif.Extensions.GuitarPro.Implementation;
+namespace Motif;
 
-using Motif.Extensions.GuitarPro.Abstractions;
-using Motif.Extensions.GuitarPro.Models.Raw;
-using Motif.Extensions.GuitarPro.Utilities;
+using Motif.Models;
 
-internal sealed class DefaultNavigationResolver : INavigationResolver
+/// <summary>
+/// Builds navigation-aware playback traversal from the Core measure timeline.
+/// </summary>
+public static class ScoreNavigation
 {
-    public IReadOnlyList<int> BuildPlaybackSequence(IReadOnlyList<GpifMasterBar> masterBars, bool anacrusis = false)
+    private const int DirectionCount = 19;
+
+    public static IReadOnlyList<int> BuildPlaybackSequence(IReadOnlyList<MeasureModel> measures, bool anacrusis = false)
     {
-        var ordered = masterBars
-            .OrderBy(m => m.Index)
-            .Select((m, ordinal) => MasterBarState.From(m, ordinal))
+        ArgumentNullException.ThrowIfNull(measures);
+
+        var ordered = measures
+            .OrderBy(measure => measure.Index)
+            .Select(MeasureState.From)
             .ToArray();
 
         if (ordered.Length == 0)
@@ -23,29 +28,44 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
         return unroller.Build();
     }
 
-    private static bool IsDirectionToken(MasterBarState bar, string token)
+    /// <summary>
+    /// Recomputes <see cref="Score.PlaybackMasterBarSequence"/> from the current score timeline.
+    /// </summary>
+    public static IReadOnlyList<int> RebuildPlaybackSequence(Score score)
+    {
+        ArgumentNullException.ThrowIfNull(score);
+
+        // Until Score.MeasurePositions lands, use the first populated track as the timeline source.
+        var measures = score.Tracks.FirstOrDefault(track => track.Measures.Count > 0)?.Measures
+            ?? Array.Empty<MeasureModel>();
+        var sequence = BuildPlaybackSequence(measures, score.Anacrusis);
+        score.PlaybackMasterBarSequence = sequence;
+        return sequence;
+    }
+
+    private static bool IsDirectionToken(MeasureState measure, string token)
     {
         if (string.IsNullOrWhiteSpace(token))
         {
             return false;
         }
 
-        if (TokenEquals(bar.Jump, token) || TokenEquals(bar.Target, token))
+        if (TokenEquals(measure.Jump, token) || TokenEquals(measure.Target, token))
         {
             return true;
         }
 
-        if (bar.DirectionProperties.TryGetValue("Jump", out var jump) && TokenEquals(jump, token))
+        if (measure.DirectionProperties.TryGetValue("Jump", out var jump) && TokenEquals(jump, token))
         {
             return true;
         }
 
-        if (bar.DirectionProperties.TryGetValue("Target", out var target) && TokenEquals(target, token))
+        if (measure.DirectionProperties.TryGetValue("Target", out var target) && TokenEquals(target, token))
         {
             return true;
         }
 
-        foreach (var kvp in bar.DirectionProperties)
+        foreach (var kvp in measure.DirectionProperties)
         {
             if (TokenEquals(kvp.Key, token) || TokenEquals(kvp.Value, token))
             {
@@ -79,7 +99,7 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
 
     private sealed class AndroidParityUnroller
     {
-        private readonly MasterBarState[] masterBars;
+        private readonly MeasureState[] measures;
         private readonly DirectionMap directions;
         private readonly bool anacrusis;
         private readonly List<int> playlist;
@@ -92,16 +112,16 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
         private int currentRepeatStartIndex;
         private int scoreConcreteStart;
 
-        public AndroidParityUnroller(MasterBarState[] masterBars, DirectionMap directions, bool anacrusis)
+        public AndroidParityUnroller(MeasureState[] measures, DirectionMap directions, bool anacrusis)
         {
-            this.masterBars = masterBars;
+            this.measures = measures;
             this.directions = directions;
             this.anacrusis = anacrusis;
-            playlist = new List<int>(Math.Max(16, masterBars.Length * 2));
+            playlist = new List<int>(Math.Max(16, measures.Length * 2));
             ignore = new bool[DirectionCount];
         }
 
-        public IReadOnlyList<int> Build()
+        public int[] Build()
         {
             playlist.Clear();
             Array.Fill(ignore, false);
@@ -118,7 +138,7 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
             var daDoubleCodaAllowed = directions.DaCoda < 0;
 
             scoreConcreteStart = 0;
-            if (anacrusis && masterBars.Length > 0 && !masterBars[0].RepeatStart)
+            if (anacrusis && measures.Length > 0 && !measures[0].RepeatStart)
             {
                 scoreConcreteStart = 1;
             }
@@ -134,13 +154,13 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
 
             var index = 0;
             var guard = 0;
-            var guardLimit = Math.Max(50_000, masterBars.Length * 1024);
+            var guardLimit = Math.Max(50_000, measures.Length * 1024);
 
-            while (index >= 0 && index < masterBars.Length && guard++ < guardLimit)
+            while (index >= 0 && index < measures.Length && guard++ < guardLimit)
             {
-                var masterBar = masterBars[index];
+                var measure = measures[index];
 
-                if (index == 0 || masterBar.RepeatStart)
+                if (index == 0 || measure.RepeatStart)
                 {
                     if (currentRepeatStartIndex != index)
                     {
@@ -166,18 +186,18 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
                     var skipRepeat = false;
 
                     if (currentRepeatStartIndex >= 0
-                        && masterBar.HasAlternateEndings
+                        && measure.HasAlternateEndings
                         && HasExtendedAlternateEndings(index)
-                        && IsAlternateEndingSet(masterBar.AlternateEndingMask, passCount)
+                        && IsAlternateEndingSet(measure.AlternateEndingMask, passCount)
                         && HasAnyActiveDirectionJump(index, daSegnoSegnoAllowed, daCodaActivated, daDoubleCodaActivated, daDoubleCodaAllowed, fineActivated))
                     {
                         skipRepeat = true;
                     }
                     else
                     {
-                        for (var i = Math.Max(0, currentRepeatStartIndex); i <= index && i < masterBars.Length; i++)
+                        for (var i = Math.Max(0, currentRepeatStartIndex); i <= index && i < measures.Length; i++)
                         {
-                            var scanned = masterBars[i];
+                            var scanned = measures[i];
                             if (scanned.HasAlternateEndings && HasExtendedAlternateEndings(i))
                             {
                                 if (IsAlternateEndingSet(scanned.AlternateEndingMask, passCount))
@@ -211,21 +231,21 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
                         continue;
                     }
 
-                    repeatEnd[index] = masterBar.RepeatCount - 1;
+                    repeatEnd[index] = measure.RepeatCount - 1;
 
                     if (pendingRepeatResolution)
                     {
                         pendingRepeatResolution = false;
 
-                        for (var i = index + 1; i < masterBars.Length; i++)
+                        for (var i = index + 1; i < measures.Length; i++)
                         {
-                            if (masterBars[i].RepeatEnd)
+                            if (measures[i].RepeatEnd)
                             {
                                 pendingRepeatResolution = true;
                                 break;
                             }
 
-                            if (masterBars[i].RepeatStart)
+                            if (measures[i].RepeatStart)
                             {
                                 break;
                             }
@@ -441,8 +461,10 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
 
             PruneExtendedAlternateEndings();
 
-            var result = playlist.Where(i => i >= 0).ToArray();
-            return result;
+            return playlist
+                .Where(index => index >= 0)
+                .Select(index => measures[index].MeasureIndex)
+                .ToArray();
         }
 
         private void Goto(int barIndex)
@@ -453,7 +475,7 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
             currentRepeatStartIndex = barIndex != 0 ? 0 : -1;
             currentRepeatStartIndex = LowerRepeatStartIndex(barIndex);
 
-            if (barIndex >= 0 && barIndex < masterBars.Length && HasExtendedAlternateEndings(barIndex))
+            if (barIndex >= 0 && barIndex < measures.Length && HasExtendedAlternateEndings(barIndex))
             {
                 for (var i = 0; i < 8; i++)
                 {
@@ -471,14 +493,14 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
 
         private void PopulateRepeatStructures()
         {
-            for (var i = 0; i < masterBars.Length; i++)
+            for (var i = 0; i < measures.Length; i++)
             {
-                if (masterBars[i].RepeatEnd)
+                if (measures[i].RepeatEnd)
                 {
-                    repeatEnd[i] = masterBars[i].RepeatCount - 1;
+                    repeatEnd[i] = measures[i].RepeatCount - 1;
                 }
 
-                if (masterBars[i].RepeatStart || i == scoreConcreteStart)
+                if (measures[i].RepeatStart || i == scoreConcreteStart)
                 {
                     repeatStart.Add(i);
                 }
@@ -512,8 +534,7 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
             bool daDoubleCodaActivated,
             bool daDoubleCodaAllowed,
             bool fineActivated)
-        {
-            return direction switch
+            => direction switch
             {
                 Direction.Fine => fineActivated && BarHasDirection(index, Direction.Fine),
                 Direction.DaCapo => !ignore[(int)Direction.DaCapo] && BarHasDirection(index, Direction.DaCapo),
@@ -532,7 +553,6 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
                 Direction.DaDoubleCoda => daDoubleCodaActivated && !ignore[(int)Direction.DaDoubleCoda] && BarHasDirection(index, Direction.DaDoubleCoda) && daDoubleCodaAllowed,
                 _ => false
             };
-        }
 
         private bool BarHasDirection(int index, Direction direction)
         {
@@ -544,7 +564,7 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
         {
             for (var i = barIndex; i >= 0; i--)
             {
-                if (masterBars[i].RepeatStart)
+                if (measures[i].RepeatStart)
                 {
                     return i;
                 }
@@ -557,15 +577,15 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
         {
             for (var i = index; i >= 0; i--)
             {
-                var bar = masterBars[i];
-                if (bar.HasAlternateEndings)
+                var measure = measures[i];
+                if (measure.HasAlternateEndings)
                 {
-                    var hasRepeatStart = bar.RepeatStart;
-                    var previousHasRepeatEnd = i > 0 && masterBars[i - 1].RepeatEnd;
+                    var hasRepeatStart = measure.RepeatStart;
+                    var previousHasRepeatEnd = i > 0 && measures[i - 1].RepeatEnd;
                     return !(previousHasRepeatEnd && hasRepeatStart);
                 }
 
-                if (bar.RepeatStart)
+                if (measure.RepeatStart)
                 {
                     break;
                 }
@@ -578,13 +598,13 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
         {
             for (var i = index; i >= 0; i--)
             {
-                var bar = masterBars[i];
-                if (bar.HasAlternateEndings)
+                var measure = measures[i];
+                if (measure.HasAlternateEndings)
                 {
-                    return IsAlternateEndingSet(bar.AlternateEndingMask, pass);
+                    return IsAlternateEndingSet(measure.AlternateEndingMask, pass);
                 }
 
-                if (bar.RepeatStart)
+                if (measure.RepeatStart)
                 {
                     return false;
                 }
@@ -695,26 +715,26 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
                     continue;
                 }
 
-                var bar = masterBars[barIndex];
+                var measure = measures[barIndex];
 
                 if (loopEnd >= 0 && barIndex > loopEnd)
                 {
                     loopStart = -1;
                 }
 
-                if ((bar.RepeatStart || barIndex == scoreConcreteStart) && loopStart != barIndex)
+                if ((measure.RepeatStart || barIndex == scoreConcreteStart) && loopStart != barIndex)
                 {
                     loopEnd = barIndex;
                     loopStart = barIndex;
 
-                    for (var i = barIndex + 1; i < masterBars.Length; i++)
+                    for (var i = barIndex + 1; i < measures.Length; i++)
                     {
-                        if (masterBars[i].RepeatStart)
+                        if (measures[i].RepeatStart)
                         {
                             break;
                         }
 
-                        if (masterBars[i].RepeatEnd)
+                        if (measures[i].RepeatEnd)
                         {
                             loopEnd = i;
                         }
@@ -739,7 +759,7 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
                     skip = false;
                 }
 
-                if (!skip && bar.RepeatEnd)
+                if (!skip && measure.RepeatEnd)
                 {
                     pass++;
                 }
@@ -754,8 +774,8 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
         }
     }
 
-    private sealed record MasterBarState(
-        int Index,
+    private sealed record MeasureState(
+        int MeasureIndex,
         bool RepeatStart,
         bool RepeatEnd,
         int RepeatCount,
@@ -766,9 +786,9 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
     {
         public bool HasAlternateEndings => AlternateEndingMask != 0;
 
-        public static MasterBarState From(GpifMasterBar source, int index)
+        public static MeasureState From(MeasureModel source)
             => new(
-                Index: index,
+                MeasureIndex: source.Index,
                 RepeatStart: source.RepeatStart,
                 RepeatEnd: source.RepeatEnd,
                 RepeatCount: Math.Max(0, source.RepeatCount),
@@ -780,9 +800,9 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
         private static int ParseAlternateEndingMask(string endings)
         {
             var mask = 0;
-            foreach (var ending in ReferenceListParser.SplitRefs(endings))
+            foreach (var token in endings.Split([' ', ',', ';'], StringSplitOptions.RemoveEmptyEntries))
             {
-                if (ending is > 0 and <= 31)
+                if (int.TryParse(token, out var ending) && ending is > 0 and <= 31)
                 {
                     mask |= 1 << (ending - 1);
                 }
@@ -813,27 +833,27 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
         int DaCoda,
         int DaDoubleCoda)
     {
-        public static DirectionMap From(IReadOnlyList<MasterBarState> bars)
+        public static DirectionMap From(IReadOnlyList<MeasureState> measures)
             => new(
-                Coda: FindLastMarker(bars, "Coda"),
-                DoubleCoda: FindLastMarker(bars, "DoubleCoda"),
-                Segno: FindLastMarker(bars, "Segno"),
-                SegnoSegno: FindLastMarker(bars, "SegnoSegno"),
-                Fine: FindLastMarker(bars, "Fine"),
-                DaCapo: FindLastMarker(bars, "DaCapo"),
-                DaCapoAlCoda: FindLastMarker(bars, "DaCapoAlCoda"),
-                DaCapoAlDoubleCoda: FindLastMarker(bars, "DaCapoAlDoubleCoda"),
-                DaCapoAlFine: FindLastMarker(bars, "DaCapoAlFine"),
-                DaSegno: FindLastMarker(bars, "DaSegno"),
-                DaSegnoAlCoda: FindLastMarker(bars, "DaSegnoAlCoda"),
-                DaSegnoAlDoubleCoda: FindLastMarker(bars, "DaSegnoAlDoubleCoda"),
-                DaSegnoAlFine: FindLastMarker(bars, "DaSegnoAlFine"),
-                DaSegnoSegno: FindLastMarker(bars, "DaSegnoSegno"),
-                DaSegnoSegnoAlCoda: FindLastMarker(bars, "DaSegnoSegnoAlCoda"),
-                DaSegnoSegnoAlDoubleCoda: FindLastMarker(bars, "DaSegnoSegnoAlDoubleCoda"),
-                DaSegnoSegnoAlFine: FindLastMarker(bars, "DaSegnoSegnoAlFine"),
-                DaCoda: FindLastMarker(bars, "DaCoda"),
-                DaDoubleCoda: FindLastMarker(bars, "DaDoubleCoda"));
+                Coda: FindLastMarker(measures, "Coda"),
+                DoubleCoda: FindLastMarker(measures, "DoubleCoda"),
+                Segno: FindLastMarker(measures, "Segno"),
+                SegnoSegno: FindLastMarker(measures, "SegnoSegno"),
+                Fine: FindLastMarker(measures, "Fine"),
+                DaCapo: FindLastMarker(measures, "DaCapo"),
+                DaCapoAlCoda: FindLastMarker(measures, "DaCapoAlCoda"),
+                DaCapoAlDoubleCoda: FindLastMarker(measures, "DaCapoAlDoubleCoda"),
+                DaCapoAlFine: FindLastMarker(measures, "DaCapoAlFine"),
+                DaSegno: FindLastMarker(measures, "DaSegno"),
+                DaSegnoAlCoda: FindLastMarker(measures, "DaSegnoAlCoda"),
+                DaSegnoAlDoubleCoda: FindLastMarker(measures, "DaSegnoAlDoubleCoda"),
+                DaSegnoAlFine: FindLastMarker(measures, "DaSegnoAlFine"),
+                DaSegnoSegno: FindLastMarker(measures, "DaSegnoSegno"),
+                DaSegnoSegnoAlCoda: FindLastMarker(measures, "DaSegnoSegnoAlCoda"),
+                DaSegnoSegnoAlDoubleCoda: FindLastMarker(measures, "DaSegnoSegnoAlDoubleCoda"),
+                DaSegnoSegnoAlFine: FindLastMarker(measures, "DaSegnoSegnoAlFine"),
+                DaCoda: FindLastMarker(measures, "DaCoda"),
+                DaDoubleCoda: FindLastMarker(measures, "DaDoubleCoda"));
 
         public int Get(Direction direction)
             => direction switch
@@ -860,13 +880,13 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
                 _ => -1
             };
 
-        private static int FindLastMarker(IReadOnlyList<MasterBarState> bars, string token)
+        private static int FindLastMarker(IReadOnlyList<MeasureState> measures, string token)
         {
             var index = -1;
 
-            for (var i = 0; i < bars.Count; i++)
+            for (var i = 0; i < measures.Count; i++)
             {
-                if (IsDirectionToken(bars[i], token))
+                if (IsDirectionToken(measures[i], token))
                 {
                     index = i;
                 }
@@ -898,6 +918,4 @@ internal sealed class DefaultNavigationResolver : INavigationResolver
         DaCoda = 17,
         DaDoubleCoda = 18
     }
-
-    private const int DirectionCount = 19;
 }

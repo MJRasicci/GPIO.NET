@@ -14,7 +14,9 @@ internal static class CliParser
         var startIndex = inputPath is null ? 0 : 1;
 
         string? outputPath = null;
-        var format = OutputFormat.Json;
+        CliFormat? inputFormat = null;
+        CliFormat? outputFormat = null;
+        CliFormat? outputFormatAlias = null;
         var jsonIndented = true;
         var jsonIgnoreNull = false;
         var jsonIgnoreDefaults = false;
@@ -49,14 +51,25 @@ internal static class CliParser
                         value = args[++i];
                     }
 
-                    format = value?.ToLowerInvariant() switch
+                    outputFormatAlias = ParseFormat(value, name);
+                    break;
+
+                case "--output-format":
+                    if (string.IsNullOrWhiteSpace(value) && i + 1 < args.Length)
                     {
-                        "json" => OutputFormat.Json,
-                        "gpif" => OutputFormat.Gpif,
-                        "musicxml" => OutputFormat.MusicXml,
-                        "midi" => OutputFormat.Midi,
-                        _ => throw new ArgumentException($"Unknown format '{value}'.")
-                    };
+                        value = args[++i];
+                    }
+
+                    outputFormat = ParseFormat(value, name);
+                    break;
+
+                case "--input-format":
+                    if (string.IsNullOrWhiteSpace(value) && i + 1 < args.Length)
+                    {
+                        value = args[++i];
+                    }
+
+                    inputFormat = ParseFormat(value, name);
                     break;
 
                 case "--out":
@@ -82,6 +95,11 @@ internal static class CliParser
 
                 case "--from-json":
                     fromJson = ParseBoolOption(value, true);
+                    if (fromJson)
+                    {
+                        inputFormat = CliFormat.Json;
+                    }
+
                     break;
 
                 case "--source-gp":
@@ -155,15 +173,23 @@ internal static class CliParser
             throw new ArgumentException("Missing input path. Pass a .gp or mapped JSON file, or use --batch-input-dir for batch mode.");
         }
 
+        if (outputFormat is null)
+        {
+            outputFormat = ResolveLegacyOutputFormatAlias(outputFormatAlias, fromJson);
+        }
+
+        var resolvedInputFormat = ResolveInputFormat(inputPath, batchInputDir, inputFormat, fromJson);
+        var resolvedOutputFormat = ResolveOutputFormat(outputPath, outputFormat, resolvedInputFormat, batchInputDir is not null);
+
         return new CliOptions
         {
             InputPath = inputPath is null ? string.Empty : Path.GetFullPath(inputPath),
             OutputPath = string.IsNullOrWhiteSpace(outputPath) ? null : Path.GetFullPath(outputPath),
-            Format = format,
+            InputFormat = resolvedInputFormat,
+            OutputFormat = resolvedOutputFormat,
             JsonIndented = jsonIndented,
             JsonIgnoreNull = jsonIgnoreNull,
             JsonIgnoreDefaults = jsonIgnoreDefaults,
-            FromJson = fromJson,
             SourceGpPath = string.IsNullOrWhiteSpace(sourceGpPath) ? null : Path.GetFullPath(sourceGpPath),
             DiagnosticsOutPath = string.IsNullOrWhiteSpace(diagnosticsOutPath) ? null : Path.GetFullPath(diagnosticsOutPath),
             DiagnosticsAsJson = diagnosticsAsJson,
@@ -177,7 +203,7 @@ internal static class CliParser
 
     private static (string name, string? value) SplitOption(string arg)
     {
-        var idx = arg.IndexOf('=');
+        var idx = arg.AsSpan().IndexOf('=');
         if (idx < 0)
         {
             return (arg, null);
@@ -193,11 +219,155 @@ internal static class CliParser
             return defaultIfMissing;
         }
 
-        return value.ToLowerInvariant() switch
+        return value.ToUpperInvariant() switch
         {
-            "1" or "true" or "yes" or "on" => true,
-            "0" or "false" or "no" or "off" => false,
+            "1" or "TRUE" or "YES" or "ON" => true,
+            "0" or "FALSE" or "NO" or "OFF" => false,
             _ => throw new ArgumentException($"Invalid boolean option value '{value}'.")
         };
     }
+
+    private static CliFormat ParseFormat(string? value, string optionName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException($"{optionName} requires a format value.");
+        }
+
+        return value.ToUpperInvariant() switch
+        {
+            "JSON" => CliFormat.Json,
+            "GP" or "GUITARPRO" => CliFormat.GuitarPro,
+            "GPIF" => CliFormat.Gpif,
+            "MUSICXML" or "MXL" => CliFormat.MusicXml,
+            "MIDI" or "MID" => CliFormat.Midi,
+            _ => throw new ArgumentException($"Unknown format '{value}'.")
+        };
+    }
+
+    private static CliFormat ResolveInputFormat(
+        string? inputPath,
+        string? batchInputDir,
+        CliFormat? explicitFormat,
+        bool fromJson)
+    {
+        if (!string.IsNullOrWhiteSpace(batchInputDir))
+        {
+            if (explicitFormat is not null && explicitFormat != CliFormat.GuitarPro)
+            {
+                throw new ArgumentException("Batch mode currently supports --input-format gp only.");
+            }
+
+            if (fromJson)
+            {
+                throw new ArgumentException("Batch mode does not support --from-json.");
+            }
+
+            return CliFormat.GuitarPro;
+        }
+
+        if (string.IsNullOrWhiteSpace(inputPath))
+        {
+            throw new ArgumentException("Missing input path.");
+        }
+
+        var inferred = InferFormatFromPath(inputPath);
+        if (explicitFormat is not null)
+        {
+            if (inferred is not null && inferred != explicitFormat)
+            {
+                throw new ArgumentException(
+                    $"Input path '{inputPath}' conflicts with --input-format {FormatToken(explicitFormat.Value)}.");
+            }
+
+            return explicitFormat.Value;
+        }
+
+        if (inferred is null)
+        {
+            throw new ArgumentException(
+                $"Unable to infer input format from '{inputPath}'. Pass --input-format <json|gp|gpif|musicxml|midi>.");
+        }
+
+        return inferred.Value;
+    }
+
+    private static CliFormat ResolveOutputFormat(
+        string? outputPath,
+        CliFormat? explicitFormat,
+        CliFormat inputFormat,
+        bool batchMode)
+    {
+        var inferred = string.IsNullOrWhiteSpace(outputPath) ? null : InferFormatFromPath(outputPath);
+
+        if (explicitFormat is not null)
+        {
+            if (inferred is not null && inferred != explicitFormat)
+            {
+                throw new ArgumentException(
+                    $"Output path '{outputPath}' conflicts with --output-format {FormatToken(explicitFormat.Value)}.");
+            }
+
+            return explicitFormat.Value;
+        }
+
+        if (inferred is not null)
+        {
+            return inferred.Value;
+        }
+
+        if (batchMode)
+        {
+            return CliFormat.Json;
+        }
+
+        return inputFormat switch
+        {
+            CliFormat.GuitarPro => CliFormat.Json,
+            CliFormat.Json => CliFormat.GuitarPro,
+            _ => throw new ArgumentException(
+                $"Unable to infer an output format for {FormatToken(inputFormat)} input. Pass --output-format explicitly.")
+        };
+    }
+
+    private static CliFormat? ResolveLegacyOutputFormatAlias(CliFormat? aliasFormat, bool fromJson)
+    {
+        if (aliasFormat is null)
+        {
+            return null;
+        }
+
+        // `--from-json --format json` was the legacy way to say "JSON input, write .gp".
+        if (fromJson && aliasFormat == CliFormat.Json)
+        {
+            return null;
+        }
+
+        return aliasFormat;
+    }
+
+    private static CliFormat? InferFormatFromPath(string path)
+    {
+        var extension = Path.GetExtension(path).ToUpperInvariant();
+        return extension switch
+        {
+            ".JSON" => CliFormat.Json,
+            ".GP" => CliFormat.GuitarPro,
+            ".GPIF" => CliFormat.Gpif,
+            ".MUSICXML" or ".MXL" => CliFormat.MusicXml,
+            ".MIDI" or ".MID" => CliFormat.Midi,
+            _ => null
+        };
+    }
+
+    private static string FormatToken(CliFormat format)
+        => format switch
+        {
+            CliFormat.Json => "json",
+            CliFormat.GuitarPro => "gp",
+            CliFormat.Gpif => "gpif",
+            CliFormat.MusicXml => "musicxml",
+            CliFormat.Midi => "midi",
+            _ => throw new ArgumentOutOfRangeException(nameof(format))
+        };
 }

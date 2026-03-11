@@ -1,6 +1,7 @@
 namespace Motif.Core.UnitTests;
 
 using FluentAssertions;
+using Motif;
 using Motif.Models;
 
 public class MutableDomainModelTests
@@ -16,6 +17,7 @@ public class MutableDomainModelTests
 
         score.Title = "Motif";
         score.Artist = "Artist";
+        score.Anacrusis = true;
         score.PlaybackMasterBarSequence = [0, 1];
 
         track.Id = 1;
@@ -49,6 +51,7 @@ public class MutableDomainModelTests
         score.Tracks = [track];
 
         score.Title = "Mutable Motif";
+        score.Anacrusis = false;
         score.PlaybackMasterBarSequence = [0, 1, 2];
 
         track.Name = "Rhythm";
@@ -79,6 +82,7 @@ public class MutableDomainModelTests
         };
 
         score.Title.Should().Be("Mutable Motif");
+        score.Anacrusis.Should().BeFalse();
         score.PlaybackMasterBarSequence.Should().Equal(0, 1, 2);
         score.Tracks.Should().ContainSingle().Which.Should().BeSameAs(track);
 
@@ -100,5 +104,7 @@ public class MutableDomainModelTests
         note.Articulation.Bend.Should().NotBeNull();
         note.Articulation.Bend!.Enabled.Should().BeTrue();
         note.Articulation.Bend.DestinationValue.Should().Be(1.5m);
+
+        ScoreNavigation.RebuildPlaybackSequence(score).Should().Equal(0);
     }
 }

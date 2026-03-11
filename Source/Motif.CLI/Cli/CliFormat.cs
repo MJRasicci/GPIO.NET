@@ -1,8 +1,9 @@
 namespace Motif.CLI;
 
-internal enum OutputFormat
+internal enum CliFormat
 {
     Json,
+    GuitarPro,
     Gpif,
     MusicXml,
     Midi

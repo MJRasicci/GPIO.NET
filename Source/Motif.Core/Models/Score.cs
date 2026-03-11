@@ -11,6 +11,11 @@ public sealed class Score : ExtensibleModel
     public IReadOnlyList<TrackModel> Tracks { get; set; } = Array.Empty<TrackModel>();
 
     /// <summary>
+    /// True when playback should treat the score as beginning with a pickup bar.
+    /// </summary>
+    public bool Anacrusis { get; set; }
+
+    /// <summary>
     /// Ordered master-bar indices representing navigation-aware playback traversal.
     /// </summary>
     public IReadOnlyList<int> PlaybackMasterBarSequence { get; set; } = Array.Empty<int>();

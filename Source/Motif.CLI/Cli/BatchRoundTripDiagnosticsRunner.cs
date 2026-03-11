@@ -37,12 +37,12 @@ internal sealed class BatchRoundTripDiagnosticsRunner
             throw new InvalidOperationException("Batch roundtrip diagnostics requires --batch-output-dir.");
         }
 
-        if (options.FromJson)
+        if (options.InputFormat != CliFormat.GuitarPro)
         {
-            throw new InvalidOperationException("Batch roundtrip diagnostics cannot be combined with --from-json.");
+            throw new InvalidOperationException("Batch roundtrip diagnostics currently supports Guitar Pro input only.");
         }
 
-        if (options.Format != OutputFormat.Json)
+        if (options.OutputFormat != CliFormat.Json)
         {
             throw new InvalidOperationException("Batch roundtrip diagnostics currently supports --format json only.");
         }

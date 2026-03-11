@@ -37,7 +37,6 @@ public class PublicApiSurfaceTests
         typeof(IScoreMapper).IsNotPublic.Should().BeTrue();
         typeof(DefaultScoreMapper).IsNotPublic.Should().BeTrue();
         typeof(DefaultScoreUnmapper).IsNotPublic.Should().BeTrue();
-        typeof(DefaultNavigationResolver).IsNotPublic.Should().BeTrue();
         typeof(XmlGpifDeserializer).IsNotPublic.Should().BeTrue();
         typeof(XmlGpifSerializer).IsNotPublic.Should().BeTrue();
         typeof(ZipGpArchiveReader).IsNotPublic.Should().BeTrue();
