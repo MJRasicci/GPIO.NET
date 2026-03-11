@@ -244,8 +244,89 @@ public class ScoreNavigationTests
         var sequence = ScoreNavigation.RebuildPlaybackSequence(score);
 
         sequence.Should().Equal(0, 1, 2, 1, 2, 3);
+        score.TimelineBars.Select(bar => bar.Index).Should().Equal(0, 1, 2, 3);
         score.PlaybackMasterBarSequence.Should().Equal(0, 1, 2, 1, 2, 3);
         ScoreNavigation.HasCurrentPlaybackSequence(score).Should().BeTrue();
+    }
+
+    [Fact]
+    public void EnsureTimelineBars_promotes_legacy_measure_timeline_state()
+    {
+        var score = new Score
+        {
+            Tracks =
+            [
+                new TrackModel(),
+                new TrackModel
+                {
+                    Measures =
+                    [
+                        new MeasureModel
+                        {
+                            Index = 2,
+                            TimeSignature = "7/8",
+                            DoubleBar = true,
+                            FreeTime = true,
+                            TripletFeel = "Triplet8th",
+                            RepeatStart = true,
+                            RepeatStartAttributePresent = true,
+                            RepeatEnd = true,
+                            RepeatEndAttributePresent = true,
+                            RepeatCount = 3,
+                            RepeatCountAttributePresent = true,
+                            AlternateEndings = "1 2",
+                            SectionLetter = "A",
+                            SectionText = "Verse",
+                            HasExplicitEmptySection = true,
+                            Jump = "DaCapoAlFine",
+                            Target = "Fine",
+                            DirectionProperties = new Dictionary<string, string> { ["Marker"] = "Verse" },
+                            KeyAccidentalCount = -1,
+                            KeyMode = "Minor",
+                            KeyTransposeAs = "Bb",
+                            Fermatas =
+                            [
+                                new FermataMetadata
+                                {
+                                    Type = "Short",
+                                    Offset = "0",
+                                    Length = 1.5m
+                                }
+                            ],
+                            XProperties = new Dictionary<string, int>
+                            {
+                                ["687931393"] = 90
+                            }
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var timelineBars = ScoreNavigation.EnsureTimelineBars(score);
+
+        timelineBars.Should().ContainSingle();
+        score.TimelineBars.Should().BeSameAs(timelineBars);
+        timelineBars[0].Index.Should().Be(2);
+        timelineBars[0].TimeSignature.Should().Be("7/8");
+        timelineBars[0].DoubleBar.Should().BeTrue();
+        timelineBars[0].FreeTime.Should().BeTrue();
+        timelineBars[0].TripletFeel.Should().Be("Triplet8th");
+        timelineBars[0].RepeatStart.Should().BeTrue();
+        timelineBars[0].RepeatEnd.Should().BeTrue();
+        timelineBars[0].RepeatCount.Should().Be(3);
+        timelineBars[0].AlternateEndings.Should().Be("1 2");
+        timelineBars[0].Jump.Should().Be("DaCapoAlFine");
+        timelineBars[0].Target.Should().Be("Fine");
+        timelineBars[0].SectionLetter.Should().Be("A");
+        timelineBars[0].SectionText.Should().Be("Verse");
+        timelineBars[0].HasExplicitEmptySection.Should().BeTrue();
+        timelineBars[0].DirectionProperties.Should().Contain("Marker", "Verse");
+        timelineBars[0].KeyAccidentalCount.Should().Be(-1);
+        timelineBars[0].KeyMode.Should().Be("Minor");
+        timelineBars[0].KeyTransposeAs.Should().Be("Bb");
+        timelineBars[0].Fermatas.Should().ContainSingle();
+        timelineBars[0].XProperties.Should().Contain("687931393", 90);
     }
 
     [Fact]
@@ -270,6 +351,45 @@ public class ScoreNavigationTests
                 TimelineBar(0),
                 TimelineBar(1, repeatEnd: true, repeatCount: 2),
                 TimelineBar(2)
+            ]
+        };
+
+        var sequence = ScoreNavigation.RebuildPlaybackSequence(score);
+
+        sequence.Should().Equal(0, 1, 0, 1, 2);
+        score.PlaybackMasterBarSequence.Should().Equal(0, 1, 0, 1, 2);
+    }
+
+    [Fact]
+    public void RebuildPlaybackSequence_uses_score_timeline_for_staff_only_tracks()
+    {
+        var score = new Score
+        {
+            TimelineBars =
+            [
+                TimelineBar(0),
+                TimelineBar(1, repeatEnd: true, repeatCount: 2),
+                TimelineBar(2)
+            ],
+            Tracks =
+            [
+                new TrackModel
+                {
+                    Staves =
+                    [
+                        new StaffModel
+                        {
+                            StaffIndex = 0,
+                            Measures =
+                            [
+                                new StaffMeasureModel { Index = 0 },
+                                new StaffMeasureModel { Index = 1 },
+                                new StaffMeasureModel { Index = 2 }
+                            ]
+                        }
+                    ],
+                    Measures = []
+                }
             ]
         };
 
@@ -331,6 +451,7 @@ public class ScoreNavigationTests
         var stale = ScoreNavigation.EnsurePlaybackSequence(score);
         stale.Should().Equal(0, 1, 0, 1, 2);
 
+        score.TimelineBars = ScoreNavigation.BuildTimelineBars(score.Tracks[0].Measures);
         ScoreNavigation.InvalidatePlaybackSequence(score);
         var refreshed = ScoreNavigation.EnsurePlaybackSequence(score);
 

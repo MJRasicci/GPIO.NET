@@ -59,8 +59,8 @@
   Landed: `IScoreReader` / `IScoreWriter` live in Core and are implemented by `GuitarProReader` / `GuitarProWriter`.
 
 - `[~]` Step 6 - Navigation in Core
-  Landed: `ScoreNavigation`, `Score.Anacrusis`, explicit `HasCurrentPlaybackSequence` / `InvalidatePlaybackSequence` / `EnsurePlaybackSequence` workflow, `Score.TimelineBars`, timeline-aware playback traversal recompute, Core navigation tests.
-  Remaining: complete the hierarchy migration so timeline-global state no longer has to be mirrored on `MeasureModel` for compatibility.
+  Landed: `ScoreNavigation`, `Score.Anacrusis`, explicit `HasCurrentPlaybackSequence` / `InvalidatePlaybackSequence` / `EnsurePlaybackSequence` workflow, `Score.TimelineBars`, timeline-aware playback traversal recompute, explicit timeline seeding via `EnsureTimelineBars` / `BuildTimelineBars`, and Core navigation tests for staff-only timeline playback plus legacy measure timeline promotion.
+  Remaining: complete the hierarchy migration so timeline-global state no longer has to be mirrored on `MeasureModel` at all, instead of only being promotable from it.
 
 - `[~]` Step 7 - CLI
   Landed: package-split CLI, source-extension reattachment for no-op JSON writes, writer-diagnostic surfacing for partial reattachment, format-pair routing, legacy flag compatibility, GPIF batch export.

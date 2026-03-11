@@ -46,8 +46,13 @@ Typical traversal-affecting edits include:
 
 - The Guitar Pro reader populates it from source `MasterBar` data.
 - `ScoreNavigation` and the Guitar Pro writer use it when it is present.
+- `ScoreNavigation.EnsureTimelineBars(score)` can seed it from the first populated legacy `Track.Measures` collection during migration.
+- `ScoreNavigation.BuildTimelineBars(legacyMeasures)` lets you explicitly rebuild score timeline state after editing legacy measure-local timeline data.
 - The measure-level duplicates on `Track.Measures` still exist temporarily for compatibility and will be removed as the full hierarchy refactor lands.
 - Prefer editing timeline-global state such as repeats, sections, jump targets, key changes, and fermatas through `Score.TimelineBars`.
+
+Once `Score.TimelineBars` exists, navigation follows that score-owned timeline. If you still mutate legacy
+measure-local timeline fields, rebuild or replace `Score.TimelineBars` explicitly before recomputing playback.
 
 ## Guitar Pro Fidelity Workflow
 

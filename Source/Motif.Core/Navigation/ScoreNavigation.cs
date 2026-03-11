@@ -69,6 +69,41 @@ public static class ScoreNavigation
     }
 
     /// <summary>
+    /// Builds score-owned timeline bars from legacy measure-local timeline state.
+    /// </summary>
+    public static IReadOnlyList<TimelineBarModel> BuildTimelineBars(IReadOnlyList<MeasureModel> measures)
+    {
+        ArgumentNullException.ThrowIfNull(measures);
+
+        return measures
+            .OrderBy(measure => measure.Index)
+            .Select(BuildTimelineBar)
+            .ToArray();
+    }
+
+    /// <summary>
+    /// Returns the score timeline, populating it from the first populated legacy measure track when absent.
+    /// </summary>
+    public static IReadOnlyList<TimelineBarModel> EnsureTimelineBars(Score score)
+    {
+        ArgumentNullException.ThrowIfNull(score);
+
+        if (score.TimelineBars.Count > 0)
+        {
+            return score.TimelineBars;
+        }
+
+        var legacyMeasures = FindLegacyTimelineMeasures(score);
+        if (legacyMeasures.Count == 0)
+        {
+            return Array.Empty<TimelineBarModel>();
+        }
+
+        score.TimelineBars = BuildTimelineBars(legacyMeasures);
+        return score.TimelineBars;
+    }
+
+    /// <summary>
     /// Returns the current playback traversal, recomputing it when the cached sequence is stale.
     /// </summary>
     public static IReadOnlyList<int> EnsurePlaybackSequence(Score score)
@@ -87,16 +122,53 @@ public static class ScoreNavigation
     {
         ArgumentNullException.ThrowIfNull(score);
 
-        var sequence = score.TimelineBars.Count > 0
-            ? BuildPlaybackSequence(score.TimelineBars, score.Anacrusis)
-            : BuildPlaybackSequence(
-                score.Tracks.FirstOrDefault(track => track.Measures.Count > 0)?.Measures
-                    ?? Array.Empty<MeasureModel>(),
-                score.Anacrusis);
+        var timelineBars = EnsureTimelineBars(score);
+        var sequence = BuildPlaybackSequence(timelineBars, score.Anacrusis);
         score.PlaybackMasterBarSequence = sequence;
         SetPlaybackSequenceState(score, isCurrent: true);
         return sequence;
     }
+
+    private static IReadOnlyList<MeasureModel> FindLegacyTimelineMeasures(Score score)
+        => score.Tracks
+            .FirstOrDefault(track => track.Measures.Count > 0)?
+            .Measures
+            ?? Array.Empty<MeasureModel>();
+
+    private static TimelineBarModel BuildTimelineBar(MeasureModel measure)
+        => new()
+        {
+            Index = measure.Index,
+            TimeSignature = measure.TimeSignature,
+            DoubleBar = measure.DoubleBar,
+            FreeTime = measure.FreeTime,
+            TripletFeel = measure.TripletFeel,
+            RepeatStart = measure.RepeatStart,
+            RepeatStartAttributePresent = measure.RepeatStartAttributePresent,
+            RepeatEnd = measure.RepeatEnd,
+            RepeatEndAttributePresent = measure.RepeatEndAttributePresent,
+            RepeatCount = measure.RepeatCount,
+            RepeatCountAttributePresent = measure.RepeatCountAttributePresent,
+            AlternateEndings = measure.AlternateEndings,
+            SectionLetter = measure.SectionLetter,
+            SectionText = measure.SectionText,
+            HasExplicitEmptySection = measure.HasExplicitEmptySection,
+            Jump = measure.Jump,
+            Target = measure.Target,
+            DirectionProperties = measure.DirectionProperties.ToDictionary(kv => kv.Key, kv => kv.Value),
+            KeyAccidentalCount = measure.KeyAccidentalCount,
+            KeyMode = measure.KeyMode,
+            KeyTransposeAs = measure.KeyTransposeAs,
+            Fermatas = measure.Fermatas
+                .Select(fermata => new FermataMetadata
+                {
+                    Type = fermata.Type,
+                    Offset = fermata.Offset,
+                    Length = fermata.Length
+                })
+                .ToArray(),
+            XProperties = measure.XProperties.ToDictionary(kv => kv.Key, kv => kv.Value)
+        };
 
     private static void SetPlaybackSequenceState(Score score, bool isCurrent)
     {
