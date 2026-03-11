@@ -16,6 +16,7 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
         cancellationToken.ThrowIfCancellationRequested();
 
         var diagnostics = new WriteDiagnostics();
+        AppendGuitarProFidelityDiagnostics(score, diagnostics);
         var scoreExtension = score.GetGuitarPro();
         var scoreMetadata = scoreExtension?.Metadata ?? new ScoreMetadata();
         var masterTrackMetadata = scoreExtension?.MasterTrack ?? new MasterTrackMetadata();
@@ -682,6 +683,31 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
             RawDocument = doc,
             Diagnostics = diagnostics
         });
+    }
+
+    private static void AppendGuitarProFidelityDiagnostics(Score score, WriteDiagnostics diagnostics)
+    {
+        var fidelityState = score.GetGuitarProFidelityState();
+        if (fidelityState?.HasSourceContext != true)
+        {
+            return;
+        }
+
+        if (fidelityState.FidelityInvalidated)
+        {
+            diagnostics.Warn(
+                code: "GP_SOURCE_FIDELITY_INVALIDATED",
+                category: "RawFidelity",
+                message: "Guitar Pro source fidelity extensions were invalidated before write; raw GPIF metadata will be regenerated from Core data where exact source preservation is no longer available.");
+        }
+
+        if (fidelityState.LastReattachment?.HasUnmatchedTargets == true)
+        {
+            diagnostics.Warn(
+                code: "GP_EXTENSION_REATTACHMENT_PARTIAL",
+                category: "RawFidelity",
+                message: GuitarProModelExtensions.FormatPartialReattachmentMessage(fidelityState.LastReattachment));
+        }
     }
 
     private static IReadOnlyList<GpifNoteProperty> BuildCoreNoteProperties(int? midiPitch, int? stringNumber, int? fret)

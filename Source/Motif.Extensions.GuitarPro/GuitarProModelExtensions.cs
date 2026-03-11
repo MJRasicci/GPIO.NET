@@ -234,12 +234,22 @@ public static class GuitarProModelExtensions
     {
         ArgumentNullException.ThrowIfNull(score);
 
-        score.RemoveExtension<GpScoreExtension>();
+        var removedAny = score.RemoveExtension<GpScoreExtension>();
 
         foreach (var track in score.Tracks)
         {
-            track.RemoveExtension<GpTrackExtension>();
-            InvalidateMeasureHierarchyExtensions(track);
+            removedAny |= track.RemoveExtension<GpTrackExtension>();
+            removedAny |= InvalidateMeasureHierarchyExtensions(track);
+        }
+
+        var fidelityState = score.GetExtension<GpFidelityStateExtension>();
+        if (removedAny || fidelityState?.HasSourceContext == true)
+        {
+            fidelityState ??= new GpFidelityStateExtension();
+            fidelityState.HasSourceContext = true;
+            fidelityState.FidelityInvalidated = true;
+            fidelityState.LastReattachment = null;
+            score.SetExtension(fidelityState);
         }
     }
 
@@ -303,7 +313,31 @@ public static class GuitarProModelExtensions
             ReattachMeasureHierarchyExtensions(targetTrack, sourceTrack, result);
         }
 
+        var fidelityState = target.GetExtension<GpFidelityStateExtension>() ?? new GpFidelityStateExtension();
+        fidelityState.HasSourceContext = true;
+        fidelityState.FidelityInvalidated = false;
+        fidelityState.LastReattachment = result;
+        target.SetExtension(fidelityState);
+
         return result;
+    }
+
+    internal static GpFidelityStateExtension? GetGuitarProFidelityState(this Score score)
+    {
+        ArgumentNullException.ThrowIfNull(score);
+
+        return score.GetExtension<GpFidelityStateExtension>();
+    }
+
+    internal static string FormatPartialReattachmentMessage(GpExtensionReattachmentResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        return $"Source GP fidelity only partially reattached before write. "
+               + $"Unmatched targets: score={(result.ScoreUnmatched ? 1 : 0)}, "
+               + $"tracks={result.TracksUnmatched}, measures={result.MeasuresUnmatched}, "
+               + $"staffs={result.StaffsUnmatched}, voices={result.VoicesUnmatched}, "
+               + $"beats={result.BeatsUnmatched}, notes={result.NotesUnmatched}.";
     }
 
     private static void ReattachMeasureHierarchyExtensions(TrackModel targetTrack, TrackModel sourceTrack, GpExtensionReattachmentResult result)
@@ -478,46 +512,54 @@ public static class GuitarProModelExtensions
         }
     }
 
-    private static void InvalidateMeasureHierarchyExtensions(TrackModel track)
+    private static bool InvalidateMeasureHierarchyExtensions(TrackModel track)
     {
+        var removedAny = false;
+
         foreach (var measure in track.Measures)
         {
-            measure.RemoveExtension<GpMeasureExtension>();
+            removedAny |= measure.RemoveExtension<GpMeasureExtension>();
 
             foreach (var staff in measure.AdditionalStaffBars)
             {
-                staff.RemoveExtension<GpMeasureStaffExtension>();
+                removedAny |= staff.RemoveExtension<GpMeasureStaffExtension>();
 
                 foreach (var voice in staff.Voices)
                 {
-                    voice.RemoveExtension<GpVoiceExtension>();
-                    InvalidateBeatExtensions(voice.Beats);
+                    removedAny |= voice.RemoveExtension<GpVoiceExtension>();
+                    removedAny |= InvalidateBeatExtensions(voice.Beats);
                 }
 
-                InvalidateBeatExtensions(staff.Beats);
+                removedAny |= InvalidateBeatExtensions(staff.Beats);
             }
 
             foreach (var voice in measure.Voices)
             {
-                voice.RemoveExtension<GpVoiceExtension>();
-                InvalidateBeatExtensions(voice.Beats);
+                removedAny |= voice.RemoveExtension<GpVoiceExtension>();
+                removedAny |= InvalidateBeatExtensions(voice.Beats);
             }
 
-            InvalidateBeatExtensions(measure.Beats);
+            removedAny |= InvalidateBeatExtensions(measure.Beats);
         }
+
+        return removedAny;
     }
 
-    private static void InvalidateBeatExtensions(IReadOnlyList<BeatModel> beats)
+    private static bool InvalidateBeatExtensions(IReadOnlyList<BeatModel> beats)
     {
+        var removedAny = false;
+
         foreach (var beat in beats)
         {
-            beat.RemoveExtension<GpBeatExtension>();
+            removedAny |= beat.RemoveExtension<GpBeatExtension>();
 
             foreach (var note in beat.Notes)
             {
-                note.RemoveExtension<GpNoteExtension>();
+                removedAny |= note.RemoveExtension<GpNoteExtension>();
             }
         }
+
+        return removedAny;
     }
 
     private static void CountUnmatchedTrackSubtree(TrackModel track, GpExtensionReattachmentResult result)

@@ -1,6 +1,7 @@
 namespace Motif.Extensions.GuitarPro.UnitTests;
 
 using FluentAssertions;
+using Motif.Extensions.GuitarPro;
 using Motif.Extensions.GuitarPro.Implementation;
 using Motif.Models;
 using Motif.Extensions.GuitarPro.Models.Raw;
@@ -69,6 +70,69 @@ public class WriterDiagnosticsTests
         scoreElement!.Element("WordsAndMusic").Should().NotBeNull();
         scoreElement.Element("PageHeader").Should().NotBeNull();
         result.Diagnostics.Warnings.Select(w => w.Code).Should().NotContain("EMPTY_SCORE_NODES_DROPPED");
+    }
+
+    [Fact]
+    public async Task Unmapper_warns_when_guitar_pro_source_fidelity_was_invalidated_before_write()
+    {
+        var fixturePath = FixturePath("test.gp");
+        var reader = new GuitarProReader();
+        var score = await reader.ReadAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
+
+        score.InvalidateGuitarProExtensions();
+
+        var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
+
+        result.Diagnostics.Warnings.Select(w => w.Code).Should().Contain("GP_SOURCE_FIDELITY_INVALIDATED");
+    }
+
+    [Fact]
+    public async Task Unmapper_warns_when_guitar_pro_reattachment_was_partial_before_write()
+    {
+        var fixturePath = FixturePath("test.gp");
+        var sourceScore = await new GuitarProReader().ReadAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
+        var sourceTrack = sourceScore.Tracks[0];
+        var sourceMeasure = sourceTrack.Measures[0];
+
+        var editedScore = new Score
+        {
+            Tracks =
+            [
+                new TrackModel
+                {
+                    Id = sourceTrack.Id,
+                    Measures =
+                    [
+                        new MeasureModel
+                        {
+                            Index = 999,
+                            Beats =
+                            [
+                                new BeatModel
+                                {
+                                    Id = -1,
+                                    Notes = [new NoteModel { Id = -2 }]
+                                }
+                            ]
+                        },
+                        new MeasureModel
+                        {
+                            Index = sourceMeasure.Index,
+                            Beats = sourceMeasure.Beats.Select(CloneBeat).ToArray()
+                        }
+                    ]
+                }
+            ]
+        };
+
+        editedScore.ReattachGuitarProExtensionsFrom(sourceScore);
+
+        var result = await new DefaultScoreUnmapper().UnmapAsync(editedScore, TestContext.Current.CancellationToken);
+
+        result.Diagnostics.Warnings.Should().Contain(entry =>
+            entry.Code == "GP_EXTENSION_REATTACHMENT_PARTIAL"
+            && entry.Category == "RawFidelity"
+            && entry.Message.Contains("Unmatched targets:", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -377,4 +441,14 @@ public class WriterDiagnosticsTests
         await new XmlGpifSerializer().SerializeAsync(raw, stream, TestContext.Current.CancellationToken);
         return stream.ToArray();
     }
+
+    private static BeatModel CloneBeat(BeatModel beat)
+        => new()
+        {
+            Id = beat.Id,
+            Notes = beat.Notes.Select(note => new NoteModel
+            {
+                Id = note.Id
+            }).ToArray()
+        };
 }
