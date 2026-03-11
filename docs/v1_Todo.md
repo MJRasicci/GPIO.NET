@@ -28,11 +28,17 @@
 
 - Core is mutable and optimized for direct programmatic editing.
 - Core musical data is authoritative; extension data is supplemental fidelity state.
+- Core plus extensions is the highest-fidelity Motif representation; cross-format export may lose unsupported format-specific detail, but musical output must remain valid.
 - Import flow: deserialize source -> map Core -> attach extension fidelity.
 - Export flow: preserve usable extension data -> infer from Core/defaults -> emit diagnostics when fidelity degrades.
+- Fidelity loss emits diagnostics; musically invalid output is a hard failure.
 - Traversal/cache/navigation state is derived state and must be recomputed after traversal-affecting edits.
 - Target hierarchy remains `Score -> Track[] -> Staff[] -> StaffMeasure[] -> Voice[] -> Beat[] -> Note[]`.
-- Timeline-global measure state belongs on `Score.MeasurePositions`.
+- Timeline-global measure state belongs on a score-owned timeline abstraction rather than staff-local bars.
+- The `Track.Measures` + `Measure.AdditionalStaffBars` shape will be removed for v1 rather than preserved behind a compatibility shim.
+- Core will not add new format-agnostic stable node IDs for v1; structural position plus extension/source IDs are sufficient.
+- Raw format property bags / XProperty ids do not belong in the long-term Core surface; keep typed semantics in Core and move format fidelity behind extensions.
+- Keep genuinely cross-format musical semantics in Core even when a source format models them poorly or app-specifically.
 
 ## Step Status
 
@@ -40,7 +46,7 @@
   Landed: `IModelExtension` / `IExtensibleModel`, typed helpers, GP extension attachments, Core-only JSON.
 
 - `[~]` Step 2 - Split Core domain vs Guitar Pro fidelity
-  Remaining: audit surviving GP-shaped Core properties, decide whether `*Model` names stay, add `GpStaffExtension` after the hierarchy refactor.
+  Remaining: move surviving Core property/XProperty bags behind GP extensions or normalize them as typed semantics, remove the `*Model` suffix from Core types, keep genuinely cross-format semantics such as golpe in Core, add `GpStaffExtension` after the hierarchy refactor.
 
 - `[~]` Step 3 - Raw cache invariants
   Remaining: define extension invalidation/preservation/regeneration policy, reuse/default rules, and fidelity diagnostics expectations.
@@ -53,7 +59,7 @@
 
 - `[~]` Step 6 - Navigation in Core
   Landed: `ScoreNavigation`, `Score.Anacrusis`, Core-owned playback traversal recompute, Core navigation tests.
-  Remaining: define invalidation/recompute rules and revisit the input shape after `Score.MeasurePositions`.
+  Remaining: define invalidation/recompute rules, and finalize the score-owned timeline abstraction/name that replaces the current `MeasurePositions` wording.
 
 - `[~]` Step 7 - CLI
   Landed: package-split CLI, source-extension reattachment for no-op JSON writes, format-pair routing, legacy flag compatibility, GPIF batch export.
@@ -64,30 +70,34 @@
   Remaining: hierarchy-refactor tests and extension invalidation/defaulting/regeneration tests.
 
 - `[ ]` Step 9 - Public API review
-  Remaining: audit `Motif.Core`, trim GP leakage, decide whether legacy `*Model` names stay, rerun API surface tests after each cleanup pass.
+  Remaining: rename Core `*Model` types, trim remaining GP leakage from `Motif.Core`, remove Core property/XProperty bags that are only preserving GP fidelity, rerun API surface tests after each cleanup pass.
 
 - `[ ]` Step 10 - Packaging and release prep
-  Remaining: package metadata, Source Link/symbols/license/readme metadata, dependency validation, release builds, final docs verification.
+  Remaining: package metadata, Source Link/symbols/license/readme metadata, dependency validation, release builds, final docs verification, ship `Motif.Core` + `Motif.Extensions.GuitarPro` + `Motif` as the v1 package set.
 
 ## Next Up
 
-1. Define derived-state and extension-cache policy.
+1. Finalize derived-state and extension-cache policy.
    - Navigation recompute rules
    - Extension invalidation/preservation/regeneration rules
    - Diagnostics expectations when exact fidelity cannot be preserved
+   - Open design decision: explicit recompute workflow vs automatic invalidation/recompute
 
 2. Land the hierarchy refactor.
-   - Replace `Track.Measures` + `Measure.AdditionalStaffBars` with `Track.Staves` + `Score.MeasurePositions`
+   - Replace `Track.Measures` + `Measure.AdditionalStaffBars` with `Track.Staves` + a score-owned timeline collection
+   - Rename or wrap the current `MeasurePositions` concept so its “master bar / timeline” role is obvious
    - Normalize malformed imports where possible
    - Add `GpStaffExtension`
 
 3. Run the public API cleanup pass.
-   - Audit remaining GP-shaped Core properties such as `BeatModel.Wah`, `BeatModel.Golpe`, `BeatModel.VibratoWithTremBarStrength`, and `NoteArticulationModel.AntiAccentValue`
-   - Decide whether legacy `*Model` names stay for v1
+   - Rename Core `*Model` types
+   - Move measure/bar/beat/note property/XProperty bags out of Core unless they become typed cross-format semantics
+   - Audit remaining GP-shaped Core properties such as `BeatModel.Wah`, `BeatModel.VibratoWithTremBarStrength`, and `NoteArticulationModel.AntiAccentValue`
+   - Keep cross-format semantics such as golpe in Core while remapping GP-specific representations behind the GP package
 
 4. Finish packaging and release docs.
    - NuGet metadata, Source Link, symbols, readme/license metadata
-   - Final package/dependency review
+   - Final package/dependency review for `Motif.Core`, `Motif.Extensions.GuitarPro`, and the `Motif` metapackage
    - Release builds and docs verification
 
 ## Release Gate
