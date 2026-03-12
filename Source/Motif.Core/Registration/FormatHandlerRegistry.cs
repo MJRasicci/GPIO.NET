@@ -8,6 +8,7 @@ internal static class FormatHandlerRegistry
 {
     private static readonly object SyncRoot = new();
     private static readonly List<ExplicitRegistration> ExplicitRegistrations = [];
+    private static readonly IFormatHandler MotifArchiveHandler = new MotifArchiveFormatHandler();
     private static readonly IFormatHandler JsonHandler = new JsonFormatHandler();
 
     public static IDisposable Register(IFormatHandler handler)
@@ -26,7 +27,7 @@ internal static class FormatHandlerRegistry
 
     public static IReadOnlyList<IFormatHandler> GetRegisteredHandlers()
     {
-        var handlers = new List<IFormatHandler> { JsonHandler };
+        var handlers = new List<IFormatHandler> { JsonHandler, MotifArchiveHandler };
 
         lock (SyncRoot)
         {
@@ -43,6 +44,12 @@ internal static class FormatHandlerRegistry
     public static bool TryResolve(string formatHint, out IFormatHandler? handler)
     {
         var normalizedHint = NormalizeFormatHint(formatHint);
+        if (string.Equals(normalizedHint, MotifArchiveFormat.Extension, StringComparison.OrdinalIgnoreCase))
+        {
+            handler = MotifArchiveHandler;
+            return true;
+        }
+
         if (string.Equals(normalizedHint, ".json", StringComparison.OrdinalIgnoreCase))
         {
             handler = JsonHandler;
@@ -299,6 +306,17 @@ internal static class FormatHandlerRegistry
         public IScoreReader CreateReader() => new JsonScoreReader();
 
         public IScoreWriter CreateWriter() => new JsonScoreWriter();
+    }
+
+    private sealed class MotifArchiveFormatHandler : IFormatHandler
+    {
+        public IReadOnlyList<string> SupportedExtensions { get; } = [MotifArchiveFormat.Extension];
+
+        public string FormatName => "Motif Archive";
+
+        public IScoreReader CreateReader() => new MotifArchiveReader();
+
+        public IScoreWriter CreateWriter() => new MotifArchiveWriter();
     }
 
     private sealed class JsonScoreReader : IScoreReader

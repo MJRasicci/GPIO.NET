@@ -15,7 +15,6 @@ public static class MotifScore
     /// <returns>A mapped <see cref="Score"/> instance.</returns>
     /// <exception cref="ArgumentException"><paramref name="filePath"/> is null, empty, whitespace, or has no extension.</exception>
     /// <exception cref="InvalidOperationException">No handler is registered for the inferred extension.</exception>
-    /// <exception cref="NotSupportedException">The file uses a core format that is not implemented yet.</exception>
     public static async ValueTask<Score> OpenAsync(string filePath, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
@@ -35,7 +34,6 @@ public static class MotifScore
     /// <exception cref="ArgumentNullException"><paramref name="source"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="formatHint"/> is null, empty, or whitespace.</exception>
     /// <exception cref="InvalidOperationException">No handler is registered for <paramref name="formatHint"/>.</exception>
-    /// <exception cref="NotSupportedException">The requested core format is not implemented yet.</exception>
     public static ValueTask<Score> OpenAsync(Stream source, string formatHint, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -51,7 +49,6 @@ public static class MotifScore
     /// <returns>A format-specific <see cref="IScoreReader"/> instance.</returns>
     /// <exception cref="ArgumentException"><paramref name="formatHint"/> is null, empty, or whitespace.</exception>
     /// <exception cref="InvalidOperationException">No handler is registered for <paramref name="formatHint"/>.</exception>
-    /// <exception cref="NotSupportedException">The requested core format is not implemented yet.</exception>
     public static IScoreReader CreateReader(string formatHint)
         => ResolveHandlerOrThrow(formatHint).CreateReader();
 
@@ -65,7 +62,6 @@ public static class MotifScore
     /// <exception cref="ArgumentNullException"><paramref name="score"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="filePath"/> is null, empty, whitespace, or has no extension.</exception>
     /// <exception cref="InvalidOperationException">No handler is registered for the inferred extension.</exception>
-    /// <exception cref="NotSupportedException">The file uses a core format that is not implemented yet.</exception>
     public static async ValueTask SaveAsync(Score score, string filePath, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(score);
@@ -87,7 +83,6 @@ public static class MotifScore
     /// <exception cref="ArgumentNullException"><paramref name="score"/> or <paramref name="destination"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="formatHint"/> is null, empty, or whitespace.</exception>
     /// <exception cref="InvalidOperationException">No handler is registered for <paramref name="formatHint"/>.</exception>
-    /// <exception cref="NotSupportedException">The requested core format is not implemented yet.</exception>
     public static ValueTask SaveAsync(Score score, Stream destination, string formatHint, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(score);
@@ -104,12 +99,11 @@ public static class MotifScore
     /// <returns>A format-specific <see cref="IScoreWriter"/> instance.</returns>
     /// <exception cref="ArgumentException"><paramref name="formatHint"/> is null, empty, or whitespace.</exception>
     /// <exception cref="InvalidOperationException">No handler is registered for <paramref name="formatHint"/>.</exception>
-    /// <exception cref="NotSupportedException">The requested core format is not implemented yet.</exception>
     public static IScoreWriter CreateWriter(string formatHint)
         => ResolveHandlerOrThrow(formatHint).CreateWriter();
 
     /// <summary>
-    /// Returns all currently available score formats, including Motif's built-in JSON support.
+    /// Returns all currently available score formats, including Motif's built-in JSON and archive support.
     /// </summary>
     public static IReadOnlyList<IFormatHandler> GetRegisteredFormats()
         => FormatHandlerRegistry.GetRegisteredHandlers();
@@ -124,7 +118,6 @@ public static class MotifScore
 
         var extension = Path.GetExtension(filePath);
         return !string.IsNullOrWhiteSpace(extension)
-               && !string.Equals(FormatHandlerRegistry.NormalizeFormatHint(extension), ".motif", StringComparison.OrdinalIgnoreCase)
                && FormatHandlerRegistry.TryResolve(extension, out _);
     }
 
@@ -139,11 +132,6 @@ public static class MotifScore
     private static IFormatHandler ResolveHandlerOrThrow(string formatHint)
     {
         var normalizedHint = FormatHandlerRegistry.NormalizeFormatHint(formatHint);
-        if (string.Equals(normalizedHint, ".motif", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new NotSupportedException("The native '.motif' archive format is planned but not implemented yet.");
-        }
-
         return FormatHandlerRegistry.TryResolve(normalizedHint, out var handler)
             ? handler!
             : throw new InvalidOperationException(

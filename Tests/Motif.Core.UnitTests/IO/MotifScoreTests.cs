@@ -3,6 +3,7 @@ namespace Motif.Core.UnitTests;
 using FluentAssertions;
 using Motif;
 using Motif.Models;
+using System.IO.Compression;
 using System.Text;
 
 public class MotifScoreTests
@@ -24,6 +25,37 @@ public class MotifScoreTests
             ScoreNavigation.HasCurrentPlaybackSequence(readBack).Should().BeTrue();
             MotifScore.CanOpen(filePath).Should().BeTrue();
             MotifScore.GetRegisteredFormats().Should().Contain(handler => handler.SupportedExtensions.Contains(".json"));
+        }
+        finally
+        {
+            Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task MotifScore_can_round_trip_motif_archive_without_any_extension_package()
+    {
+        var score = CreateScore("Motif Archive");
+        var tempDirectory = CreateTempDirectory();
+        var filePath = Path.Combine(tempDirectory, "score.motif");
+
+        try
+        {
+            await MotifScore.SaveAsync(score, filePath, TestContext.Current.CancellationToken);
+            var readBack = await MotifScore.OpenAsync(filePath, TestContext.Current.CancellationToken);
+
+            readBack.Title.Should().Be("Motif Archive");
+            readBack.Tracks.Should().ContainSingle();
+            ScoreNavigation.HasCurrentPlaybackSequence(readBack).Should().BeTrue();
+            MotifScore.CanOpen(filePath).Should().BeTrue();
+            MotifScore.GetRegisteredFormats().Should().Contain(handler => handler.SupportedExtensions.Contains(".motif"));
+
+            await using var stream = new MemoryStream();
+            await MotifScore.SaveAsync(score, stream, "motif", TestContext.Current.CancellationToken);
+            stream.Position = 0;
+
+            var streamRead = await MotifScore.OpenAsync(stream, ".motif", TestContext.Current.CancellationToken);
+            streamRead.Title.Should().Be("Motif Archive");
         }
         finally
         {
@@ -67,6 +99,42 @@ public class MotifScoreTests
         {
             Directory.Delete(tempDirectory, recursive: true);
         }
+    }
+
+    [Fact]
+    public async Task Opening_a_motif_archive_with_a_future_manifest_version_is_rejected()
+    {
+        await using var archiveStream = new MemoryStream();
+        using (var archive = new ZipArchive(archiveStream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            var manifestEntry = archive.CreateEntry("manifest.json");
+            await using (var manifestStream = manifestEntry.Open())
+            await using (var writer = new StreamWriter(manifestStream, Encoding.UTF8, leaveOpen: true))
+            {
+                await writer.WriteAsync("""
+                    {
+                      "formatVersion": "99.0",
+                      "createdBy": "test",
+                      "sources": [],
+                      "extensions": []
+                    }
+                    """);
+            }
+
+            var scoreEntry = archive.CreateEntry("score.json");
+            await using (var scoreStream = scoreEntry.Open())
+            {
+                var bytes = Encoding.UTF8.GetBytes(CreateScore("Future Manifest").ToJson());
+                await scoreStream.WriteAsync(bytes, TestContext.Current.CancellationToken);
+            }
+        }
+
+        archiveStream.Position = 0;
+
+        var action = async () => await MotifScore.OpenAsync(archiveStream, ".motif", TestContext.Current.CancellationToken);
+        var exception = await Assert.ThrowsAsync<NotSupportedException>(action);
+        exception.Message.Should().Contain("99.0");
+        exception.Message.Should().Contain("1.0");
     }
 
     [Fact]
