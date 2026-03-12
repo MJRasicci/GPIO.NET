@@ -24,8 +24,9 @@ Pro from referenced Motif assemblies at runtime.
 
 ## When To Use Guitar Pro APIs Directly
 
-Use `GuitarProReader` and `GuitarProWriter` directly when you need Guitar Pro-specific
-capabilities instead of the format-agnostic unified API:
+Use `GuitarProReader` and `GuitarProWriter` directly, or resolve them through
+`MotifScore.CreateReader("gp")` / `MotifScore.CreateWriter("gp")`, when you need
+Guitar Pro-specific capabilities instead of the format-agnostic unified API:
 
 - `WriteWithDiagnosticsAsync()` for `WriteDiagnostics`
 - Advanced archive-seeding workflows such as the CLI `--source-gp` behavior

@@ -3,6 +3,7 @@ namespace Motif.Extensions.GuitarPro.UnitTests;
 using FluentAssertions;
 using Motif;
 using Motif.Extensions.GuitarPro;
+using Motif.Extensions.GuitarPro.Abstractions;
 
 public class MotifScoreRoutingTests
 {
@@ -15,6 +16,9 @@ public class MotifScoreRoutingTests
         formats.Should().ContainSingle(format => format is GpifFormatHandler);
         MotifScore.CanOpen("song.gp").Should().BeTrue();
         MotifScore.CanOpen("song.gpif").Should().BeTrue();
+        MotifScore.CreateReader("gp").Should().BeAssignableTo<IGuitarProReader>();
+        MotifScore.CreateWriter("gp").Should().BeAssignableTo<IGuitarProWriter>();
+        MotifScore.CreateWriter("gpif").Should().BeAssignableTo<IGpifWriter>();
     }
 
     [Fact]
@@ -56,6 +60,28 @@ public class MotifScoreRoutingTests
             readBack.Title.Should().Be(score.Title);
             readBack.Tracks.Count.Should().Be(score.Tracks.Count);
             readBack.TimelineBars.Count.Should().Be(score.TimelineBars.Count);
+        }
+        finally
+        {
+            Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task MotifScore_can_create_a_gpif_writer_with_diagnostics_via_discovered_handlers()
+    {
+        var fixturePath = GuitarProFixture.PathFor("test.gp");
+        var tempDirectory = CreateTempDirectory();
+        var outputPath = Path.Combine(tempDirectory, "roundtrip.gpif");
+
+        try
+        {
+            var score = await MotifScore.OpenAsync(fixturePath, TestContext.Current.CancellationToken);
+            var writer = MotifScore.CreateWriter("gpif").Should().BeAssignableTo<IGpifWriter>().Subject;
+            var diagnostics = await writer.WriteWithDiagnosticsAsync(score, outputPath, TestContext.Current.CancellationToken);
+
+            File.Exists(outputPath).Should().BeTrue();
+            diagnostics.Should().NotBeNull();
         }
         finally
         {

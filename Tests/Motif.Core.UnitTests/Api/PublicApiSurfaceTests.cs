@@ -45,5 +45,9 @@ public class PublicApiSurfaceTests
             .Should().NotBeNull();
         typeof(IScoreWriter).GetMethod(nameof(IScoreWriter.WriteAsync), [typeof(Score), typeof(string), typeof(CancellationToken)])
             .Should().NotBeNull();
+        typeof(MotifScore).GetMethod(nameof(MotifScore.CreateReader), [typeof(string)])
+            .Should().NotBeNull();
+        typeof(MotifScore).GetMethod(nameof(MotifScore.CreateWriter), [typeof(string)])
+            .Should().NotBeNull();
     }
 }

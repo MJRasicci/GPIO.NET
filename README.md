@@ -59,8 +59,9 @@ await MotifScore.SaveAsync(score, "song-edited.gp", cancellationToken);
 ```
 
 `MotifScore` handles mapped JSON directly and discovers extension handlers such as Guitar
-Pro at runtime. Use `GuitarProWriter` directly when you need Guitar Pro-specific write
-diagnostics or explicit source-archive control such as the CLI `--source-gp` workflow.
+Pro at runtime. Use `GuitarProWriter` directly, or resolve it through
+`MotifScore.CreateWriter("gp")`, when you need Guitar Pro-specific write diagnostics or
+explicit source-archive control such as the CLI `--source-gp` workflow.
 
 ## CLI Quick Start
 

@@ -21,7 +21,7 @@ public static class MotifScore
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var formatHint = FormatHandlerRegistry.GetFormatHintFromPath(filePath);
-        var reader = ResolveHandlerOrThrow(formatHint).CreateReader();
+        var reader = CreateReader(formatHint);
         return await reader.ReadAsync(filePath, cancellationToken).ConfigureAwait(false);
     }
 
@@ -40,9 +40,20 @@ public static class MotifScore
     {
         ArgumentNullException.ThrowIfNull(source);
 
-        var reader = ResolveHandlerOrThrow(formatHint).CreateReader();
+        var reader = CreateReader(formatHint);
         return reader.ReadAsync(source, cancellationToken);
     }
+
+    /// <summary>
+    /// Creates a reader for the provided format hint using the currently registered handlers.
+    /// </summary>
+    /// <param name="formatHint">A file extension or format token such as <c>.gp</c> or <c>json</c>.</param>
+    /// <returns>A format-specific <see cref="IScoreReader"/> instance.</returns>
+    /// <exception cref="ArgumentException"><paramref name="formatHint"/> is null, empty, or whitespace.</exception>
+    /// <exception cref="InvalidOperationException">No handler is registered for <paramref name="formatHint"/>.</exception>
+    /// <exception cref="NotSupportedException">The requested core format is not implemented yet.</exception>
+    public static IScoreReader CreateReader(string formatHint)
+        => ResolveHandlerOrThrow(formatHint).CreateReader();
 
     /// <summary>
     /// Saves a score to the provided file path by inferring the format from its extension.
@@ -61,7 +72,7 @@ public static class MotifScore
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var formatHint = FormatHandlerRegistry.GetFormatHintFromPath(filePath);
-        var writer = ResolveHandlerOrThrow(formatHint).CreateWriter();
+        var writer = CreateWriter(formatHint);
         await writer.WriteAsync(score, filePath, cancellationToken).ConfigureAwait(false);
     }
 
@@ -82,9 +93,20 @@ public static class MotifScore
         ArgumentNullException.ThrowIfNull(score);
         ArgumentNullException.ThrowIfNull(destination);
 
-        var writer = ResolveHandlerOrThrow(formatHint).CreateWriter();
+        var writer = CreateWriter(formatHint);
         return writer.WriteAsync(score, destination, cancellationToken);
     }
+
+    /// <summary>
+    /// Creates a writer for the provided format hint using the currently registered handlers.
+    /// </summary>
+    /// <param name="formatHint">A file extension or format token such as <c>.gp</c> or <c>json</c>.</param>
+    /// <returns>A format-specific <see cref="IScoreWriter"/> instance.</returns>
+    /// <exception cref="ArgumentException"><paramref name="formatHint"/> is null, empty, or whitespace.</exception>
+    /// <exception cref="InvalidOperationException">No handler is registered for <paramref name="formatHint"/>.</exception>
+    /// <exception cref="NotSupportedException">The requested core format is not implemented yet.</exception>
+    public static IScoreWriter CreateWriter(string formatHint)
+        => ResolveHandlerOrThrow(formatHint).CreateWriter();
 
     /// <summary>
     /// Returns all currently available score formats, including Motif's built-in JSON support.

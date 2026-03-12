@@ -5,6 +5,9 @@ using Motif.Models;
 
 internal static class CliScoreRouting
 {
+    public static IScoreWriter CreateWriter(CliFormat format)
+        => MotifScore.CreateWriter(format.ToToken());
+
     public static async ValueTask<Score> OpenAsync(
         string filePath,
         CliFormat format,

@@ -24,6 +24,7 @@ public class PublicApiSurfaceTests
         typeof(IScoreWriter).Should().NotBeNull();
         typeof(IGuitarProReader).Should().NotBeNull();
         typeof(IGuitarProWriter).Should().NotBeNull();
+        typeof(IGpifWriter).Should().NotBeNull();
         typeof(GpScoreExtension).Should().NotBeNull();
         typeof(GpTrackExtension).Should().NotBeNull();
         typeof(GpExtensionReattachmentResult).Should().NotBeNull();
@@ -37,6 +38,8 @@ public class PublicApiSurfaceTests
         typeof(IGuitarProReader).GetMethod(nameof(IGuitarProReader.ReadAsync), [typeof(Stream), typeof(CancellationToken)])
             .Should().NotBeNull();
         typeof(IGuitarProReader).GetMethod(nameof(IGuitarProReader.ReadAsync), [typeof(string), typeof(CancellationToken)])
+            .Should().NotBeNull();
+        typeof(IGpifWriter).GetMethod(nameof(IGpifWriter.WriteWithDiagnosticsAsync), [typeof(Score), typeof(string), typeof(CancellationToken)])
             .Should().NotBeNull();
 
         typeof(IGpArchiveReader).IsNotPublic.Should().BeTrue();

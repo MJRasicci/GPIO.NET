@@ -2,9 +2,10 @@ namespace Motif.Extensions.GuitarPro.Implementation;
 
 using Motif;
 using Motif.Extensions.GuitarPro.Abstractions;
+using Motif.Extensions.GuitarPro.Models.Write;
 using Motif.Models;
 
-internal sealed class GpifScoreWriter : IScoreWriter
+internal sealed class GpifScoreWriter : IGpifWriter
 {
     private readonly IScoreUnmapper unmapper;
     private readonly IGpifSerializer serializer;
@@ -21,6 +22,9 @@ internal sealed class GpifScoreWriter : IScoreWriter
     }
 
     public async ValueTask WriteAsync(Score score, Stream destination, CancellationToken cancellationToken = default)
+        => _ = await WriteWithDiagnosticsAsync(score, destination, cancellationToken).ConfigureAwait(false);
+
+    public async ValueTask<WriteDiagnostics> WriteWithDiagnosticsAsync(Score score, Stream destination, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(score);
         ArgumentNullException.ThrowIfNull(destination);
@@ -28,9 +32,13 @@ internal sealed class GpifScoreWriter : IScoreWriter
         var result = await unmapper.UnmapAsync(score, cancellationToken).ConfigureAwait(false);
         await serializer.SerializeAsync(result.RawDocument, destination, cancellationToken).ConfigureAwait(false);
         await destination.FlushAsync(cancellationToken).ConfigureAwait(false);
+        return result.Diagnostics;
     }
 
     public async ValueTask WriteAsync(Score score, string filePath, CancellationToken cancellationToken = default)
+        => _ = await WriteWithDiagnosticsAsync(score, filePath, cancellationToken).ConfigureAwait(false);
+
+    public async ValueTask<WriteDiagnostics> WriteWithDiagnosticsAsync(Score score, string filePath, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(score);
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
@@ -42,6 +50,6 @@ internal sealed class GpifScoreWriter : IScoreWriter
         }
 
         await using var destination = File.Create(filePath);
-        await WriteAsync(score, destination, cancellationToken).ConfigureAwait(false);
+        return await WriteWithDiagnosticsAsync(score, destination, cancellationToken).ConfigureAwait(false);
     }
 }

@@ -1,5 +1,6 @@
 using Motif;
 using Motif.Extensions.GuitarPro;
+using Motif.Extensions.GuitarPro.Abstractions;
 using Motif.Extensions.GuitarPro.Implementation;
 using Motif.Extensions.GuitarPro.Models.Write;
 using Motif.Models;
@@ -143,7 +144,15 @@ try
                     ? options.InputPath
                     : null;
 
-            await WriteGuitarProArchiveAsync(options, outputPath, score, sourceScore, archiveTemplatePath).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(archiveTemplatePath))
+            {
+                await WriteGuitarProArchiveAsync(options, outputPath, score, sourceScore, archiveTemplatePath).ConfigureAwait(false);
+            }
+            else
+            {
+                await WriteRegisteredGuitarProArchiveAsync(score, options, outputPath).ConfigureAwait(false);
+            }
+
             return 0;
         }
 
@@ -185,15 +194,23 @@ static async Task WriteMappedJsonAsync(Score score, CliOptions options, string o
 
 static async Task WriteGpifAsync(Score score, CliOptions options, string outputPath)
 {
-    var unmapResult = await BuildWriteResultAsync(score).ConfigureAwait(false);
-    EnsureOutputDirectory(outputPath);
-
-    await using var output = File.Create(outputPath);
-    var serializer = new XmlGpifSerializer();
-    await serializer.SerializeAsync(unmapResult.RawDocument, output).ConfigureAwait(false);
-
+    var writer = CliScoreRouting.CreateWriter(CliFormat.Gpif);
+    var diagnostics = writer is IGpifWriter gpifWriter
+        ? await gpifWriter.WriteWithDiagnosticsAsync(score, outputPath).ConfigureAwait(false)
+        : await WriteWithoutDiagnosticsAsync(writer, score, outputPath).ConfigureAwait(false);
     Console.WriteLine($"GPIF written: {outputPath}");
-    await ReportWriteDiagnosticsAsync(options, unmapResult.Diagnostics).ConfigureAwait(false);
+    await ReportWriteDiagnosticsAsync(options, diagnostics).ConfigureAwait(false);
+}
+
+static async Task WriteRegisteredGuitarProArchiveAsync(Score score, CliOptions options, string outputPath)
+{
+    var writer = CliScoreRouting.CreateWriter(CliFormat.GuitarPro);
+    var diagnostics = writer is IGuitarProWriter guitarProWriter
+        ? await guitarProWriter.WriteWithDiagnosticsAsync(score, outputPath).ConfigureAwait(false)
+        : await WriteWithoutDiagnosticsAsync(writer, score, outputPath).ConfigureAwait(false);
+
+    Console.WriteLine($"GP archive written: {outputPath}");
+    await ReportWriteDiagnosticsAsync(options, diagnostics).ConfigureAwait(false);
 }
 
 static async Task WriteGuitarProArchiveAsync(
@@ -262,6 +279,12 @@ static async Task<WriteResult> BuildWriteResultAsync(Score score)
 {
     var unmapper = new DefaultScoreUnmapper();
     return await unmapper.UnmapAsync(score).ConfigureAwait(false);
+}
+
+static async Task<WriteDiagnostics> WriteWithoutDiagnosticsAsync(IScoreWriter writer, Score score, string outputPath)
+{
+    await writer.WriteAsync(score, outputPath).ConfigureAwait(false);
+    return new WriteDiagnostics();
 }
 
 static async Task ReportWriteDiagnosticsAsync(CliOptions options, WriteDiagnostics diagnostics)
@@ -388,7 +411,8 @@ USAGE
 FORMAT ROUTING
   Input/output formats are inferred from file extensions when possible.
   Use --input-format / --output-format when extensions are missing or ambiguous.
-  Standard score reads use the same MotifScore handler registry as the library API.
+  Standard score reads and non-templated GP/GPIF writes use the same MotifScore
+  handler registry as the library API.
   --format remains an alias for --output-format.
   --from-json remains a compatibility alias for --input-format json.
 

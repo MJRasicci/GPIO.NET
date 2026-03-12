@@ -43,6 +43,9 @@ public class MotifScoreTests
 
         try
         {
+            MotifScore.CreateReader(".fake").Should().BeSameAs(handler.Reader);
+            MotifScore.CreateWriter("fake").Should().BeSameAs(handler.Writer);
+
             await MotifScore.SaveAsync(score, filePath, TestContext.Current.CancellationToken);
             var pathRead = await MotifScore.OpenAsync(filePath, TestContext.Current.CancellationToken);
 
@@ -72,6 +75,16 @@ public class MotifScoreTests
         var action = async () => await MotifScore.OpenAsync("song.xyz", TestContext.Current.CancellationToken);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(action);
+        exception.Message.Should().Contain(".xyz");
+        exception.Message.Should().Contain("RegisterHandler");
+    }
+
+    [Fact]
+    public void Creating_unknown_writer_throws_a_helpful_error()
+    {
+        var action = () => MotifScore.CreateWriter("song.xyz");
+
+        var exception = Assert.Throws<InvalidOperationException>(action);
         exception.Message.Should().Contain(".xyz");
         exception.Message.Should().Contain("RegisterHandler");
     }

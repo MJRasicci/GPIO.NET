@@ -19,7 +19,8 @@ If you omit the output path, the CLI picks a default output format and file name
 
 Formats are inferred from extensions when possible. Use `--input-format` and
 `--output-format` when the file names do not make the route obvious. Standard
-score reads use the same `MotifScore` handler registry as the library API.
+score reads and non-templated GP/GPIF writes use the same `MotifScore` handler
+registry as the library API.
 
 ## Single-File Workflows
 
