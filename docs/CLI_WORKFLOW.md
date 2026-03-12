@@ -1,47 +1,160 @@
 # Motif CLI Workflow
 
-## 1) Export a GP file to editable mapped JSON
+Use `motif-cli` to convert between Guitar Pro archives, raw GPIF XML, and mapped JSON.
+
+Run during development:
+
+```bash
+dotnet run --project Source/Motif.CLI -- <args>
+```
+
+## Default Routing
+
+If you omit the output path, the CLI picks a default output format and file name:
+
+- `song.gp` -> `song.mapped.json`
+- `song.gpif` -> `song.mapped.json`
+- `song.json` -> `song.gp`
+- `song.gp --output-format gpif` -> `song.score.gpif`
+
+Formats are inferred from extensions when possible. Use `--input-format` and
+`--output-format` when the file names do not make the route obvious.
+
+## Single-File Workflows
+
+Export a `.gp` archive to editable mapped JSON:
 
 ```bash
 dotnet run --project Source/Motif.CLI -- input.gp score.json
 ```
 
-## 2) Edit `score.json`
-
-Edit the mapped score JSON and then write it back out through the full roundtrip writer.
-
-## 3) Full rewrite while preserving archive payload
-
-```bash
-dotnet run --project Source/Motif.CLI -- score.json output.gp \
-  --source-gp input.gp \
-  --diagnostics-out write-diagnostics.json --diagnostics-json
-```
-
-Use this when you want a full unmap/serialize write, but keep non-`score.gpif` zip entries
-from an existing `.gp` archive:
-
-## 4) Full rewrite without source GP
-
-Use this for non-GP-originated scores. The writer seeds a default empty archive payload
-(`VERSION`, `meta.json`, preferences, stylesheets, score views) and replaces `Content/score.gpif`.
-
-```bash
-dotnet run --project Source/Motif.CLI -- score.json output.gp \
-  --output-format gp
-```
-
-## 5) Extract raw GPIF
+Extract raw GPIF from a `.gp` archive:
 
 ```bash
 dotnet run --project Source/Motif.CLI -- input.gp score.gpif
 ```
 
+Route raw GPIF through the mapped domain model:
+
+```bash
+dotnet run --project Source/Motif.CLI -- input.gpif score.json
+dotnet run --project Source/Motif.CLI -- score.json output.gpif
+```
+
+Write a `.gp` archive from mapped JSON using the built-in default archive template:
+
+```bash
+dotnet run --project Source/Motif.CLI -- score.json output.gp
+```
+
+Write a `.gp` archive while preserving non-score archive payload from another file:
+
+```bash
+dotnet run --project Source/Motif.CLI -- score.json output.gp \
+  --source-gp input.gp
+```
+
+Use explicit format routing when extensions are missing or custom:
+
+```bash
+dotnet run --project Source/Motif.CLI -- score.data output.data \
+  --input-format json \
+  --output-format gp
+```
+
+## Writer Diagnostics
+
+Writer warnings are always printed to stdout for `.gp` and `.gpif` writes. To persist
+them:
+
+```bash
+dotnet run --project Source/Motif.CLI -- score.json output.gp \
+  --diagnostics-out write-diagnostics.json \
+  --diagnostics-json
+```
+
+- `--diagnostics-out <path>` writes diagnostics to a file
+- `--diagnostics-json` switches that file from plain text to JSON
+
+`--source-gp` is only valid for `.gp` output.
+
+## Batch Export
+
+Export every `.gp` file under a directory tree to mapped JSON:
+
+```bash
+dotnet run --project Source/Motif.CLI -- \
+  --batch-input-dir ./songs \
+  --batch-output-dir ./json
+```
+
+Extract GPIF for every `.gp` file:
+
+```bash
+dotnet run --project Source/Motif.CLI -- \
+  --batch-input-dir ./songs \
+  --batch-output-dir ./gpif \
+  --output-format gpif
+```
+
+Mirror `.gp` archives to another tree without remapping:
+
+```bash
+dotnet run --project Source/Motif.CLI -- \
+  --batch-input-dir ./songs \
+  --batch-output-dir ./gp-copy \
+  --output-format gp
+```
+
+Batch mode options:
+
+- `--continue-on-error[=true|false]` controls whether failed files stop the batch
+- `--failure-log <path>` overrides the JSONL failure log path
+- The default failure log is `<batch-output-dir>/batch-failures.jsonl`
+
+Batch mode currently accepts Guitar Pro input only.
+
+## Batch Round-Trip Diagnostics
+
+Run a no-edit corpus pass that reads each `.gp`, routes it through mapped JSON and the GP
+writer, and records drift diagnostics:
+
+```bash
+dotnet run --project Source/Motif.CLI -- \
+  --batch-input-dir ./songs \
+  --batch-output-dir ./analysis \
+  --batch-roundtrip-diagnostics
+```
+
+This workflow writes:
+
+- `batch-roundtrip-summary.json`
+- `batch-roundtrip-summary.txt`
+- `batch-file-results.jsonl`
+- `batch-diagnostics.jsonl`
+- `batch-failures.jsonl` when failures occur
+
+You can also copy the summary to a custom path:
+
+```bash
+dotnet run --project Source/Motif.CLI -- \
+  --batch-input-dir ./songs \
+  --batch-output-dir ./analysis \
+  --batch-roundtrip-diagnostics \
+  --diagnostics-out ./analysis/summary.json \
+  --diagnostics-json
+```
+
+Constraints:
+
+- Batch round-trip diagnostics currently support Guitar Pro input only
+- Output format must remain `json` for this mode
+- Exit code `10` means the batch completed with one or more failures
+
 ## Notes
 
-- Formats are inferred from file extensions when possible.
-- Use `--input-format` / `--output-format` when extensions are missing or ambiguous.
-- `--format` remains an alias for `--output-format`.
-- `--from-json` remains supported as a compatibility alias for `--input-format json`.
-- Supported end-to-end formats are `json`, `gp`, and `gpif`.
-- MusicXML/MXL/MIDI are not part of the v1 CLI surface.
+- Supported formats are `json`, `gp`, and `gpif`
+- MusicXML, MXL, and MIDI are not supported by the current CLI
+- Boolean flags consistently support `--flag`, `--flag=true`, and `--flag=false`
+- `--format` remains an alias for `--output-format`
+- `--from-json` remains a compatibility alias for `--input-format json`

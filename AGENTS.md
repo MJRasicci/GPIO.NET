@@ -1,144 +1,149 @@
-# AGENTS.md — Motif Guidance
+# AGENTS.md - Motif Guidance
 
-This is the canonical production repository for the Motif library and companion CLI.
+This repository contains the Motif libraries and companion CLI.
 
----
+Motif is a format-agnostic music domain model and conversion framework. The core design
+goal is to preserve musical meaning first, and format fidelity through extensions where
+possible.
+
+## Design Philosophies
+
+- Core models musical reality, not the internal structure of any notation application or
+  file format.
+- External formats must not dictate the Core model. Motif translates between formats and
+  the domain model; it does not wrap file schemas.
+- Format-specific metadata, playback-engine data, layout hints, and round-trip fidelity
+  state belong in extensions, not Core.
+- Core should remain stable, minimal, format-agnostic, and suitable for engraving,
+  analysis, and playback use cases.
+- Favor semantic models over storage models. Mirroring file schemas or legacy app designs
+  is the wrong default.
+- Core must never depend on format packages. Parsing, serialization, mapping, and fidelity
+  concerns stay outside Core.
+
+Changes that introduce format coupling into Core, blur Core/extension boundaries, or treat
+Core as a file-format wrapper should be rejected.
 
 ## What This Repo Does
 
-Motif reads and writes Guitar Pro (`.gp`) files — ZIP archives containing a GPIF XML document
-with a heavily reference-based structure. The library:
+Motif exposes a format-agnostic `Score` domain model and a Guitar Pro extension capable of
+reading and writing Guitar Pro archives and raw GPIF XML.
 
-1. Opens `.gp` archives and extracts `Content/score.gpif`
-2. Deserializes GPIF XML into a typed raw model
-3. Resolves all cross-references into a clean, navigable domain model
-4. Writes `.gp` archives from an edited domain model
+Current end-to-end supported formats:
 
----
+- `.gp`
+- `.gpif`
+- Motif model mapped JSON
+
+Do not treat MusicXML, MXL, or MIDI as supported until real implementation and tests exist.
 
 ## Repository Structure
 
-```
+```text
 Source/
-  Motif/                                   Package wrapping Motif.Core and Motif.Extensions.GuitarPro
-  Motif.Core/                              Core library (no dependencies beyond .NET 10)
-  Motif.Extensions.GuitarPro/              Guitar Pro file format support (depends on Motif.Core)
-  Motif.CLI/                               CLI tool (published as motif-cli executable)
+  Motif/                                   Convenience package referencing Core + Guitar Pro
+  Motif.Core/                              Domain model, navigation, JSON helpers
+  Motif.Extensions.GuitarPro/              Guitar Pro reader/writer, mapper, raw GPIF model
+  Motif.CLI/                               CLI executable (assembly name: motif-cli)
+
 Tests/
-  Motif.Core.UnitTests/                    Fixture-based unit + integration tests
-  Motif.Extensions.GuitarPro.UnitTests/    Fixture-based unit + integration tests
+  Motif.Core.UnitTests/                    Core model and navigation tests
+  Motif.Extensions.GuitarPro.UnitTests/    Guitar Pro mapping and fidelity tests
+  Motif.IntegrationTests/                  CLI integration and regression tests
+
 docs/
-  CLI_WORKFLOW.md                          Common CLI workflows
-  v1_Todo.md                               Checklist for v1 release, use this to track your work and decide what to do next
+  CLI_WORKFLOW.md                          CLI usage and batch workflows
+  LIBRARY_WORKFLOW.md                      Recommended read/edit/write workflow
+
+Temp/                                      Gitignored scratch area
 ```
 
----
+Ignore `Temp/` unless explicitly asked to inspect it.
 
-## Architecture: The Processing Pipeline
+## Architecture
 
-Every read flows through three explicit layers:
+Motif conversions follow a deterministic multi-stage pipeline:
 
-```
+```text
 .gp file
-  └─► IGpArchiveReader      → opens ZIP, exposes score.gpif stream
-  └─► IGpifDeserializer     → deserializes XML into GpifDocument (raw model)
-  └─► IScoreMapper          → resolves references → GuitarProScore (domain model)
+  -> IGpArchiveReader      opens ZIP and exposes Content/score.gpif
+  -> IGpifDeserializer     deserializes XML into GpifDocument
+  -> IScoreMapper          resolves references into Score
+
+Score
+  -> IScoreUnmapper        produces GpifDocument from domain state
+  -> IGpifSerializer       serializes XML
+  -> IGpArchiveWriter      writes the .gp archive
 ```
 
-Every write flows in reverse:
+These layers exist to keep file-format concerns isolated from the domain model.
 
-```
-GuitarProScore (edited)
-  └─► IScoreUnmapper        → produces GpifDocument from domain model
-  └─► IGpifSerializer       → serializes to XML
-  └─► IGpArchiveWriter      → writes ZIP archive
-```
+## Important Types and Files
 
-### Key entry points
-
-| Class | Purpose |
-|---|---|
-| `GuitarProReader` | Top-level read API |
-| `GuitarProWriter` | Top-level write API |
-| `DefaultScoreMapper` | Raw GPIF → domain model |
-| `DefaultScoreUnmapper` | Domain model → raw GPIF |
-| `XmlGpifDeserializer` | XML → `GpifDocument` |
-| `XmlGpifSerializer` | `GpifDocument` → XML |
-
----
+| Type / File | Purpose |
+| --- | --- |
+| `GuitarProReader` | Top-level `.gp` read API |
+| `GuitarProWriter` | Top-level `.gp` write API |
+| `DefaultScoreMapper` | Raw GPIF -> `Score` mapper |
+| `DefaultScoreUnmapper` | `Score` -> raw GPIF unmapper |
+| `XmlGpifDeserializer` | GPIF XML reader |
+| `XmlGpifSerializer` | GPIF XML writer |
+| `ScoreNavigation` | Playback sequence rebuild and invalidation logic |
+| `GuitarProModelExtensions` | GP fidelity attachment and reattachment helpers |
+| `CliParser` / `Program.cs` | CLI routing and command handling |
 
 ## Models
 
-### Raw model (`Models/Raw/`)
-Faithful XML representation. Maps 1:1 to GPIF elements.
-Hybrid fields use typed core + raw XML passthrough for elements not yet fully normalized.
+- Raw model: `Source/Motif.Extensions.GuitarPro/Models/Raw/`
+  Represents GPIF XML closely and keeps passthrough data where normalization is incomplete.
+- Domain model: `Source/Motif.Core/Models/`
+  Exposes `Score -> Tracks -> Staves -> StaffMeasures -> Voices -> Beats -> Notes`.
+- Global timeline state lives on `Score.TimelineBars`.
+- Derived playback order lives on `Score.PlaybackMasterBarSequence` and should be
+  maintained through `ScoreNavigation`.
 
-### Domain model (`Models/`)
-`GuitarProScore` — clean, navigable object graph:
-```
-Score → Tracks → Measures → Voices → Beats → Notes
-```
-Consumers should never need to deal with GPIF reference mechanics.
+## CLI Notes
 
----
-
-## CLI Tool
-
-The tool is published as a single-file self-contained executable named `motif-cli`.
-
-**Run during development:**
-```
-dotnet run --project Source/Motif.CLI -- <args>
-```
-
-For full CLI usage, use `--help` or see [docs/CLI_WORKFLOW.md](docs/CLI_WORKFLOW.md).
-
-**Supported output formats:** `json`, `gpif`, `gp`, `musicxml` (planned), `midi` (planned)
-
----
+- Development entry point: `dotnet run --project Source/Motif.CLI -- <args>`
+- Supported formats: `json`, `gp`, `gpif`
+- Batch options: `--batch-input-dir`, `--batch-output-dir`,
+  `--batch-roundtrip-diagnostics`
+- Boolean flags support `--flag`, `--flag=true`, and `--flag=false`
+- `--source-gp` is only valid when writing `.gp` files
+- Detailed usage lives in `docs/CLI_WORKFLOW.md`
 
 ## Testing
 
-Tests live in `Tests/Motif.Core.UnitTests/` and cover:
+Run the full suite with:
 
-- End-to-end reads against real `.gp` fixture files
-- Articulation and rhythm mapping
-- Navigation resolver (repeat/alternate ending sequences)
-- Write path (round-trip fidelity, writer diagnostics, articulation parity)
-- Public API surface shape
-
-Run all tests:
-```
+```bash
 dotnet test
 ```
 
-Always add or update tests alongside behavior changes.
+The test projects use `xunit.v3.mtp-v2` with `Microsoft.Testing.Platform`.
 
----
+- Do not assume legacy `dotnet test --filter ...` examples will work.
+- Targeted execution uses `--filter-query`, which has different syntax and should be
+  verified before use.
+- Running the full suite is the recommended default.
 
-## Design Principles
+Test projects:
 
-- **Correctness over convenience** — musical semantics must be preserved exactly
-- **Determinism** — identical input → identical output; no hidden state
-- **Separation of concerns** — parsing, mapping, unmapping, and output are distinct pipeline stages
-- **Ergonomics** — consumers operate on `GuitarProScore`, never on raw GPIF references
-- **Library-first** — the core library has no host-specific dependencies (no web, EF, DI frameworks)
+- `Motif.Core.UnitTests`
+- `Motif.Extensions.GuitarPro.UnitTests`
+- `Motif.IntegrationTests`
 
----
+## Working In This Repo
 
-## Current Status and Gaps
-
-See [docs/v1_Todo.md](docs/v1_Todo.md) for the v1 release plan and remaining work.
-
-Highest-priority open areas:
-1. DS/DC/Coda/Fine full notation-engine semantics in `DefaultNavigationResolver`
-2. Deeper normalization of audio engine / MIDI connection / lyrics (currently passthrough)
-3. Schema-driven coverage audit against the GPIF XSD
-
----
-
-## Working in This Repo
-
-- Keep the raw model and domain model in sync — changes to one typically require changes to both
-- The `DefaultScoreMapper` and `DefaultScoreUnmapper` are the most complex files; read them fully before editing
-- Boolean CLI flags support `--flag`, `--flag=true`, `--flag=false` — keep new flags consistent with this pattern
+- Before modifying code, read `DefaultScoreMapper` and `DefaultScoreUnmapper` completely
+  and understand the read/write pipeline.
+- Structural edits must go through `Track.Staves[staffIndex].Measures[measureIndex]`.
+  There is no `Track.Measures` compatibility path.
+- Navigation-affecting edits should update `Score.TimelineBars` and then call
+  `ScoreNavigation.RebuildPlaybackSequence(score)`, or intentionally call
+  `ScoreNavigation.InvalidatePlaybackSequence(score)`.
+- JSON round-trips drop attached Guitar Pro extensions. When fidelity matters, use
+  `ReattachGuitarProExtensionsFrom` or intentionally call
+  `InvalidateGuitarProExtensions`.
+- Keep `README.md`, `docs/CLI_WORKFLOW.md`, and `docs/LIBRARY_WORKFLOW.md` aligned with
+  actual behavior when functionality changes.

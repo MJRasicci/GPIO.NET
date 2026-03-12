@@ -1,227 +1,147 @@
 # Motif
 
-**A format-agnostic .NET music domain model and conversion library.**
+Motif is a .NET 10 music score library built around a mutable, format-agnostic `Score`
+domain model. The current production extension is Guitar Pro support via
+`Motif.Extensions.GuitarPro`, plus a companion CLI for inspection, conversion, and
+round-trip diagnostics.
 
-Motif provides a clean, strongly-typed domain model for representing and modifying musical data programmatically. Format-specific extension packages handle lossless or near-lossless round-tripping for supported formats.
+## Current Scope
 
-The initial release ships with Guitar Pro (`.gp`) support via `Motif.Extensions.GuitarPro`.
+- Read Guitar Pro `.gp` archives and extract `Content/score.gpif`
+- Deserialize GPIF XML into a typed raw model
+- Resolve GPIF references into a clean domain graph:
+  `Score -> Tracks -> Staves -> StaffMeasures -> Voices -> Beats -> Notes`
+- Preserve score-wide timeline and navigation state on `Score.TimelineBars`
+- Rebuild derived playback order with `ScoreNavigation`
+- Write edited scores back to `.gpif` or `.gp`
+- Convert between `.gp`, `.gpif`, and mapped JSON with `motif-cli`
 
-A companion CLI tool is included for inspection, conversion, and round-trip workflows.
+## Projects
 
----
+| Project | Purpose |
+| --- | --- |
+| `Motif.Core` | Format-agnostic domain model, navigation helpers, and serialization helpers |
+| `Motif.Extensions.GuitarPro` | Guitar Pro `.gp` / `.gpif` read-write support |
+| `Motif` | Convenience package referencing Core and Guitar Pro support |
+| `Motif.CLI` (`motif-cli`) | CLI for conversion, inspection, and batch diagnostics |
 
-## Purpose
+## Repository Layout
 
-Guitar Pro files are ZIP archives containing a GPIF XML document with a heavily reference-based structure.
-While flexible, this format is difficult to consume and modify directly.
-
-Motif provides:
-
-- **Deterministic parsing** of `.gp` archives and GPIF data
-- **Reference resolution** into a usable in-memory graph
-- **A clean, hierarchical domain model** for musical traversal
-- **Safe handling of malformed or partial data**
-- **A CLI tool** for rapid inspection and conversion workflows
-
----
-
-## Core Concepts
-
-### 1. Accurate Parsing
-
-- Safely opens `.gp` archives
-- Extracts and deserializes `Content/score.gpif`
-- Preserves full musical semantics:
-  - Tracks
-  - Staves
-  - Staff measures (Bars)
-  - Voices
-  - Beats
-  - Notes
-  - Score timeline bars
-  - Rhythms, articulations, and properties
-
-### 2. Clean Domain Model
-
-GPIF uses cross-referenced IDs and indirect relationships.
-
-Motif transforms this into a natural object graph:
-
-```
-Score -> Tracks -> Staves -> StaffMeasures -> Voices -> Beats -> Notes
+```text
+Source/
+  Motif/                             Convenience package
+  Motif.Core/                        Core domain model and navigation helpers
+  Motif.Extensions.GuitarPro/        Guitar Pro reader/writer, mapper, raw GPIF model
+  Motif.CLI/                         CLI executable project
+Tests/
+  Motif.Core.UnitTests/              Core model, navigation, and serialization tests
+  Motif.Extensions.GuitarPro.UnitTests/
+                                     Guitar Pro mapping, writing, and round-trip tests
+  Motif.IntegrationTests/            CLI integration and regression coverage
+docs/
+  CLI_WORKFLOW.md                    CLI usage and batch workflows
+  LIBRARY_WORKFLOW.md                Recommended library edit/write workflow
 ```
 
-- Eliminates manual reference resolution
-- Enables intuitive iteration and traversal
-- Retains links to original metadata where needed
-- Keeps timeline-global playback/navigation state on score-owned `TimelineBars`
+## Library Quick Start
 
-### 3. Deterministic Mapping Layer
+```csharp
+using Motif;
+using Motif.Extensions.GuitarPro;
 
-An intermediate mapping/index stage:
+var reader = new GuitarProReader();
+var writer = new GuitarProWriter();
 
-- Resolves all GPIF references
-- Ensures consistent object identity
-- Handles:
-  - Missing references
-  - Optional sections
-  - Partially malformed files
+var score = await reader.ReadAsync("song.gp", cancellationToken: cancellationToken);
 
-This layer is the backbone of correctness.
+score.Title = "Edited Title";
 
-### 4. Production-Ready Design
+// Rebuild derived playback state after navigation-affecting edits.
+ScoreNavigation.RebuildPlaybackSequence(score);
 
-- Test-driven against real-world `.gp` files
-- Stable, versioned API surface
-- Clear separation of concerns:
-  - **Core library uses no dependencies except .NET 10**
-- Designed for embedding in:
-  - Analysis tools
-  - Converters
-  - DAWs or notation systems
-
----
-
-## Package Structure
-
-| Package | Description |
-|---|---|
-| `Motif.Core` | Format-agnostic domain model and abstractions |
-| `Motif.Extensions.GuitarPro` | Guitar Pro `.gp` read/write support |
-| `Motif` | Convenience wrapper referencing Core + GuitarPro |
-
----
-
-## CLI Tool
-
-A companion CLI is provided for file conversion and inspection.
-
-**Project:**
-
-```
-Source/Motif.CLI
+var diagnostics = await writer.WriteWithDiagnosticsAsync(
+    score,
+    "song-edited.gp",
+    cancellationToken);
 ```
 
-**Run:**
+`GuitarProWriter` always writes a valid `.gp` archive. If the destination path already
+exists and is a valid archive, non-score ZIP entries are preserved and only
+`Content/score.gpif` is replaced. If the destination does not exist, the writer uses the
+embedded default archive template. For a new output path seeded from a different source
+archive, use the CLI `--source-gp` workflow.
 
-```
-dotnet run --project Source/Motif.CLI -- <input> [output] [options]
-```
+## CLI Quick Start
 
-Formats are inferred from file extensions when possible. Use `--input-format` /
-`--output-format` when extensions are missing or ambiguous.
+Run during development:
 
----
-
-## Supported Workflows
-
-### Convert `.gp` -> JSON
-
-```
-dotnet run --project Source/Motif.CLI -- input.gp score.json
+```bash
+dotnet run --project Source/Motif.CLI -- <args>
 ```
 
-### Extract raw GPIF
+Common commands:
 
+```bash
+# Export mapped JSON (default output: song.mapped.json)
+dotnet run --project Source/Motif.CLI -- song.gp
+
+# Extract raw GPIF
+dotnet run --project Source/Motif.CLI -- song.gp song.score.gpif
+
+# Convert raw GPIF to mapped JSON
+dotnet run --project Source/Motif.CLI -- song.gpif song.json
+
+# Write a new .gp archive from mapped JSON
+dotnet run --project Source/Motif.CLI -- song.json output.gp
+
+# Preserve non-score archive entries from an existing source archive
+dotnet run --project Source/Motif.CLI -- song.json output.gp --source-gp original.gp
+
+# Batch export every .gp file under a directory to JSON
+dotnet run --project Source/Motif.CLI -- \
+  --batch-input-dir ./songs \
+  --batch-output-dir ./json
+
+# Batch round-trip diagnostics across a corpus
+dotnet run --project Source/Motif.CLI -- \
+  --batch-input-dir ./songs \
+  --batch-output-dir ./analysis \
+  --batch-roundtrip-diagnostics
 ```
-dotnet run --project Source/Motif.CLI -- input.gp score.gpif
+
+Formats are inferred from file extensions when possible. Use `--input-format` and
+`--output-format` when extensions are missing or ambiguous. Boolean flags follow the same
+pattern everywhere: `--flag`, `--flag=true`, and `--flag=false`.
+
+## Supported Formats
+
+| Format | Read | Write | Notes |
+| --- | --- | --- | --- |
+| `gp` | Yes | Yes | Guitar Pro ZIP archive containing `Content/score.gpif` |
+| `gpif` | Yes | Yes | Raw GPIF XML |
+| `json` | Yes | Yes | Mapped `Score` JSON, intended for editing and inspection |
+| `musicxml` / `mxl` | No | No | Not part of the current CLI or library surface |
+| `midi` | No | No | Not part of the current CLI or library surface |
+
+The CLI intentionally rejects unsupported formats rather than silently routing them.
+
+## Testing
+
+Run the full test suite with:
+
+```bash
+dotnet test
 ```
 
-### Edit JSON -> Write back to `.gp`
+Coverage includes real `.gp` fixtures, mapping fidelity, write diagnostics, public API
+shape, and CLI regression tests.
 
-```
-dotnet run --project Source/Motif.CLI -- score.json output.gp \
-  --source-gp input.gp
-```
+## Documentation
 
----
-
-## Output Formats
-
-| Format | Description | Status |
-|------|--------|--------|
-| `json` | Mapped domain model | Supported |
-| `gp` | Guitar Pro archive read/write | Supported |
-| `gpif` | Raw GPIF XML | Supported |
-| `musicxml` / `mxl` | MusicXML import/export | Planned post-v1 |
-| `midi` | MIDI export | Planned post-v1 |
-
----
-
-## CLI Options
-
-### General
-
-- `--input-format json|gp|gpif`
-- `--output-format json|gp|gpif`
-- `--format json|gp|gpif` (alias for `--output-format`)
-- `--out <path>`
-
-### JSON Options
-
-- `--json-indent[=true|false]`
-- `--json-ignore-null[=true|false]`
-- `--json-ignore-default[=true|false]`
-
-### Write Modes
-
-- `--from-json` — compatibility alias for `--input-format json`
-- `--source-gp <path>` — original file for preserving archive payload
-
-### Diagnostics
-
-- `--diagnostics-out <path>`
-- `--diagnostics-json`
-
----
-
-## Design Principles
-
-- **Correctness over convenience** — musical semantics must be preserved
-- **Determinism** — identical input produces identical object graphs
-- **Separation of concerns** — parsing, mapping, and output are distinct layers
-- **Ergonomics** — consumers should never deal with GPIF reference mechanics
-
----
-
-## Non-Goals
-
-The core library intentionally does **not** include:
-
-- UI or web application layers
-- Database or persistence concerns
-- Hardcoded environment-specific paths
-
----
-
-## Repository Structure
-
-- `Source/Motif.Core` — Core library
-- `Source/Motif.Extensions.GuitarPro` — Guitar Pro format support
-- `Source/Motif` — Convenience wrapper package
-- `Source/Motif.CLI` — CLI tool
-
----
-
-## Project Status
-
-This repository represents the **canonical, production-ready implementation**.
-
-See `docs/v1_Todo.md` for the v1 release plan.
-
----
-
-## Roadmap
-
-- MIDI export support
-- MusicXML format support via `Motif.Extensions.MusicXml`
-- Improved write/round-trip fidelity
-- Expanded test corpus
-- Performance tuning for large scores
-
----
+- [docs/CLI_WORKFLOW.md](docs/CLI_WORKFLOW.md)
+- [docs/LIBRARY_WORKFLOW.md](docs/LIBRARY_WORKFLOW.md)
+- [AGENTS.md](AGENTS.md)
 
 ## License
 
 [MIT](LICENSE.md)
-MIT — see `LICENSE.md`.
