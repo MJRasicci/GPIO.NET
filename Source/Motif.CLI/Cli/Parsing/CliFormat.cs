@@ -4,5 +4,6 @@ internal enum CliFormat
 {
     Json,
     GuitarPro,
-    Gpif
+    Gpif,
+    Motif
 }

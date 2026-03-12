@@ -239,6 +239,7 @@ internal static class CliParser
             "JSON" => CliFormat.Json,
             "GP" or "GUITARPRO" => CliFormat.GuitarPro,
             "GPIF" => CliFormat.Gpif,
+            "MOTIF" => CliFormat.Motif,
             _ => throw new ArgumentException($"Unknown format '{value}'.")
         };
     }
@@ -284,7 +285,7 @@ internal static class CliParser
         if (inferred is null)
         {
             throw new ArgumentException(
-                $"Unable to infer input format from '{inputPath}'. Pass --input-format <json|gp|gpif>.");
+                $"Unable to infer input format from '{inputPath}'. Pass --input-format <json|gp|gpif|motif>.");
         }
 
         return inferred.Value;
@@ -317,7 +318,7 @@ internal static class CliParser
         if (!string.IsNullOrWhiteSpace(outputPath))
         {
             throw new ArgumentException(
-                $"Unable to infer output format from '{outputPath}'. Pass --output-format <json|gp|gpif>.");
+                $"Unable to infer output format from '{outputPath}'. Pass --output-format <json|gp|gpif|motif>.");
         }
 
         if (batchMode)
@@ -329,6 +330,7 @@ internal static class CliParser
         {
             CliFormat.GuitarPro => CliFormat.Json,
             CliFormat.Gpif => CliFormat.Json,
+            CliFormat.Motif => CliFormat.Json,
             CliFormat.Json => CliFormat.GuitarPro,
             _ => throw new ArgumentException(
                 $"Unable to infer an output format for {inputFormat.ToToken()} input. Pass --output-format explicitly.")
@@ -359,6 +361,7 @@ internal static class CliParser
             ".JSON" => CliFormat.Json,
             ".GP" => CliFormat.GuitarPro,
             ".GPIF" => CliFormat.Gpif,
+            ".MOTIF" => CliFormat.Motif,
             _ => null
         };
     }

@@ -1,6 +1,7 @@
 # Motif CLI Workflow
 
-Use `motif-cli` to convert between Guitar Pro archives, raw GPIF XML, and mapped JSON.
+Use `motif-cli` to convert between Guitar Pro archives, raw GPIF XML, native `.motif`
+archives, and mapped JSON.
 
 Run during development:
 
@@ -14,6 +15,7 @@ If you omit the output path, the CLI picks a default output format and file name
 
 - `song.gp` -> `song.mapped.json`
 - `song.gpif` -> `song.mapped.json`
+- `song.motif` -> `song.mapped.json`
 - `song.json` -> `song.gp`
 - `song.gp --output-format gpif` -> `song.score.gpif`
 
@@ -41,6 +43,20 @@ Route raw GPIF through the mapped domain model:
 ```bash
 dotnet run --project Source/Motif.CLI -- input.gpif score.json
 dotnet run --project Source/Motif.CLI -- score.json output.gpif
+```
+
+Package a score as a native `.motif` archive:
+
+```bash
+dotnet run --project Source/Motif.CLI -- input.gp score.motif
+dotnet run --project Source/Motif.CLI -- input.gpif score.motif
+dotnet run --project Source/Motif.CLI -- score.json score.motif
+```
+
+Read a native `.motif` archive back to mapped JSON:
+
+```bash
+dotnet run --project Source/Motif.CLI -- score.motif score.json
 ```
 
 Write a `.gp` archive from mapped JSON using the built-in default archive template:
@@ -79,6 +95,8 @@ dotnet run --project Source/Motif.CLI -- score.json output.gp \
 - `--diagnostics-json` switches that file from plain text to JSON
 
 `--source-gp` is only valid for `.gp` output.
+Current `.motif` archives contain `manifest.json` and `score.json`; format-specific
+extension data and resource bundling are still in progress.
 
 ## Batch Export
 
@@ -106,6 +124,15 @@ dotnet run --project Source/Motif.CLI -- \
   --batch-input-dir ./songs \
   --batch-output-dir ./gp-copy \
   --output-format gp
+```
+
+Export every `.gp` file under a directory tree to native `.motif` archives:
+
+```bash
+dotnet run --project Source/Motif.CLI -- \
+  --batch-input-dir ./songs \
+  --batch-output-dir ./motif \
+  --output-format motif
 ```
 
 Batch mode options:
@@ -155,7 +182,7 @@ Constraints:
 
 ## Notes
 
-- Supported formats are `json`, `gp`, and `gpif`
+- Supported formats are `json`, `gp`, `gpif`, and `motif`
 - MusicXML, MXL, and MIDI are not supported by the current CLI
 - Boolean flags consistently support `--flag`, `--flag=true`, and `--flag=false`
 - `--format` remains an alias for `--output-format`

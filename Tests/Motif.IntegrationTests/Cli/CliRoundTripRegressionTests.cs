@@ -191,6 +191,8 @@ public class CliRoundTripRegressionTests
         var extensionlessJsonPath = Path.Combine(tempDir, "schema-reference.output");
         var extensionlessGpifPath = Path.Combine(tempDir, "schema-reference.raw");
         var jsonFromGpifPath = Path.Combine(tempDir, "schema-reference.from-gpif.output");
+        var extensionlessMotifPath = Path.Combine(tempDir, "schema-reference.archive");
+        var jsonFromMotifPath = Path.Combine(tempDir, "schema-reference.from-motif.output");
 
         try
         {
@@ -213,6 +215,19 @@ public class CliRoundTripRegressionTests
 
             var jsonFromGpif = await File.ReadAllTextAsync(jsonFromGpifPath, TestContext.Current.CancellationToken);
             jsonFromGpif.Should().Contain("\"TimelineBars\"");
+
+            await RunDotNetAsync(
+                $"run --project \"{toolProject}\" -- \"{extensionlessJsonPath}\" \"{extensionlessMotifPath}\" --input-format json --output-format motif",
+                repoRoot);
+
+            File.Exists(extensionlessMotifPath).Should().BeTrue();
+
+            await RunDotNetAsync(
+                $"run --project \"{toolProject}\" -- \"{extensionlessMotifPath}\" \"{jsonFromMotifPath}\" --input-format motif --output-format json",
+                repoRoot);
+
+            var jsonFromMotif = await File.ReadAllTextAsync(jsonFromMotifPath, TestContext.Current.CancellationToken);
+            jsonFromMotif.Should().Contain("\"Tracks\"");
         }
         finally
         {
@@ -224,7 +239,7 @@ public class CliRoundTripRegressionTests
     }
 
     [Fact]
-    public async Task Cli_can_route_between_json_gp_and_gpif_inputs_and_outputs()
+    public async Task Cli_can_route_between_json_gp_gpif_and_motif_inputs_and_outputs()
     {
         var sourceGp = GuitarProFixture.PathFor("schema-reference.gp");
         File.Exists(sourceGp).Should().BeTrue();
@@ -237,15 +252,41 @@ public class CliRoundTripRegressionTests
         Directory.CreateDirectory(tempDir);
 
         var jsonPath = Path.Combine(tempDir, "schema-reference.json");
+        var motifPath = Path.Combine(tempDir, "schema-reference.motif");
+        var jsonFromMotifPath = Path.Combine(tempDir, "schema-reference.from-motif.json");
         var gpifPath = Path.Combine(tempDir, "schema-reference.score.gpif");
-        var jsonFromGpifPath = Path.Combine(tempDir, "schema-reference.from-gpif.json");
-        var gpFromGpifPath = Path.Combine(tempDir, "schema-reference.from-gpif.gp");
+        var motifFromGpifPath = Path.Combine(tempDir, "schema-reference.from-gpif.motif");
+        var gpFromMotifPath = Path.Combine(tempDir, "schema-reference.from-motif.gp");
 
         try
         {
             await RunDotNetAsync(
                 $"run --project \"{toolProject}\" -- \"{sourceGp}\" \"{jsonPath}\"",
                 repoRoot);
+
+            await RunDotNetAsync(
+                $"run --project \"{toolProject}\" -- \"{sourceGp}\" \"{motifPath}\"",
+                repoRoot);
+
+            File.Exists(motifPath).Should().BeTrue();
+            using (var motifArchive = ZipFile.OpenRead(motifPath))
+            {
+                motifArchive.GetEntry("manifest.json").Should().NotBeNull();
+                motifArchive.GetEntry("score.json").Should().NotBeNull();
+
+                using var manifest = JsonDocument.Parse(await ReadArchiveEntryTextAsync(motifArchive, "manifest.json", TestContext.Current.CancellationToken));
+                manifest.RootElement.GetProperty("formatVersion").GetString().Should().Be("1.0");
+                manifest.RootElement.GetProperty("createdBy").GetString().Should().Be("Motif.Core");
+            }
+
+            await RunDotNetAsync(
+                $"run --project \"{toolProject}\" -- \"{motifPath}\" \"{jsonFromMotifPath}\"",
+                repoRoot);
+
+            File.Exists(jsonFromMotifPath).Should().BeTrue();
+            var jsonFromMotif = await File.ReadAllTextAsync(jsonFromMotifPath, TestContext.Current.CancellationToken);
+            jsonFromMotif.Should().Contain("\"Tracks\"");
+            jsonFromMotif.Should().Contain("\"TimelineBars\"");
 
             await RunDotNetAsync(
                 $"run --project \"{toolProject}\" -- \"{jsonPath}\" \"{gpifPath}\"",
@@ -256,19 +297,20 @@ public class CliRoundTripRegressionTests
             gpif.Should().Contain("<GPIF");
 
             await RunDotNetAsync(
-                $"run --project \"{toolProject}\" -- \"{gpifPath}\" \"{jsonFromGpifPath}\"",
+                $"run --project \"{toolProject}\" -- \"{gpifPath}\" \"{motifFromGpifPath}\"",
                 repoRoot);
 
-            File.Exists(jsonFromGpifPath).Should().BeTrue();
-            var jsonFromGpif = await File.ReadAllTextAsync(jsonFromGpifPath, TestContext.Current.CancellationToken);
-            jsonFromGpif.Should().Contain("\"Tracks\"");
-            jsonFromGpif.Should().Contain("\"TimelineBars\"");
+            using (var motifFromGpifArchive = ZipFile.OpenRead(motifFromGpifPath))
+            {
+                motifFromGpifArchive.GetEntry("manifest.json").Should().NotBeNull();
+                motifFromGpifArchive.GetEntry("score.json").Should().NotBeNull();
+            }
 
             await RunDotNetAsync(
-                $"run --project \"{toolProject}\" -- \"{gpifPath}\" \"{gpFromGpifPath}\"",
+                $"run --project \"{toolProject}\" -- \"{motifPath}\" \"{gpFromMotifPath}\"",
                 repoRoot);
 
-            using var archive = ZipFile.OpenRead(gpFromGpifPath);
+            using var archive = ZipFile.OpenRead(gpFromMotifPath);
             archive.GetEntry("Content/score.gpif").Should().NotBeNull();
         }
         finally
@@ -442,6 +484,47 @@ public class CliRoundTripRegressionTests
         }
     }
 
+    [Fact]
+    public async Task Batch_export_can_write_motif_archives_when_output_format_is_motif()
+    {
+        var sourceGp = GuitarProFixture.PathFor("schema-reference.gp");
+        File.Exists(sourceGp).Should().BeTrue();
+
+        var repoRoot = FindRepositoryRoot();
+        var toolProject = Path.Combine(repoRoot, "Source", "Motif.CLI", "Motif.CLI.csproj");
+        Directory.Exists(Path.GetDirectoryName(toolProject)!).Should().BeTrue();
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"motif-cli-batch-motif-{Guid.NewGuid():N}");
+        var inputDir = Path.Combine(tempDir, "input");
+        var outputDir = Path.Combine(tempDir, "output");
+        Directory.CreateDirectory(Path.Combine(inputDir, "nested"));
+        Directory.CreateDirectory(outputDir);
+
+        var copiedGp = Path.Combine(inputDir, "nested", "schema-reference.gp");
+        File.Copy(sourceGp, copiedGp, overwrite: true);
+
+        var motifArchivePath = Path.Combine(outputDir, "nested", "schema-reference.motif");
+
+        try
+        {
+            await RunDotNetAsync(
+                $"run --project \"{toolProject}\" -- --batch-input-dir \"{inputDir}\" --batch-output-dir \"{outputDir}\" --output-format motif",
+                repoRoot);
+
+            File.Exists(motifArchivePath).Should().BeTrue();
+            using var archive = ZipFile.OpenRead(motifArchivePath);
+            archive.GetEntry("manifest.json").Should().NotBeNull();
+            archive.GetEntry("score.json").Should().NotBeNull();
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
@@ -514,5 +597,18 @@ public class CliRoundTripRegressionTests
         using var buffer = new MemoryStream();
         await stream.CopyToAsync(buffer, cancellationToken);
         return buffer.ToArray();
+    }
+
+    private static async Task<string> ReadArchiveEntryTextAsync(
+        ZipArchive archive,
+        string entryName,
+        CancellationToken cancellationToken)
+    {
+        var entry = archive.GetEntry(entryName);
+        entry.Should().NotBeNull();
+
+        await using var stream = entry!.Open();
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: false);
+        return await reader.ReadToEndAsync(cancellationToken);
     }
 }

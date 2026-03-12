@@ -13,8 +13,8 @@ round-trip diagnostics.
   `Score -> Tracks -> Staves -> StaffMeasures -> Voices -> Beats -> Notes`
 - Preserve score-wide timeline and navigation state on `Score.TimelineBars`
 - Rebuild derived playback order with `ScoreNavigation`
-- Write edited scores back to `.gpif` or `.gp`
-- Convert between `.gp`, `.gpif`, and mapped JSON with `motif-cli`
+- Write edited scores back to `.gpif`, `.gp`, or native `.motif`
+- Convert between `.gp`, `.gpif`, `.motif`, and mapped JSON with `motif-cli`
 
 ## Projects
 
@@ -58,8 +58,10 @@ ScoreNavigation.RebuildPlaybackSequence(score);
 await MotifScore.SaveAsync(score, "song-edited.gp", cancellationToken);
 ```
 
-`MotifScore` handles mapped JSON directly and discovers extension handlers such as Guitar
-Pro at runtime. Use `GuitarProWriter` directly, or resolve it through
+`MotifScore` handles mapped JSON and native `.motif` archives directly, and discovers
+extension handlers such as Guitar Pro at runtime. Current `.motif` archives contain
+`manifest.json` and `score.json`; format-specific extension data and resource bundling are
+the next layer of the archive work. Use `GuitarProWriter` directly, or resolve it through
 `MotifScore.CreateWriter("gp")`, when you need Guitar Pro-specific write diagnostics or
 explicit source-archive control such as the CLI `--source-gp` workflow.
 
@@ -82,6 +84,12 @@ dotnet run --project Source/Motif.CLI -- song.gp song.score.gpif
 
 # Convert raw GPIF to mapped JSON
 dotnet run --project Source/Motif.CLI -- song.gpif song.json
+
+# Package a score as a native .motif archive
+dotnet run --project Source/Motif.CLI -- song.gp song.motif
+
+# Read a native .motif archive back to mapped JSON
+dotnet run --project Source/Motif.CLI -- song.motif song.json
 
 # Write a new .gp archive from mapped JSON
 dotnet run --project Source/Motif.CLI -- song.json output.gp
@@ -111,6 +119,7 @@ pattern everywhere: `--flag`, `--flag=true`, and `--flag=false`.
 | --- | --- | --- | --- |
 | `gp` | Yes | Yes | Guitar Pro ZIP archive containing `Content/score.gpif` |
 | `gpif` | Yes | Yes | Raw GPIF XML |
+| `motif` | Yes | Yes | Native ZIP archive with `manifest.json` and `score.json`; extension/resource bundling is still in progress |
 | `json` | Yes | Yes | Mapped `Score` JSON, intended for editing and inspection |
 | `musicxml` / `mxl` | No | No | Not part of the current CLI or library surface |
 | `midi` | No | No | Not part of the current CLI or library surface |

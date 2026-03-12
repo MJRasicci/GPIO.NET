@@ -19,8 +19,10 @@ ScoreNavigation.RebuildPlaybackSequence(score);
 await MotifScore.SaveAsync(score, "song-edited.gp", cancellationToken);
 ```
 
-`MotifScore` handles mapped JSON natively and discovers extension handlers such as Guitar
-Pro from referenced Motif assemblies at runtime.
+`MotifScore` handles mapped JSON and native `.motif` archives directly, and discovers
+extension handlers such as Guitar Pro from referenced Motif assemblies at runtime.
+Current `.motif` archives contain `manifest.json` and `score.json`; format-specific
+extension data and resource bundling are a follow-up.
 
 ## When To Use Guitar Pro APIs Directly
 

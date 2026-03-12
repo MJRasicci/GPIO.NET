@@ -8,6 +8,7 @@ internal static class CliFormatExtensions
             CliFormat.Json => "json",
             CliFormat.GuitarPro => "gp",
             CliFormat.Gpif => "gpif",
+            CliFormat.Motif => "motif",
             _ => throw new ArgumentOutOfRangeException(nameof(format))
         };
 }

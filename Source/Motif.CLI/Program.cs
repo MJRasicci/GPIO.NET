@@ -69,6 +69,13 @@ try
                         }
                         break;
 
+                    case CliFormat.Motif:
+                    {
+                        var mappedScore = await CliScoreRouting.OpenAsync(file, options.InputFormat).ConfigureAwait(false);
+                        await WriteMotifArchiveAsync(mappedScore, outPath).ConfigureAwait(false);
+                        break;
+                    }
+
                     default:
                         throw new InvalidOperationException($"Unsupported batch conversion gp -> {options.OutputFormat.ToToken()}.");
                 }
@@ -160,6 +167,10 @@ try
             await WriteGpifAsync(score, options, outputPath).ConfigureAwait(false);
             return 0;
 
+        case CliFormat.Motif:
+            await WriteMotifArchiveAsync(score, outputPath).ConfigureAwait(false);
+            return 0;
+
         default:
             throw new InvalidOperationException(
                 $"Unsupported conversion {options.InputFormat.ToToken()} -> {options.OutputFormat.ToToken()}.");
@@ -211,6 +222,13 @@ static async Task WriteRegisteredGuitarProArchiveAsync(Score score, CliOptions o
 
     Console.WriteLine($"GP archive written: {outputPath}");
     await ReportWriteDiagnosticsAsync(options, diagnostics).ConfigureAwait(false);
+}
+
+static async Task WriteMotifArchiveAsync(Score score, string outputPath)
+{
+    var writer = CliScoreRouting.CreateWriter(CliFormat.Motif);
+    await writer.WriteAsync(score, outputPath).ConfigureAwait(false);
+    Console.WriteLine($"Motif archive written: {outputPath}");
 }
 
 static async Task WriteGuitarProArchiveAsync(
@@ -336,6 +354,7 @@ static string BuildDefaultOutputPath(string inputPath, CliFormat outputFormat)
         CliFormat.Json => ".mapped.json",
         CliFormat.GuitarPro => ".gp",
         CliFormat.Gpif => ".score.gpif",
+        CliFormat.Motif => ".motif",
         _ => ".out"
     };
 
@@ -350,6 +369,7 @@ static string BuildBatchOutputRelativePath(string relativeInputPath, CliFormat o
         CliFormat.Json => Path.ChangeExtension(relativeInputPath, ".json"),
         CliFormat.GuitarPro => Path.ChangeExtension(relativeInputPath, ".gp"),
         CliFormat.Gpif => Path.ChangeExtension(relativeInputPath, ".score.gpif"),
+        CliFormat.Motif => Path.ChangeExtension(relativeInputPath, ".motif"),
         _ => throw new InvalidOperationException($"Unsupported batch output format {outputFormat.ToToken()}.")
     };
 
@@ -421,6 +441,15 @@ SINGLE FILE
     Read a .gp file and export mapped score JSON.
     Output: song.mapped.json
 
+  motif-cli song.gp song.motif
+  motif-cli song.gpif song.motif
+  motif-cli song.json song.motif
+    Write a native .motif archive containing manifest.json and score.json.
+
+  motif-cli song.motif song.json
+    Read a native .motif archive and export mapped score JSON.
+    Current .motif archives store manifest.json and score.json.
+
   motif-cli song.gp song.score.gpif
   motif-cli song.gp --output-format gpif
     Extract the raw GPIF XML embedded in the .gp archive.
@@ -454,6 +483,9 @@ BATCH EXPORT
   motif-cli --batch-input-dir ./songs --batch-output-dir ./gpif --output-format gpif
     Extract raw GPIF for every .gp file under ./songs.
 
+  motif-cli --batch-input-dir ./songs --batch-output-dir ./motif --output-format motif
+    Export every .gp file under ./songs to native .motif archives.
+
   motif-cli --batch-input-dir ./songs --batch-output-dir ./analysis --batch-roundtrip-diagnostics
     Run a no-edit mapped JSON/full-write roundtrip for every .gp file under ./songs
     and write aggregate drift diagnostics plus JSONL file/diagnostic streams under ./analysis.
@@ -469,11 +501,11 @@ BATCH EXPORT
     (default: <batch-output-dir>/batch-failures.jsonl).
 
 OPTIONS
-  --input-format <json|gp|gpif>
+  --input-format <json|gp|gpif|motif>
                                 Explicit input format
-  --output-format <json|gp|gpif>
+  --output-format <json|gp|gpif|motif>
                                 Explicit output format
-  --format <json|gp|gpif>
+  --format <json|gp|gpif|motif>
                                 Alias for --output-format
   --out <path>                  Explicit output file path
   --from-json                   Compatibility alias for --input-format json
