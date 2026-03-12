@@ -47,29 +47,20 @@ docs/
 
 ```csharp
 using Motif;
-using Motif.Extensions.GuitarPro;
 
-var reader = new GuitarProReader();
-var writer = new GuitarProWriter();
-
-var score = await reader.ReadAsync("song.gp", cancellationToken: cancellationToken);
+var score = await MotifScore.OpenAsync("song.gp", cancellationToken: cancellationToken);
 
 score.Title = "Edited Title";
 
 // Rebuild derived playback state after navigation-affecting edits.
 ScoreNavigation.RebuildPlaybackSequence(score);
 
-var diagnostics = await writer.WriteWithDiagnosticsAsync(
-    score,
-    "song-edited.gp",
-    cancellationToken);
+await MotifScore.SaveAsync(score, "song-edited.gp", cancellationToken);
 ```
 
-`GuitarProWriter` always writes a valid `.gp` archive. If the destination path already
-exists and is a valid archive, non-score ZIP entries are preserved and only
-`Content/score.gpif` is replaced. If the destination does not exist, the writer uses the
-embedded default archive template. For a new output path seeded from a different source
-archive, use the CLI `--source-gp` workflow.
+`MotifScore` handles mapped JSON directly and discovers extension handlers such as Guitar
+Pro at runtime. Use `GuitarProWriter` directly when you need Guitar Pro-specific write
+diagnostics or explicit source-archive control such as the CLI `--source-gp` workflow.
 
 ## CLI Quick Start
 

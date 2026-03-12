@@ -13,6 +13,11 @@ public class PublicApiSurfaceTests
         typeof(IModelExtension).Should().NotBeNull();
         typeof(IScoreReader).Should().NotBeNull();
         typeof(IScoreWriter).Should().NotBeNull();
+        typeof(IPathScoreReader).Should().NotBeNull();
+        typeof(IPathScoreWriter).Should().NotBeNull();
+        typeof(IFormatHandler).Should().NotBeNull();
+        typeof(MotifFormatHandlerAttribute).Should().NotBeNull();
+        typeof(MotifScore).Should().NotBeNull();
         typeof(ScoreJson).Should().NotBeNull();
         typeof(ScoreNavigation).Should().NotBeNull();
         typeof(TimelineBar).Should().NotBeNull();

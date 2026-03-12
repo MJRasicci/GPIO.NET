@@ -7,12 +7,8 @@ This document covers the recommended application workflow when using `Motif` and
 
 ```csharp
 using Motif;
-using Motif.Extensions.GuitarPro;
 
-var reader = new GuitarProReader();
-var writer = new GuitarProWriter();
-
-var score = await reader.ReadAsync("song.gp", cancellationToken: cancellationToken);
+var score = await MotifScore.OpenAsync("song.gp", cancellationToken: cancellationToken);
 
 // Apply edits to the mapped score model.
 score.Title = "Edited Title";
@@ -20,13 +16,20 @@ score.Title = "Edited Title";
 // Rebuild derived playback traversal after navigation-affecting edits.
 ScoreNavigation.RebuildPlaybackSequence(score);
 
-var diagnostics = await writer.WriteWithDiagnosticsAsync(
-    score,
-    "song-edited.gp",
-    cancellationToken);
+await MotifScore.SaveAsync(score, "song-edited.gp", cancellationToken);
 ```
 
-Use `WriteAsync` if you do not need the diagnostic result.
+`MotifScore` handles mapped JSON natively and discovers extension handlers such as Guitar
+Pro from referenced Motif assemblies at runtime.
+
+## When To Use Guitar Pro APIs Directly
+
+Use `GuitarProReader` and `GuitarProWriter` directly when you need Guitar Pro-specific
+capabilities instead of the format-agnostic unified API:
+
+- `WriteWithDiagnosticsAsync()` for `WriteDiagnostics`
+- Advanced archive-seeding workflows such as the CLI `--source-gp` behavior
+- Explicit control over raw GPIF read/write stages during debugging
 
 ## Destination Archive Behavior
 
@@ -108,7 +111,7 @@ Use this when you round-trip through JSON or rebuild a score from some other pro
 want to reuse matching GP fidelity metadata from a known source score.
 
 ```csharp
-var sourceScore = await reader.ReadAsync("song.gp", cancellationToken: cancellationToken);
+var sourceScore = await MotifScore.OpenAsync("song.gp", cancellationToken: cancellationToken);
 var editedScore = /* JSON-deserialized or otherwise rebuilt score */;
 
 var reattachment = editedScore.ReattachGuitarProExtensionsFrom(sourceScore);

@@ -4,9 +4,9 @@ using Motif;
 using Motif.Extensions.GuitarPro.Models.Write;
 using Motif.Models;
 
-public interface IGuitarProWriter : IScoreWriter
+public interface IGuitarProWriter : IScoreWriter, IPathScoreWriter
 {
-    ValueTask WriteAsync(Score score, string filePath, CancellationToken cancellationToken = default);
+    new ValueTask WriteAsync(Score score, string filePath, CancellationToken cancellationToken = default);
 
     ValueTask<WriteDiagnostics> WriteWithDiagnosticsAsync(Score score, string filePath, CancellationToken cancellationToken = default);
 
