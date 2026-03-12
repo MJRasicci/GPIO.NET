@@ -58,7 +58,6 @@ internal sealed class BatchRoundTripDiagnosticsRunner
 
         var failures = new List<BatchFailure>();
         var summaryBuilder = new BatchRoundTripSummaryBuilder();
-        var reader = new GuitarProReader();
         var unmapper = new DefaultScoreUnmapper();
         var serializer = new XmlGpifSerializer();
         var deserializer = new XmlGpifDeserializer();
@@ -74,7 +73,7 @@ internal sealed class BatchRoundTripDiagnosticsRunner
 
             try
             {
-                var analyzed = await AnalyzeFileAsync(file, relativePath, reader, unmapper, serializer, deserializer, cancellationToken).ConfigureAwait(false);
+                var analyzed = await AnalyzeFileAsync(file, relativePath, unmapper, serializer, deserializer, cancellationToken).ConfigureAwait(false);
 
                 await fileResultsWriter.WriteLineAsync(
                         JsonSerializer.Serialize(analyzed.FileResult, CompactJsonContext.BatchRoundTripFileResult))
@@ -181,7 +180,6 @@ internal sealed class BatchRoundTripDiagnosticsRunner
     private static async ValueTask<AnalyzedFile> AnalyzeFileAsync(
         string file,
         string relativePath,
-        GuitarProReader reader,
         DefaultScoreUnmapper unmapper,
         XmlGpifSerializer serializer,
         XmlGpifDeserializer deserializer,
@@ -189,7 +187,7 @@ internal sealed class BatchRoundTripDiagnosticsRunner
     {
         var sourceGpifBytes = await ReadScoreGpifBytesAsync(file, cancellationToken).ConfigureAwait(false);
         var sourceRaw = await DeserializeRawGpifAsync(sourceGpifBytes, deserializer, cancellationToken).ConfigureAwait(false);
-        var sourceScore = await reader.ReadAsync(file, cancellationToken: cancellationToken).ConfigureAwait(false);
+        var sourceScore = await CliScoreRouting.OpenAsync(file, CliFormat.GuitarPro, cancellationToken).ConfigureAwait(false);
 
         // Use the CLI source-generated context here so batch diagnostics stay trim/AOT-safe while still
         // exercising the JSON roundtrip. ignore-default/null trims would artificially create drift.

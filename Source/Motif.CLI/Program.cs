@@ -36,8 +36,6 @@ try
         var files = Directory.GetFiles(inputRoot, "*.gp", SearchOption.AllDirectories);
         var failures = new List<BatchFailure>();
         var ok = 0;
-        var reader = options.OutputFormat == CliFormat.Json ? new GuitarProReader() : null;
-
         foreach (var file in files)
         {
             var rel = Path.GetRelativePath(inputRoot, file);
@@ -50,7 +48,7 @@ try
                 {
                     case CliFormat.Json:
                     {
-                        var mappedScore = await reader!.ReadAsync(file).ConfigureAwait(false);
+                        var mappedScore = await CliScoreRouting.OpenAsync(file, options.InputFormat).ConfigureAwait(false);
                         var mappedJson = mappedScore.ToJson(
                             indented: options.JsonIndented,
                             ignoreNullValues: options.JsonIgnoreNull,
@@ -71,7 +69,7 @@ try
                         break;
 
                     default:
-                        throw new InvalidOperationException($"Unsupported batch conversion gp -> {FormatToken(options.OutputFormat)}.");
+                        throw new InvalidOperationException($"Unsupported batch conversion gp -> {options.OutputFormat.ToToken()}.");
                 }
 
                 ok++;
@@ -129,7 +127,7 @@ try
         }
     }
 
-    var score = await ReadScoreAsync(options.InputPath, options.InputFormat).ConfigureAwait(false);
+    var score = await CliScoreRouting.OpenAsync(options.InputPath, options.InputFormat).ConfigureAwait(false);
     switch (options.OutputFormat)
     {
         case CliFormat.Json:
@@ -155,7 +153,7 @@ try
 
         default:
             throw new InvalidOperationException(
-                $"Unsupported conversion {FormatToken(options.InputFormat)} -> {FormatToken(options.OutputFormat)}.");
+                $"Unsupported conversion {options.InputFormat.ToToken()} -> {options.OutputFormat.ToToken()}.");
     }
 }
 catch (OperationCanceledException ex) when (ex.Message == "help")
@@ -167,37 +165,6 @@ catch (Exception ex)
 {
     await Console.Error.WriteLineAsync(ex.Message).ConfigureAwait(false);
     return 1;
-}
-
-static async Task<Score> ReadScoreAsync(string inputPath, CliFormat inputFormat)
-{
-    switch (inputFormat)
-    {
-        case CliFormat.Json:
-        {
-            var json = await File.ReadAllTextAsync(inputPath).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(json, CliJsonContext.Default.Score)
-                   ?? throw new InvalidDataException("Unable to deserialize mapped score JSON.");
-        }
-
-        case CliFormat.GuitarPro:
-        {
-            var reader = new GuitarProReader();
-            return await reader.ReadAsync(inputPath).ConfigureAwait(false);
-        }
-
-        case CliFormat.Gpif:
-        {
-            await using var stream = File.OpenRead(inputPath);
-            var deserializer = new XmlGpifDeserializer();
-            var raw = await deserializer.DeserializeAsync(stream).ConfigureAwait(false);
-            var mapper = new DefaultScoreMapper();
-            return await mapper.MapAsync(raw).ConfigureAwait(false);
-        }
-
-        default:
-            throw new InvalidOperationException($"Unsupported input format {FormatToken(inputFormat)}.");
-    }
 }
 
 static async Task WriteMappedJsonAsync(Score score, CliOptions options, string outputPath)
@@ -243,8 +210,7 @@ static async Task WriteGuitarProArchiveAsync(
 
     if (sourceScore is null && !string.IsNullOrWhiteSpace(options.SourceGpPath))
     {
-        var reader = new GuitarProReader();
-        sourceScore = await reader.ReadAsync(options.SourceGpPath).ConfigureAwait(false);
+        sourceScore = await CliScoreRouting.OpenAsync(options.SourceGpPath, CliFormat.GuitarPro).ConfigureAwait(false);
     }
 
     var isNoOpWrite = sourceScore is not null && IsNoOpWrite(sourceScore, editedScore);
@@ -361,7 +327,7 @@ static string BuildBatchOutputRelativePath(string relativeInputPath, CliFormat o
         CliFormat.Json => Path.ChangeExtension(relativeInputPath, ".json"),
         CliFormat.GuitarPro => Path.ChangeExtension(relativeInputPath, ".gp"),
         CliFormat.Gpif => Path.ChangeExtension(relativeInputPath, ".score.gpif"),
-        _ => throw new InvalidOperationException($"Unsupported batch output format {FormatToken(outputFormat)}.")
+        _ => throw new InvalidOperationException($"Unsupported batch output format {outputFormat.ToToken()}.")
     };
 
 static void EnsureOutputDirectory(string outputPath)
@@ -409,15 +375,6 @@ static async Task<Motif.Extensions.GuitarPro.Models.Raw.GpifDocument> Deserializ
     return await deserializer.DeserializeAsync(stream).ConfigureAwait(false);
 }
 
-static string FormatToken(CliFormat format)
-    => format switch
-    {
-        CliFormat.Json => "json",
-        CliFormat.GuitarPro => "gp",
-        CliFormat.Gpif => "gpif",
-        _ => throw new ArgumentOutOfRangeException(nameof(format))
-    };
-
 static void PrintHelp()
 {
     var helpText = """
@@ -431,6 +388,7 @@ USAGE
 FORMAT ROUTING
   Input/output formats are inferred from file extensions when possible.
   Use --input-format / --output-format when extensions are missing or ambiguous.
+  Standard score reads use the same MotifScore handler registry as the library API.
   --format remains an alias for --output-format.
   --from-json remains a compatibility alias for --input-format json.
 

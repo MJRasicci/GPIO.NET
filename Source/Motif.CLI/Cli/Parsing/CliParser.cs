@@ -275,7 +275,7 @@ internal static class CliParser
             if (inferred is not null && inferred != explicitFormat)
             {
                 throw new ArgumentException(
-                    $"Input path '{inputPath}' conflicts with --input-format {FormatToken(explicitFormat.Value)}.");
+                    $"Input path '{inputPath}' conflicts with --input-format {explicitFormat.Value.ToToken()}.");
             }
 
             return explicitFormat.Value;
@@ -303,7 +303,7 @@ internal static class CliParser
             if (inferred is not null && inferred != explicitFormat)
             {
                 throw new ArgumentException(
-                    $"Output path '{outputPath}' conflicts with --output-format {FormatToken(explicitFormat.Value)}.");
+                    $"Output path '{outputPath}' conflicts with --output-format {explicitFormat.Value.ToToken()}.");
             }
 
             return explicitFormat.Value;
@@ -331,7 +331,7 @@ internal static class CliParser
             CliFormat.Gpif => CliFormat.Json,
             CliFormat.Json => CliFormat.GuitarPro,
             _ => throw new ArgumentException(
-                $"Unable to infer an output format for {FormatToken(inputFormat)} input. Pass --output-format explicitly.")
+                $"Unable to infer an output format for {inputFormat.ToToken()} input. Pass --output-format explicitly.")
         };
     }
 
@@ -362,13 +362,4 @@ internal static class CliParser
             _ => null
         };
     }
-
-    private static string FormatToken(CliFormat format)
-        => format switch
-        {
-            CliFormat.Json => "json",
-            CliFormat.GuitarPro => "gp",
-            CliFormat.Gpif => "gpif",
-            _ => throw new ArgumentOutOfRangeException(nameof(format))
-        };
 }

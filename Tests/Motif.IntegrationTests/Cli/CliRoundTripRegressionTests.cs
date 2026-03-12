@@ -175,6 +175,55 @@ public class CliRoundTripRegressionTests
     }
 
     [Fact]
+    public async Task Cli_can_route_extensionless_gp_and_gpif_inputs_when_explicit_formats_are_supplied()
+    {
+        var sourceGp = GuitarProFixture.PathFor("schema-reference.gp");
+        File.Exists(sourceGp).Should().BeTrue();
+
+        var repoRoot = FindRepositoryRoot();
+        var toolProject = Path.Combine(repoRoot, "Source", "Motif.CLI", "Motif.CLI.csproj");
+        Directory.Exists(Path.GetDirectoryName(toolProject)!).Should().BeTrue();
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"motif-cli-explicit-input-routing-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        var extensionlessGpPath = Path.Combine(tempDir, "schema-reference.input");
+        var extensionlessJsonPath = Path.Combine(tempDir, "schema-reference.output");
+        var extensionlessGpifPath = Path.Combine(tempDir, "schema-reference.raw");
+        var jsonFromGpifPath = Path.Combine(tempDir, "schema-reference.from-gpif.output");
+
+        try
+        {
+            File.Copy(sourceGp, extensionlessGpPath, overwrite: true);
+
+            await RunDotNetAsync(
+                $"run --project \"{toolProject}\" -- \"{extensionlessGpPath}\" \"{extensionlessJsonPath}\" --input-format gp --output-format json",
+                repoRoot);
+
+            var mappedJson = await File.ReadAllTextAsync(extensionlessJsonPath, TestContext.Current.CancellationToken);
+            mappedJson.Should().Contain("\"Tracks\"");
+
+            await RunDotNetAsync(
+                $"run --project \"{toolProject}\" -- \"{sourceGp}\" \"{extensionlessGpifPath}\" --output-format gpif",
+                repoRoot);
+
+            await RunDotNetAsync(
+                $"run --project \"{toolProject}\" -- \"{extensionlessGpifPath}\" \"{jsonFromGpifPath}\" --input-format gpif --output-format json",
+                repoRoot);
+
+            var jsonFromGpif = await File.ReadAllTextAsync(jsonFromGpifPath, TestContext.Current.CancellationToken);
+            jsonFromGpif.Should().Contain("\"TimelineBars\"");
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task Cli_can_route_between_json_gp_and_gpif_inputs_and_outputs()
     {
         var sourceGp = GuitarProFixture.PathFor("schema-reference.gp");

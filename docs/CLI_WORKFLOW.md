@@ -18,7 +18,8 @@ If you omit the output path, the CLI picks a default output format and file name
 - `song.gp --output-format gpif` -> `song.score.gpif`
 
 Formats are inferred from extensions when possible. Use `--input-format` and
-`--output-format` when the file names do not make the route obvious.
+`--output-format` when the file names do not make the route obvious. Standard
+score reads use the same `MotifScore` handler registry as the library API.
 
 ## Single-File Workflows
 

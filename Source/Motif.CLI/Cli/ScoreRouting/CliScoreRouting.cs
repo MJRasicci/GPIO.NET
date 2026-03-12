@@ -1,0 +1,18 @@
+namespace Motif.CLI;
+
+using Motif;
+using Motif.Models;
+
+internal static class CliScoreRouting
+{
+    public static async ValueTask<Score> OpenAsync(
+        string filePath,
+        CliFormat format,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        using var source = File.OpenRead(filePath);
+        return await MotifScore.OpenAsync(source, format.ToToken(), cancellationToken).ConfigureAwait(false);
+    }
+}
