@@ -129,9 +129,13 @@ want to reuse matching GP fidelity metadata from a known source score.
 var sourceScore = await MotifScore.OpenAsync("song.gp", cancellationToken: cancellationToken);
 var editedScore = /* JSON-deserialized or otherwise rebuilt score */;
 
+MotifScore.ReattachArchiveStateFrom(editedScore, sourceScore);
 var reattachment = editedScore.ReattachGuitarProExtensionsFrom(sourceScore);
 ```
 
+- `MotifScore.ReattachArchiveStateFrom()` restores preserved `.motif` supplemental entries
+  and merges tracked import provenance, which is the archive-side half of the standalone
+  `.motif -> json -> .motif/.gp` workflow.
 - Reattachment matches by track id, staff index, measure index, voice index, beat id, note
   id, and timeline-bar index where applicable.
 - The returned result reports how much source fidelity was reusable.

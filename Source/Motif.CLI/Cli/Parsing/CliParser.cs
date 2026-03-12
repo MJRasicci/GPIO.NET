@@ -21,6 +21,7 @@ internal static class CliParser
         var jsonIgnoreNull = false;
         var jsonIgnoreDefaults = false;
         var fromJson = false;
+        string? sourceScorePath = null;
         string? sourceGpPath = null;
         string? diagnosticsOutPath = null;
         var diagnosticsAsJson = false;
@@ -102,6 +103,15 @@ internal static class CliParser
 
                     break;
 
+                case "--source-score":
+                    if (string.IsNullOrWhiteSpace(value) && i + 1 < args.Length)
+                    {
+                        value = args[++i];
+                    }
+
+                    sourceScorePath = value;
+                    break;
+
                 case "--source-gp":
                     if (string.IsNullOrWhiteSpace(value) && i + 1 < args.Length)
                     {
@@ -173,6 +183,11 @@ internal static class CliParser
             throw new ArgumentException("Missing input path. Pass a .gp or mapped JSON file, or use --batch-input-dir for batch mode.");
         }
 
+        if (!string.IsNullOrWhiteSpace(batchInputDir) && !string.IsNullOrWhiteSpace(sourceScorePath))
+        {
+            throw new ArgumentException("Batch mode does not support --source-score.");
+        }
+
         if (outputFormat is null)
         {
             outputFormat = ResolveLegacyOutputFormatAlias(outputFormatAlias, fromJson);
@@ -190,6 +205,7 @@ internal static class CliParser
             JsonIndented = jsonIndented,
             JsonIgnoreNull = jsonIgnoreNull,
             JsonIgnoreDefaults = jsonIgnoreDefaults,
+            SourceScorePath = string.IsNullOrWhiteSpace(sourceScorePath) ? null : Path.GetFullPath(sourceScorePath),
             SourceGpPath = string.IsNullOrWhiteSpace(sourceGpPath) ? null : Path.GetFullPath(sourceGpPath),
             DiagnosticsOutPath = string.IsNullOrWhiteSpace(diagnosticsOutPath) ? null : Path.GetFullPath(diagnosticsOutPath),
             DiagnosticsAsJson = diagnosticsAsJson,

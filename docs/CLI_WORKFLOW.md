@@ -72,6 +72,17 @@ dotnet run --project Source/Motif.CLI -- score.json output.gp \
   --source-gp input.gp
 ```
 
+Reattach archive and fidelity context from an existing score before writing standalone
+mapped JSON back to `.motif`, `.gp`, or `.gpif`:
+
+```bash
+dotnet run --project Source/Motif.CLI -- edited.json restored.motif \
+  --source-score source.motif
+
+dotnet run --project Source/Motif.CLI -- edited.json restored.gp \
+  --source-score source.motif
+```
+
 Use explicit format routing when extensions are missing or custom:
 
 ```bash
@@ -98,6 +109,8 @@ If a write only produces info-level diagnostics, such as XML-equivalent GPIF byt
 `--diagnostics-out` still writes those entries even when the warning count is zero.
 
 `--source-gp` is only valid for `.gp` output.
+`--source-score` is only valid for `.motif`, `.gp`, and `.gpif` output, and batch mode
+does not support it.
 Current `.motif` archives always contain `manifest.json` and `score.json`, and Motif now
 preserves namespaced `extensions/` and `resources/` entries so format-specific archive
 data can survive `.motif` read/write cycles even before a contributor package is loaded.
@@ -105,6 +118,9 @@ For Guitar Pro sources, those entries now include raw GP metadata plus non-score
 files, so `motif-cli song.motif output.gp` can reconstruct the full `.gp` archive
 without `--source-gp`. `--source-gp` remains the explicit template override for JSON-only
 workflows and other cases where no preserved GP archive payload is attached.
+`--source-score` fills the remaining standalone JSON gap by reopening an existing source
+score, reattaching its preserved archive context and Guitar Pro fidelity state onto the
+edited mapped JSON score, and then writing from that enriched score.
 `.motif` manifests also record the imported source format and file name in
 `manifest.sources`, including extensionless routes that rely on `--input-format`.
 That also means you can edit `score.json` inside an existing `.motif` archive and export

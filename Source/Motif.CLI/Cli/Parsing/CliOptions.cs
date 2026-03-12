@@ -16,6 +16,8 @@ internal sealed class CliOptions
 
     public bool JsonIgnoreDefaults { get; init; }
 
+    public string? SourceScorePath { get; init; }
+
     public string? SourceGpPath { get; init; }
 
     public string? DiagnosticsOutPath { get; init; }

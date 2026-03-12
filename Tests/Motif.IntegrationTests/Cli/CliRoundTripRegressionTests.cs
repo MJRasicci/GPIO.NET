@@ -429,6 +429,89 @@ public class CliRoundTripRegressionTests
     }
 
     [Fact]
+    public async Task Cli_can_reattach_source_score_when_round_tripping_standalone_json_back_to_motif_and_gp()
+    {
+        var sourceGp = GuitarProFixture.PathFor("test.gp");
+        File.Exists(sourceGp).Should().BeTrue();
+
+        var repoRoot = FindRepositoryRoot();
+        var toolProject = Path.Combine(repoRoot, "Source", "Motif.CLI", "Motif.CLI.csproj");
+        Directory.Exists(Path.GetDirectoryName(toolProject)!).Should().BeTrue();
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"motif-cli-source-score-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        var sourceMotifPath = Path.Combine(tempDir, "test.source.motif");
+        var editedJsonPath = Path.Combine(tempDir, "test.edited.json");
+        var restoredMotifPath = Path.Combine(tempDir, "test.restored.motif");
+        var restoredGpPath = Path.Combine(tempDir, "test.restored.gp");
+
+        try
+        {
+            await RunDotNetAsync(
+                $"run --project \"{toolProject}\" -- \"{sourceGp}\" \"{sourceMotifPath}\"",
+                repoRoot);
+
+            await RunDotNetAsync(
+                $"run --project \"{toolProject}\" -- \"{sourceMotifPath}\" \"{editedJsonPath}\"",
+                repoRoot);
+
+            await UpdateScoreJsonFileAsync(editedJsonPath, root =>
+            {
+                root["Title"] = "Edited Via Source Score";
+            });
+
+            await RunDotNetAsync(
+                $"run --project \"{toolProject}\" -- \"{editedJsonPath}\" \"{restoredMotifPath}\" --source-score \"{sourceMotifPath}\"",
+                repoRoot);
+
+            using (var restoredMotifArchive = ZipFile.OpenRead(restoredMotifPath))
+            {
+                restoredMotifArchive.GetEntry("extensions/guitarpro.json").Should().NotBeNull();
+                restoredMotifArchive.GetEntry("resources/guitarpro/Content/Preferences.json").Should().NotBeNull();
+
+                using var manifest = JsonDocument.Parse(await ReadArchiveEntryTextAsync(restoredMotifArchive, "manifest.json", TestContext.Current.CancellationToken));
+                var sources = manifest.RootElement.GetProperty("sources").EnumerateArray().ToArray();
+                sources.Should().HaveCount(2);
+                sources.Select(source => source.GetProperty("format").GetString())
+                    .Should().BeEquivalentTo(new[] { ".json", ".gp" });
+                sources.Select(source => source.GetProperty("fileName").GetString())
+                    .Should().BeEquivalentTo(new[] { "test.edited.json", "test.gp" });
+            }
+
+            await RunDotNetAsync(
+                $"run --project \"{toolProject}\" -- \"{editedJsonPath}\" \"{restoredGpPath}\" --source-score \"{sourceMotifPath}\"",
+                repoRoot);
+
+            var gpifText = Encoding.UTF8.GetString(await ReadScoreGpifBytesAsync(restoredGpPath, TestContext.Current.CancellationToken));
+            var doc = XDocument.Parse(gpifText);
+            doc.Root?
+                .Element("Score")?
+                .Element("Title")?
+                .Value
+                .Should().Be("Edited Via Source Score");
+
+            using (var sourceArchive = ZipFile.OpenRead(sourceGp))
+            using (var restoredArchive = ZipFile.OpenRead(restoredGpPath))
+            {
+                foreach (var entryName in new[] { "VERSION", "meta.json", "Content/Preferences.json", "Content/LayoutConfiguration", "Content/PartConfiguration" })
+                {
+                    var sourceBytes = await ReadArchiveEntryBytesAsync(sourceArchive, entryName, TestContext.Current.CancellationToken);
+                    var outputBytes = await ReadArchiveEntryBytesAsync(restoredArchive, entryName, TestContext.Current.CancellationToken);
+                    outputBytes.Should().Equal(sourceBytes, $"entry '{entryName}' should survive source-score JSON -> GP export");
+                }
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task Cli_rejects_non_v1_formats_and_unknown_output_extensions()
     {
         var sourceGp = GuitarProFixture.PathFor("schema-reference.gp");
@@ -729,6 +812,22 @@ public class CliRoundTripRegressionTests
         await using var output = updatedEntry.Open();
         using var writer = new StreamWriter(output, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), leaveOpen: false);
         await writer.WriteAsync(root!.ToJsonString());
+    }
+
+    private static async Task UpdateScoreJsonFileAsync(string jsonPath, Action<JsonObject> update)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(jsonPath);
+        ArgumentNullException.ThrowIfNull(update);
+
+        var json = await File.ReadAllTextAsync(jsonPath, TestContext.Current.CancellationToken);
+        var root = JsonNode.Parse(json)?.AsObject();
+        root.Should().NotBeNull();
+        update(root!);
+
+        await File.WriteAllTextAsync(
+            jsonPath,
+            root!.ToJsonString(),
+            TestContext.Current.CancellationToken);
     }
 
     private static async Task<byte[]> ReadArchiveEntryBytesAsync(

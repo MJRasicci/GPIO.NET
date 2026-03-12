@@ -156,6 +156,24 @@ public static class MotifScore
     public static IDisposable RegisterArchiveContributor(IArchiveContributor contributor)
         => ArchiveContributorRegistry.Register(contributor);
 
+    /// <summary>
+    /// Reattaches preserved Motif archive state from <paramref name="source"/> onto <paramref name="target"/>.
+    /// </summary>
+    /// <param name="target">The score that should regain archive context before it is saved.</param>
+    /// <param name="source">The score that carries the archive state to reuse.</param>
+    /// <remarks>
+    /// This copies preserved supplemental archive entries and extension keys, and merges any tracked import sources
+    /// so workflows such as <c>.motif -&gt; json -&gt; .motif</c> can deliberately restore archive context after a
+    /// flattened mapped-JSON edit.
+    /// </remarks>
+    public static void ReattachArchiveStateFrom(Score target, Score source)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(source);
+
+        MotifArchiveStateReattachment.ReattachFrom(target, source);
+    }
+
     private static IFormatHandler ResolveHandlerOrThrow(string formatHint)
     {
         var normalizedHint = FormatHandlerRegistry.NormalizeFormatHint(formatHint);

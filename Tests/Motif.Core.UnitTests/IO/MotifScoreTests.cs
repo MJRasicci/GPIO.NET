@@ -179,6 +179,64 @@ public class MotifScoreTests
     }
 
     [Fact]
+    public async Task ReattachArchiveStateFrom_merges_imported_sources_and_preserves_source_archive_entries()
+    {
+        var tempDirectory = CreateTempDirectory();
+        var sourcePath = Path.Combine(tempDirectory, "source.motif");
+        var targetJsonPath = Path.Combine(tempDirectory, "edited.json");
+        var outputPath = Path.Combine(tempDirectory, "reattached.motif");
+        const string importedAt = "2026-03-12T00:00:00.0000000+00:00";
+
+        try
+        {
+            await CreateMotifArchiveWithSupplementalEntriesAsync(
+                sourcePath,
+                CreateScore("Source Archive"),
+                extensions: ["unknown"],
+                supplementalEntries:
+                [
+                    new ArchiveEntry("resources/unknown/data.bin", new byte[] { 1, 2, 3, 4 }),
+                    new ArchiveEntry("extensions/unknown.json", Encoding.UTF8.GetBytes("""{"state":"kept"}"""))
+                ],
+                sources:
+                [
+                    (".gp", "source-input.gp", importedAt)
+                ]);
+
+            await File.WriteAllTextAsync(
+                targetJsonPath,
+                CreateScore("Edited Json").ToJson(),
+                TestContext.Current.CancellationToken);
+
+            var source = await MotifScore.OpenAsync(sourcePath, TestContext.Current.CancellationToken);
+            var target = await MotifScore.OpenAsync(targetJsonPath, TestContext.Current.CancellationToken);
+
+            MotifScore.ReattachArchiveStateFrom(target, source);
+            await MotifScore.SaveAsync(target, outputPath, TestContext.Current.CancellationToken);
+
+            using var archive = ZipFile.OpenRead(outputPath);
+            archive.GetEntry("resources/unknown/data.bin").Should().NotBeNull();
+            archive.GetEntry("extensions/unknown.json").Should().NotBeNull();
+
+            using var manifest = JsonDocument.Parse(await ReadArchiveEntryTextAsync(archive, "manifest.json"));
+            manifest.RootElement.GetProperty("extensions").EnumerateArray()
+                .Select(element => element.GetString())
+                .Should().Contain("unknown");
+
+            var sources = manifest.RootElement.GetProperty("sources").EnumerateArray().ToArray();
+            sources.Should().HaveCount(2);
+            sources.Select(sourceEntry => sourceEntry.GetProperty("format").GetString())
+                .Should().BeEquivalentTo(new[] { ".json", ".gp" });
+            sources.Select(sourceEntry => sourceEntry.GetProperty("fileName").GetString())
+                .Should().BeEquivalentTo(new[] { "edited.json", "source-input.gp" });
+        }
+        finally
+        {
+            Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Archive_contributors_must_write_inside_their_own_namespace()
     {
         using var registration = MotifScore.RegisterArchiveContributor(new InvalidArchiveContributor());

@@ -67,6 +67,9 @@ raw GP metadata plus non-score archive files through `.gp -> .motif -> .gp` work
 When a score is opened from a file path, `.motif` manifests also record the imported
 format and source file name in `manifest.sources`, including extensionless workflows that
 use an explicit format hint.
+If you flatten a score out to mapped JSON and later want to save back to `.motif` or
+`.gp`, reattach archive context with `MotifScore.ReattachArchiveStateFrom(...)` before
+reapplying Guitar Pro fidelity metadata.
 Use `GuitarProWriter` directly, or resolve it through `MotifScore.CreateWriter("gp")`,
 when you need Guitar Pro-specific write diagnostics or explicit source-archive control
 such as the CLI `--source-gp` workflow.
@@ -99,6 +102,9 @@ dotnet run --project Source/Motif.CLI -- song.motif song.json
 
 # Write a new .gp archive from mapped JSON
 dotnet run --project Source/Motif.CLI -- song.json output.gp
+
+# Reattach archive context from an existing source score after standalone JSON edits
+dotnet run --project Source/Motif.CLI -- edited.json restored.motif --source-score source.motif
 
 # Preserve non-score archive entries from an existing source archive
 dotnet run --project Source/Motif.CLI -- song.json output.gp --source-gp original.gp

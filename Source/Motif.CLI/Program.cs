@@ -19,6 +19,11 @@ try
             throw new InvalidOperationException("Batch mode requires --batch-output-dir.");
         }
 
+        if (!string.IsNullOrWhiteSpace(options.SourceScorePath))
+        {
+            throw new InvalidOperationException("Batch mode does not support --source-score.");
+        }
+
         if (options.BatchRoundTripDiagnostics)
         {
             var runner = new BatchRoundTripDiagnosticsRunner();
@@ -125,6 +130,12 @@ try
         throw new InvalidOperationException("--source-gp is only supported for -> .gp writes.");
     }
 
+    if (!string.IsNullOrWhiteSpace(options.SourceScorePath)
+        && options.OutputFormat == CliFormat.Json)
+    {
+        throw new InvalidOperationException("--source-score is only supported for -> .motif, -> .gp, or -> .gpif writes.");
+    }
+
     switch ((options.InputFormat, options.OutputFormat))
     {
         case (CliFormat.GuitarPro, CliFormat.Gpif):
@@ -136,6 +147,12 @@ try
     }
 
     var score = await CliScoreRouting.OpenAsync(options.InputPath, options.InputFormat).ConfigureAwait(false);
+    var sourceContextScore = await OpenSourceContextAsync(options).ConfigureAwait(false);
+    if (sourceContextScore is not null)
+    {
+        ApplySourceContext(score, sourceContextScore);
+    }
+
     switch (options.OutputFormat)
     {
         case CliFormat.Json:
@@ -144,12 +161,14 @@ try
 
         case CliFormat.GuitarPro:
         {
-            var sourceScore = options.InputFormat == CliFormat.GuitarPro ? score : null;
+            var sourceScore = sourceContextScore ?? (options.InputFormat == CliFormat.GuitarPro ? score : null);
             var archiveTemplatePath = !string.IsNullOrWhiteSpace(options.SourceGpPath)
                 ? options.SourceGpPath
                 : options.InputFormat == CliFormat.GuitarPro
                     ? options.InputPath
-                    : null;
+                    : IsGuitarProArchivePath(options.SourceScorePath)
+                        ? options.SourceScorePath
+                        : null;
 
             if (!string.IsNullOrWhiteSpace(archiveTemplatePath))
             {
@@ -201,6 +220,25 @@ static async Task WriteMappedJsonAsync(Score score, CliOptions options, string o
     Console.WriteLine($"Title: {score.Title}");
     Console.WriteLine($"Tracks: {score.Tracks.Count}");
     Console.WriteLine($"Playback bars: {score.PlaybackMasterBarSequence.Count}");
+}
+
+static async Task<Score?> OpenSourceContextAsync(CliOptions options)
+{
+    if (string.IsNullOrWhiteSpace(options.SourceScorePath))
+    {
+        return null;
+    }
+
+    return await MotifScore.OpenAsync(options.SourceScorePath).ConfigureAwait(false);
+}
+
+static void ApplySourceContext(Score targetScore, Score sourceScore)
+{
+    MotifScore.ReattachArchiveStateFrom(targetScore, sourceScore);
+    if (sourceScore.GetGuitarPro() is not null)
+    {
+        targetScore.ReattachGuitarProExtensionsFrom(sourceScore);
+    }
 }
 
 static async Task WriteGpifAsync(Score score, CliOptions options, string outputPath)
@@ -393,6 +431,10 @@ static bool AreSamePath(string left, string right)
     return string.Equals(normalizedLeft, normalizedRight, comparison);
 }
 
+static bool IsGuitarProArchivePath(string? path)
+    => !string.IsNullOrWhiteSpace(path)
+       && string.Equals(Path.GetExtension(path), ".gp", StringComparison.OrdinalIgnoreCase);
+
 static bool IsNoOpWrite(Score sourceScore, Score editedScore)
 {
     var sourceJson = JsonSerializer.Serialize(sourceScore, CliJsonContext.Default.Score);
@@ -463,9 +505,16 @@ SINGLE FILE
     Read mapped score JSON and write a .gp archive.
     Uses the built-in default archive payload and replaces Content/score.gpif.
 
+  motif-cli edited.json restored.motif --source-score original.motif
+    Reattach preserved archive context from an existing score file before writing.
+    Use this after standalone mapped JSON edits when the source archive held contributor data.
+
   motif-cli song.json output.gp --source-gp original.gp
     Preserve non-score archive entries by copying original.gp and replacing only
     Content/score.gpif.
+
+  motif-cli edited.json output.gp --source-score original.motif
+    Reattach source archive/fidelity context from original.motif before exporting .gp.
 
   motif-cli score.data out.data --input-format json --output-format gp
     Explicit format routing when extensions are not usable.
@@ -510,6 +559,7 @@ OPTIONS
                                 Alias for --output-format
   --out <path>                  Explicit output file path
   --from-json                   Compatibility alias for --input-format json
+  --source-score <path>         Reattach archive/fidelity context from an existing score file
   --source-gp <path>            Custom archive template for JSON -> .gp writes
   --batch-input-dir <dir>       Source directory for batch export
   --batch-output-dir <dir>      Destination directory for batch export
