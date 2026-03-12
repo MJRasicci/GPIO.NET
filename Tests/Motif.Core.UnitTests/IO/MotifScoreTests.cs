@@ -172,7 +172,7 @@ public class MotifScoreTests
         public IScoreWriter CreateWriter() => Writer;
     }
 
-    private sealed class RecordingReader : IScoreReader, IPathScoreReader
+    private sealed class RecordingReader : IScoreReader
     {
         public int PathReads { get; private set; }
 
@@ -196,7 +196,7 @@ public class MotifScoreTests
         }
     }
 
-    private sealed class RecordingWriter : IScoreWriter, IPathScoreWriter
+    private sealed class RecordingWriter : IScoreWriter
     {
         public int PathWrites { get; private set; }
 

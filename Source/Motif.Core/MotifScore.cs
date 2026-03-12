@@ -22,14 +22,7 @@ public static class MotifScore
 
         var formatHint = FormatHandlerRegistry.GetFormatHintFromPath(filePath);
         var reader = ResolveHandlerOrThrow(formatHint).CreateReader();
-
-        if (reader is IPathScoreReader pathReader)
-        {
-            return await pathReader.ReadAsync(filePath, cancellationToken).ConfigureAwait(false);
-        }
-
-        await using var source = File.OpenRead(filePath);
-        return await reader.ReadAsync(source, cancellationToken).ConfigureAwait(false);
+        return await reader.ReadAsync(filePath, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -69,21 +62,7 @@ public static class MotifScore
 
         var formatHint = FormatHandlerRegistry.GetFormatHintFromPath(filePath);
         var writer = ResolveHandlerOrThrow(formatHint).CreateWriter();
-
-        if (writer is IPathScoreWriter pathWriter)
-        {
-            await pathWriter.WriteAsync(score, filePath, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        var directory = Path.GetDirectoryName(Path.GetFullPath(filePath));
-        if (!string.IsNullOrWhiteSpace(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        await using var destination = File.Create(filePath);
-        await writer.WriteAsync(score, destination, cancellationToken).ConfigureAwait(false);
+        await writer.WriteAsync(score, filePath, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

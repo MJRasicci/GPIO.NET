@@ -6,7 +6,7 @@ using Motif.Models;
 /// <summary>
 /// High-level entry point for reading a Guitar Pro file and returning a mapped domain score.
 /// </summary>
-public interface IGuitarProReader : IScoreReader, IPathScoreReader
+public interface IGuitarProReader : IScoreReader
 {
     new ValueTask<Score> ReadAsync(Stream source, CancellationToken cancellationToken = default);
 

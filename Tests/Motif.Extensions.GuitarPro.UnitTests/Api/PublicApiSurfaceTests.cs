@@ -22,8 +22,6 @@ public class PublicApiSurfaceTests
         typeof(GuitarProModelExtensions).Should().NotBeNull();
         typeof(IScoreReader).Should().NotBeNull();
         typeof(IScoreWriter).Should().NotBeNull();
-        typeof(IPathScoreReader).Should().NotBeNull();
-        typeof(IPathScoreWriter).Should().NotBeNull();
         typeof(IGuitarProReader).Should().NotBeNull();
         typeof(IGuitarProWriter).Should().NotBeNull();
         typeof(GpScoreExtension).Should().NotBeNull();
@@ -32,8 +30,8 @@ public class PublicApiSurfaceTests
         typeof(WriteDiagnostics).Should().NotBeNull();
         typeof(WriteDiagnosticEntry).Should().NotBeNull();
 
-        new GuitarProReader().Should().BeAssignableTo<IScoreReader>().And.BeAssignableTo<IGuitarProReader>().And.BeAssignableTo<IPathScoreReader>();
-        new GuitarProWriter().Should().BeAssignableTo<IScoreWriter>().And.BeAssignableTo<IGuitarProWriter>().And.BeAssignableTo<IPathScoreWriter>();
+        new GuitarProReader().Should().BeAssignableTo<IScoreReader>().And.BeAssignableTo<IGuitarProReader>();
+        new GuitarProWriter().Should().BeAssignableTo<IScoreWriter>().And.BeAssignableTo<IGuitarProWriter>();
         new Score().Tracks.Should().BeEmpty();
 
         typeof(IGuitarProReader).GetMethod(nameof(IGuitarProReader.ReadAsync), [typeof(Stream), typeof(CancellationToken)])

@@ -13,8 +13,6 @@ public class PublicApiSurfaceTests
         typeof(IModelExtension).Should().NotBeNull();
         typeof(IScoreReader).Should().NotBeNull();
         typeof(IScoreWriter).Should().NotBeNull();
-        typeof(IPathScoreReader).Should().NotBeNull();
-        typeof(IPathScoreWriter).Should().NotBeNull();
         typeof(IFormatHandler).Should().NotBeNull();
         typeof(MotifFormatHandlerAttribute).Should().NotBeNull();
         typeof(MotifScore).Should().NotBeNull();
@@ -38,5 +36,14 @@ public class PublicApiSurfaceTests
         new Score().TimelineBars.Should().BeEmpty();
         new Track().Staves.Should().BeEmpty();
         new Staff().Measures.Should().BeEmpty();
+
+        typeof(IScoreReader).GetMethod(nameof(IScoreReader.ReadAsync), [typeof(Stream), typeof(CancellationToken)])
+            .Should().NotBeNull();
+        typeof(IScoreReader).GetMethod(nameof(IScoreReader.ReadAsync), [typeof(string), typeof(CancellationToken)])
+            .Should().NotBeNull();
+        typeof(IScoreWriter).GetMethod(nameof(IScoreWriter.WriteAsync), [typeof(Score), typeof(Stream), typeof(CancellationToken)])
+            .Should().NotBeNull();
+        typeof(IScoreWriter).GetMethod(nameof(IScoreWriter.WriteAsync), [typeof(Score), typeof(string), typeof(CancellationToken)])
+            .Should().NotBeNull();
     }
 }

@@ -4,7 +4,7 @@ using Motif;
 using Motif.Extensions.GuitarPro.Abstractions;
 using Motif.Models;
 
-internal sealed class GpifScoreReader : IScoreReader, IPathScoreReader
+internal sealed class GpifScoreReader : IScoreReader
 {
     private readonly IGpifDeserializer deserializer;
     private readonly IScoreMapper mapper;

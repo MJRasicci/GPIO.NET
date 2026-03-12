@@ -301,7 +301,7 @@ internal static class FormatHandlerRegistry
         public IScoreWriter CreateWriter() => new JsonScoreWriter();
     }
 
-    private sealed class JsonScoreReader : IScoreReader, IPathScoreReader
+    private sealed class JsonScoreReader : IScoreReader
     {
         public async ValueTask<Score> ReadAsync(Stream source, CancellationToken cancellationToken = default)
         {
@@ -323,7 +323,7 @@ internal static class FormatHandlerRegistry
         }
     }
 
-    private sealed class JsonScoreWriter : IScoreWriter, IPathScoreWriter
+    private sealed class JsonScoreWriter : IScoreWriter
     {
         public async ValueTask WriteAsync(Score score, Stream destination, CancellationToken cancellationToken = default)
         {
