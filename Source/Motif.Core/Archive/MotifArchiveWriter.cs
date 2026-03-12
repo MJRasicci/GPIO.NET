@@ -11,10 +11,17 @@ internal sealed class MotifArchiveWriter : IScoreWriter
         ArgumentNullException.ThrowIfNull(score);
         ArgumentNullException.ThrowIfNull(destination);
 
+        var contributors = ArchiveContributorRegistry.GetRegisteredContributors();
+        var supplementalEntries = ArchiveContributorRegistry.PreserveArchiveEntries(
+            score,
+            contributors,
+            out var manifestExtensionKeys);
+
         using (var archive = new ZipArchive(destination, ZipArchiveMode.Create, leaveOpen: true))
         {
-            await WriteManifestAsync(archive, cancellationToken).ConfigureAwait(false);
+            await WriteManifestAsync(archive, manifestExtensionKeys, cancellationToken).ConfigureAwait(false);
             await WriteScoreAsync(archive, score, cancellationToken).ConfigureAwait(false);
+            await WriteSupplementalEntriesAsync(archive, supplementalEntries, cancellationToken).ConfigureAwait(false);
         }
 
         await destination.FlushAsync(cancellationToken).ConfigureAwait(false);
@@ -35,14 +42,17 @@ internal sealed class MotifArchiveWriter : IScoreWriter
         await WriteAsync(score, destination, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async ValueTask WriteManifestAsync(ZipArchive archive, CancellationToken cancellationToken)
+    private static async ValueTask WriteManifestAsync(
+        ZipArchive archive,
+        IReadOnlyList<string> manifestExtensionKeys,
+        CancellationToken cancellationToken)
     {
         var entry = archive.CreateEntry(MotifArchiveFormat.ManifestEntryName);
         var stream = await entry.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var _ = stream;
         await JsonSerializer.SerializeAsync(
                 stream,
-                MotifArchiveFormat.CreateManifest(),
+                MotifArchiveFormat.CreateManifest(manifestExtensionKeys),
                 MotifArchiveJsonContext.Default.MotifArchiveManifest,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -58,5 +68,19 @@ internal sealed class MotifArchiveWriter : IScoreWriter
         await using var _ = stream;
         await JsonSerializer.SerializeAsync(stream, score, MotifJsonContext.Default.Score, cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    private static async ValueTask WriteSupplementalEntriesAsync(
+        ZipArchive archive,
+        IReadOnlyList<ArchiveEntry> supplementalEntries,
+        CancellationToken cancellationToken)
+    {
+        foreach (var supplementalEntry in supplementalEntries)
+        {
+            var entry = archive.CreateEntry(MotifArchivePaths.NormalizeEntryPath(supplementalEntry.EntryPath));
+            var stream = await entry.OpenAsync(cancellationToken).ConfigureAwait(false);
+            await using var _ = stream;
+            await stream.WriteAsync(supplementalEntry.Data, cancellationToken).ConfigureAwait(false);
+        }
     }
 }

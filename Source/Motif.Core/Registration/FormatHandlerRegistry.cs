@@ -124,7 +124,7 @@ internal static class FormatHandlerRegistry
         var handlers = new List<IFormatHandler>();
         var seenHandlerTypes = new HashSet<Type>();
 
-        foreach (var assembly in EnumerateCandidateAssemblies().OrderBy(a => a.FullName, StringComparer.Ordinal))
+        foreach (var assembly in MotifAssemblyDiscovery.EnumerateCandidateAssemblies().OrderBy(a => a.FullName, StringComparer.Ordinal))
         {
             foreach (var attribute in assembly.GetCustomAttributes<MotifFormatHandlerAttribute>())
             {
@@ -171,70 +171,6 @@ internal static class FormatHandlerRegistry
         }
 
         return unique;
-    }
-
-    private static IEnumerable<Assembly> EnumerateCandidateAssemblies()
-    {
-        var assembliesByName = new Dictionary<string, Assembly>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-        {
-            TryAddAssembly(assembliesByName, assembly);
-        }
-
-        var baseDirectory = AppContext.BaseDirectory;
-        if (!Directory.Exists(baseDirectory))
-        {
-            return assembliesByName.Values;
-        }
-
-        foreach (var path in Directory.EnumerateFiles(baseDirectory, "Motif*.dll", SearchOption.TopDirectoryOnly)
-                     .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
-        {
-            AssemblyName assemblyName;
-            try
-            {
-                assemblyName = AssemblyName.GetAssemblyName(path);
-            }
-            catch (BadImageFormatException)
-            {
-                continue;
-            }
-            catch (FileLoadException)
-            {
-                continue;
-            }
-
-            if (assembliesByName.Values.Any(loaded => AssemblyName.ReferenceMatchesDefinition(loaded.GetName(), assemblyName)))
-            {
-                continue;
-            }
-
-            try
-            {
-                TryAddAssembly(assembliesByName, Assembly.Load(assemblyName));
-            }
-            catch
-            {
-                // Ignore optional Motif companion assemblies that are not loadable in the current app.
-            }
-        }
-
-        return assembliesByName.Values;
-    }
-
-    private static void TryAddAssembly(IDictionary<string, Assembly> assembliesByName, Assembly assembly)
-    {
-        var identity = assembly.FullName;
-        if (string.IsNullOrWhiteSpace(identity))
-        {
-            identity = assembly.GetName().Name ?? assembly.Location;
-        }
-
-        if (!string.IsNullOrWhiteSpace(identity) && !assembliesByName.ContainsKey(identity))
-        {
-            assembliesByName[identity] = assembly;
-        }
     }
 
     private static bool SupportsExtension(IFormatHandler handler, string normalizedHint)

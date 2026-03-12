@@ -11,9 +11,12 @@ public class PublicApiSurfaceTests
     {
         typeof(IExtensibleModel).Should().NotBeNull();
         typeof(IModelExtension).Should().NotBeNull();
+        typeof(IArchiveContributor).Should().NotBeNull();
+        typeof(ArchiveEntry).Should().NotBeNull();
         typeof(IScoreReader).Should().NotBeNull();
         typeof(IScoreWriter).Should().NotBeNull();
         typeof(IFormatHandler).Should().NotBeNull();
+        typeof(MotifArchiveContributorAttribute).Should().NotBeNull();
         typeof(MotifFormatHandlerAttribute).Should().NotBeNull();
         typeof(MotifScore).Should().NotBeNull();
         typeof(ScoreJson).Should().NotBeNull();
@@ -48,6 +51,8 @@ public class PublicApiSurfaceTests
         typeof(MotifScore).GetMethod(nameof(MotifScore.CreateReader), [typeof(string)])
             .Should().NotBeNull();
         typeof(MotifScore).GetMethod(nameof(MotifScore.CreateWriter), [typeof(string)])
+            .Should().NotBeNull();
+        typeof(MotifScore).GetMethod(nameof(MotifScore.RegisterArchiveContributor), [typeof(IArchiveContributor)])
             .Should().NotBeNull();
     }
 }

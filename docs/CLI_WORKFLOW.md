@@ -95,8 +95,9 @@ dotnet run --project Source/Motif.CLI -- score.json output.gp \
 - `--diagnostics-json` switches that file from plain text to JSON
 
 `--source-gp` is only valid for `.gp` output.
-Current `.motif` archives contain `manifest.json` and `score.json`; format-specific
-extension data and resource bundling are still in progress.
+Current `.motif` archives always contain `manifest.json` and `score.json`, and Motif now
+preserves namespaced `extensions/` and `resources/` entries so format-specific archive
+data can survive `.motif` read/write cycles even before a contributor package is loaded.
 
 ## Batch Export
 

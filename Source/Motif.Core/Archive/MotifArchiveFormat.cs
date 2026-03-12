@@ -8,11 +8,16 @@ internal static class MotifArchiveFormat
     public const string ManifestEntryName = "manifest.json";
     public const string ScoreEntryName = "score.json";
 
-    public static MotifArchiveManifest CreateManifest()
+    public static MotifArchiveManifest CreateManifest(IEnumerable<string>? extensionKeys = null)
         => new()
         {
             FormatVersion = CurrentFormatVersion,
-            CreatedBy = CreatedBy
+            CreatedBy = CreatedBy,
+            Extensions = extensionKeys?
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+                .ToList()
+                ?? []
         };
 
     public static void ValidateManifest(MotifArchiveManifest manifest)

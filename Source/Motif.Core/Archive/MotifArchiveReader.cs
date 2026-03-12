@@ -27,11 +27,13 @@ internal sealed class MotifArchiveReader : IScoreReader
                 ?? throw new InvalidDataException($"The .motif archive is missing '{MotifArchiveFormat.ManifestEntryName}'.");
             var scoreEntry = archive.GetEntry(MotifArchiveFormat.ScoreEntryName)
                 ?? throw new InvalidDataException($"The .motif archive is missing '{MotifArchiveFormat.ScoreEntryName}'.");
+            var supplementalEntries = await ReadSupplementalEntriesAsync(archive, cancellationToken).ConfigureAwait(false);
 
             var manifest = await ReadManifestAsync(manifestEntry, cancellationToken).ConfigureAwait(false);
             MotifArchiveFormat.ValidateManifest(manifest);
 
             var score = await ReadScoreAsync(scoreEntry, cancellationToken).ConfigureAwait(false);
+            ArchiveContributorRegistry.RestoreArchiveEntries(score, manifest, supplementalEntries);
             ScoreNavigation.EnsurePlaybackSequence(score);
             return score;
         }
@@ -75,5 +77,27 @@ internal sealed class MotifArchiveReader : IScoreReader
             .ConfigureAwait(false);
 
         return score ?? throw new InvalidDataException("Unable to deserialize 'score.json' from the .motif archive.");
+    }
+
+    private static async ValueTask<IReadOnlyList<ArchiveEntry>> ReadSupplementalEntriesAsync(
+        ZipArchive archive,
+        CancellationToken cancellationToken)
+    {
+        var entries = new List<ArchiveEntry>();
+        foreach (var entry in archive.Entries)
+        {
+            if (MotifArchivePaths.IsCoreEntry(entry.FullName))
+            {
+                continue;
+            }
+
+            var stream = await entry.OpenAsync(cancellationToken).ConfigureAwait(false);
+            await using var _ = stream;
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
+            entries.Add(new ArchiveEntry(entry.FullName, buffer.ToArray()));
+        }
+
+        return entries;
     }
 }

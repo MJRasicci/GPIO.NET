@@ -129,6 +129,14 @@ public static class MotifScore
     public static IDisposable RegisterHandler(IFormatHandler handler)
         => FormatHandlerRegistry.Register(handler);
 
+    /// <summary>
+    /// Registers an archive contributor explicitly and returns a token that unregisters it on dispose.
+    /// </summary>
+    /// <param name="contributor">The archive contributor to register.</param>
+    /// <returns>A disposable registration token.</returns>
+    public static IDisposable RegisterArchiveContributor(IArchiveContributor contributor)
+        => ArchiveContributorRegistry.Register(contributor);
+
     private static IFormatHandler ResolveHandlerOrThrow(string formatHint)
     {
         var normalizedHint = FormatHandlerRegistry.NormalizeFormatHint(formatHint);

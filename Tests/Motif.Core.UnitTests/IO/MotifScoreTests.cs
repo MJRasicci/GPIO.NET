@@ -5,6 +5,7 @@ using Motif;
 using Motif.Models;
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json;
 
 public class MotifScoreTests
 {
@@ -61,6 +62,99 @@ public class MotifScoreTests
         {
             Directory.Delete(tempDirectory, recursive: true);
         }
+    }
+
+    [Fact]
+    public async Task Explicit_archive_contributor_registration_round_trips_contributed_entries()
+    {
+        using var registration = MotifScore.RegisterArchiveContributor(new TestArchiveContributor());
+
+        var score = CreateScore("Contributed Archive");
+        score.SetExtension(new TestArchivePayloadExtension
+        {
+            Payload = "contributed-value"
+        });
+
+        var tempDirectory = CreateTempDirectory();
+        var filePath = Path.Combine(tempDirectory, "score.motif");
+
+        try
+        {
+            await MotifScore.SaveAsync(score, filePath, TestContext.Current.CancellationToken);
+
+            using (var archive = ZipFile.OpenRead(filePath))
+            {
+                archive.GetEntry("extensions/test.json").Should().NotBeNull();
+                archive.GetEntry("resources/test/payload.txt").Should().NotBeNull();
+
+                using var manifest = JsonDocument.Parse(await ReadArchiveEntryTextAsync(archive, "manifest.json"));
+                manifest.RootElement.GetProperty("extensions").EnumerateArray()
+                    .Select(element => element.GetString())
+                    .Should().Contain("test");
+            }
+
+            var readBack = await MotifScore.OpenAsync(filePath, TestContext.Current.CancellationToken);
+            readBack.GetExtension<TestArchivePayloadExtension>().Should().NotBeNull();
+            readBack.GetExtension<TestArchivePayloadExtension>()!.Payload.Should().Be("contributed-value");
+        }
+        finally
+        {
+            Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Motif_archive_rewrite_preserves_unknown_supplemental_entries_without_registered_contributors()
+    {
+        var tempDirectory = CreateTempDirectory();
+        var inputPath = Path.Combine(tempDirectory, "input.motif");
+        var outputPath = Path.Combine(tempDirectory, "output.motif");
+
+        try
+        {
+            await CreateMotifArchiveWithSupplementalEntriesAsync(
+                inputPath,
+                CreateScore("Unknown Entries"),
+                extensions: ["unknown"],
+                supplementalEntries:
+                [
+                    new ArchiveEntry("resources/unknown/data.bin", new byte[] { 1, 2, 3, 4 }),
+                    new ArchiveEntry("extensions/unknown.json", Encoding.UTF8.GetBytes("""{"state":"kept"}"""))
+                ]);
+
+            var readBack = await MotifScore.OpenAsync(inputPath, TestContext.Current.CancellationToken);
+            await MotifScore.SaveAsync(readBack, outputPath, TestContext.Current.CancellationToken);
+
+            using var archive = ZipFile.OpenRead(outputPath);
+            archive.GetEntry("resources/unknown/data.bin").Should().NotBeNull();
+            archive.GetEntry("extensions/unknown.json").Should().NotBeNull();
+
+            using var manifest = JsonDocument.Parse(await ReadArchiveEntryTextAsync(archive, "manifest.json"));
+            manifest.RootElement.GetProperty("extensions").EnumerateArray()
+                .Select(element => element.GetString())
+                .Should().Contain("unknown");
+        }
+        finally
+        {
+            Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Archive_contributors_must_write_inside_their_own_namespace()
+    {
+        using var registration = MotifScore.RegisterArchiveContributor(new InvalidArchiveContributor());
+        var score = CreateScore("Invalid Contributor");
+
+        var action = async () =>
+        {
+            await using var stream = new MemoryStream();
+            await MotifScore.SaveAsync(score, stream, ".motif", TestContext.Current.CancellationToken);
+        };
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(action);
+        exception.Message.Should().Contain("invalid");
+        exception.Message.Should().Contain("resources/other");
     }
 
     [Fact]
@@ -232,6 +326,56 @@ public class MotifScoreTests
         return path;
     }
 
+    private static async Task<string> ReadArchiveEntryTextAsync(ZipArchive archive, string entryName)
+    {
+        var entry = archive.GetEntry(entryName);
+        entry.Should().NotBeNull();
+
+        await using var stream = entry!.Open();
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: false);
+        return await reader.ReadToEndAsync(TestContext.Current.CancellationToken);
+    }
+
+    private static async Task CreateMotifArchiveWithSupplementalEntriesAsync(
+        string filePath,
+        Score score,
+        IReadOnlyList<string> extensions,
+        IReadOnlyList<ArchiveEntry> supplementalEntries)
+    {
+        await using var destination = File.Create(filePath);
+        using var archive = new ZipArchive(destination, ZipArchiveMode.Create, leaveOpen: true);
+
+        var manifestEntry = archive.CreateEntry("manifest.json");
+        await using (var manifestStream = manifestEntry.Open())
+        {
+            await JsonSerializer.SerializeAsync(
+                manifestStream,
+                new
+                {
+                    formatVersion = "1.0",
+                    createdBy = "Motif.Core",
+                    sources = Array.Empty<object>(),
+                    extensions
+                },
+                options: (JsonSerializerOptions?)null,
+                TestContext.Current.CancellationToken);
+        }
+
+        var scoreEntry = archive.CreateEntry("score.json");
+        await using (var scoreStream = scoreEntry.Open())
+        {
+            var bytes = Encoding.UTF8.GetBytes(score.ToJson());
+            await scoreStream.WriteAsync(bytes, TestContext.Current.CancellationToken);
+        }
+
+        foreach (var supplementalEntry in supplementalEntries)
+        {
+            var entry = archive.CreateEntry(supplementalEntry.EntryPath);
+            await using var entryStream = entry.Open();
+            await entryStream.WriteAsync(supplementalEntry.Data, TestContext.Current.CancellationToken);
+        }
+    }
+
     private sealed class RecordingFormatHandler : IFormatHandler
     {
         public RecordingFormatHandler()
@@ -306,6 +450,68 @@ public class MotifScoreTests
             }
 
             await File.WriteAllTextAsync(filePath, score.Title ?? string.Empty, cancellationToken);
+        }
+    }
+
+    private sealed class TestArchivePayloadExtension : IModelExtension
+    {
+        public string Payload { get; init; } = string.Empty;
+    }
+
+    private sealed class TestArchiveContributor : IArchiveContributor
+    {
+        public string ContributorKey => "test";
+
+        public IReadOnlyList<ArchiveEntry> GetArchiveEntries(Score score)
+        {
+            ArgumentNullException.ThrowIfNull(score);
+
+            var payload = score.GetExtension<TestArchivePayloadExtension>()?.Payload;
+            if (string.IsNullOrWhiteSpace(payload))
+            {
+                return [];
+            }
+
+            return
+            [
+                new ArchiveEntry("extensions/test.json", Encoding.UTF8.GetBytes($$"""{"payload":"{{payload}}"}""")),
+                new ArchiveEntry("resources/test/payload.txt", Encoding.UTF8.GetBytes(payload))
+            ];
+        }
+
+        public void RestoreFromArchive(Score score, IReadOnlyList<ArchiveEntry> entries)
+        {
+            ArgumentNullException.ThrowIfNull(score);
+            ArgumentNullException.ThrowIfNull(entries);
+
+            var payloadEntry = entries.FirstOrDefault(entry =>
+                string.Equals(entry.EntryPath, "resources/test/payload.txt", StringComparison.OrdinalIgnoreCase));
+            if (payloadEntry is null)
+            {
+                return;
+            }
+
+            score.SetExtension(new TestArchivePayloadExtension
+            {
+                Payload = Encoding.UTF8.GetString(payloadEntry.Data.Span)
+            });
+        }
+    }
+
+    private sealed class InvalidArchiveContributor : IArchiveContributor
+    {
+        public string ContributorKey => "invalid";
+
+        public IReadOnlyList<ArchiveEntry> GetArchiveEntries(Score score)
+        {
+            ArgumentNullException.ThrowIfNull(score);
+            return [new ArchiveEntry("resources/other/file.bin", new byte[] { 1, 2, 3 })];
+        }
+
+        public void RestoreFromArchive(Score score, IReadOnlyList<ArchiveEntry> entries)
+        {
+            ArgumentNullException.ThrowIfNull(score);
+            ArgumentNullException.ThrowIfNull(entries);
         }
     }
 }
