@@ -262,6 +262,92 @@ public class WriterNotePropertyFidelityTests
     }
 
     [Fact]
+    public async Task Regenerated_pitch_payload_warnings_still_round_trip_back_to_the_intended_note_pitch()
+    {
+        var gpif = BuildGpif("""
+            <Properties>
+              <Property name="ConcertPitch">
+                <Pitch><Step>C</Step><Accidental></Accidental><Octave>-1</Octave></Pitch>
+              </Property>
+              <Property name="Fret"><Fret>36</Fret></Property>
+              <Property name="Midi"><Number>36</Number></Property>
+              <Property name="String"><String>0</String></Property>
+              <Property name="TransposedPitch">
+                <Pitch><Step>C</Step><Accidental></Accidental><Octave>-1</Octave></Pitch>
+              </Property>
+            </Properties>
+            """);
+
+        var score = await DeserializeAndMap(gpif);
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].MidiPitch = 38;
+
+        var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
+        result.Diagnostics.Warnings.Select(entry => entry.Code)
+            .Should().Contain(["NOTE_CONCERT_PITCH_REGENERATED", "NOTE_TRANSPOSED_PITCH_REGENERATED"]);
+
+        await using var stream = new MemoryStream();
+        await new XmlGpifSerializer().SerializeAsync(result.RawDocument, stream, TestContext.Current.CancellationToken);
+        var remapped = await DeserializeAndMap(Encoding.UTF8.GetString(stream.ToArray()));
+        var note = remapped.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0];
+
+        note.MidiPitch.Should().Be(38);
+        note.ConcertPitch.Should().NotBeNull();
+        note.ConcertPitch!.Step.Should().Be("D");
+        note.ConcertPitch.Accidental.Should().BeEmpty();
+        note.ConcertPitch.Octave.Should().Be(3);
+        note.TransposedPitch.Should().NotBeNull();
+        note.TransposedPitch!.Step.Should().Be("D");
+        note.TransposedPitch.Accidental.Should().BeEmpty();
+        note.TransposedPitch.Octave.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Regenerated_transposed_pitch_payloads_follow_current_track_transpose_when_read_back()
+    {
+        var gpif = BuildGpif("""
+            <Properties>
+              <Property name="ConcertPitch">
+                <Pitch><Step>C</Step><Accidental></Accidental><Octave>-1</Octave></Pitch>
+              </Property>
+              <Property name="Fret"><Fret>36</Fret></Property>
+              <Property name="Midi"><Number>36</Number></Property>
+              <Property name="String"><String>0</String></Property>
+              <Property name="TransposedPitch">
+                <Pitch><Step>C</Step><Accidental></Accidental><Octave>-1</Octave></Pitch>
+              </Property>
+            </Properties>
+            """);
+
+        var score = await DeserializeAndMap(gpif);
+        score.Tracks[0].GetOrCreateGuitarPro().Metadata.Transpose = new TransposeMetadata
+        {
+            Chromatic = 2,
+            Octave = 0
+        };
+        score.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0].MidiPitch = 38;
+
+        var result = await new DefaultScoreUnmapper().UnmapAsync(score, TestContext.Current.CancellationToken);
+        result.Diagnostics.Warnings.Select(entry => entry.Code).Should().Contain("NOTE_TRANSPOSED_PITCH_REGENERATED");
+
+        await using var stream = new MemoryStream();
+        await new XmlGpifSerializer().SerializeAsync(result.RawDocument, stream, TestContext.Current.CancellationToken);
+        var remapped = await DeserializeAndMap(Encoding.UTF8.GetString(stream.ToArray()));
+        var note = remapped.Tracks[0].PrimaryMeasure(0).Beats[0].Notes[0];
+        var trackMetadata = remapped.Tracks[0].GetRequiredGuitarPro().Metadata;
+
+        trackMetadata.Transpose.Chromatic.Should().Be(2);
+        trackMetadata.Transpose.Octave.Should().Be(0);
+        note.MidiPitch.Should().Be(38);
+        note.ConcertPitch.Should().NotBeNull();
+        note.ConcertPitch!.Step.Should().Be("D");
+        note.ConcertPitch.Octave.Should().Be(3);
+        note.TransposedPitch.Should().NotBeNull();
+        note.TransposedPitch!.Step.Should().Be("E");
+        note.TransposedPitch.Accidental.Should().BeEmpty();
+        note.TransposedPitch.Octave.Should().Be(3);
+    }
+
+    [Fact]
     public async Task Note_velocity_and_bend_float_payloads_round_trip_through_json_and_write()
     {
         var gpif = BuildGpif("""
