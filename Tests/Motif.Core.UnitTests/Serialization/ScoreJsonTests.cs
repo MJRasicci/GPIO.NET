@@ -44,6 +44,15 @@ public class ScoreJsonTests
             Artist = "Motif",
             Album = "Tests",
             Anacrusis = true,
+            TempoChanges =
+            [
+                new TempoChange
+                {
+                    BarIndex = 0,
+                    Position = 0,
+                    BeatsPerMinute = 120m
+                }
+            ],
             PlaybackMasterBarSequence = [0, 1, 0, 1, 2],
             TimelineBars =
             [
@@ -74,11 +83,29 @@ public class ScoreJsonTests
                 {
                     Id = 1,
                     Name = "Lead",
+                    Instrument = new TrackInstrument
+                    {
+                        Family = InstrumentFamilyKind.Guitar,
+                        Kind = InstrumentKind.SteelStringGuitar,
+                        Role = TrackRoleKind.Pitched
+                    },
+                    Transposition = new TrackTransposition
+                    {
+                        IsSpecified = true,
+                        Chromatic = 0,
+                        Octave = -1
+                    },
                     Staves =
                     [
                         new Staff
                         {
                             StaffIndex = 0,
+                            Tuning = new StaffTuning
+                            {
+                                Label = "Standard",
+                                Pitches = [40, 45, 50, 55, 59, 64]
+                            },
+                            CapoFret = 2,
                             Measures =
                             [
                                 new StaffMeasure
@@ -110,12 +137,20 @@ public class ScoreJsonTests
         roundTripped!.Title.Should().Be(source.Title);
         roundTripped.Artist.Should().Be(source.Artist);
         roundTripped.Anacrusis.Should().BeTrue();
+        roundTripped.TempoChanges.Should().ContainSingle();
+        roundTripped.TempoChanges[0].BeatsPerMinute.Should().Be(120m);
         roundTripped.PlaybackMasterBarSequence.Should().Equal(0, 1, 0, 1, 2);
         roundTripped.TimelineBars.Should().HaveCount(2);
         roundTripped.TimelineBars[0].SectionText.Should().Be("Verse");
         roundTripped.TimelineBars[1].DirectionProperties["Fine"].Should().Be("1");
         roundTripped.Tracks.Should().ContainSingle();
+        roundTripped.Tracks[0].Instrument.Family.Should().Be(InstrumentFamilyKind.Guitar);
+        roundTripped.Tracks[0].Instrument.Kind.Should().Be(InstrumentKind.SteelStringGuitar);
+        roundTripped.Tracks[0].Transposition.IsSpecified.Should().BeTrue();
+        roundTripped.Tracks[0].Transposition.Octave.Should().Be(-1);
         roundTripped.Tracks[0].Staves.Should().ContainSingle();
+        roundTripped.Tracks[0].Staves[0].Tuning.Pitches.Should().Equal(40, 45, 50, 55, 59, 64);
+        roundTripped.Tracks[0].Staves[0].CapoFret.Should().Be(2);
         roundTripped.Tracks[0].PrimaryMeasure().Voices.Should().ContainSingle();
         roundTripped.Tracks[0].PrimaryMeasure().Beats.Should().ContainSingle();
         roundTripped.Tracks[0].PrimaryMeasure().Beats[0].Notes.Should().ContainSingle();
@@ -152,6 +187,7 @@ public class ScoreJsonTests
 
         properties["title"].GetString().Should().Be("Example");
         properties["timelineBars"].GetArrayLength().Should().Be(1);
+        properties["tempoChanges"].GetArrayLength().Should().Be(0);
         properties["playbackMasterBarSequence"].GetArrayLength().Should().Be(0);
         properties["tracks"].GetArrayLength().Should().Be(1);
     }

@@ -182,6 +182,13 @@ internal sealed class DefaultScoreMapper : IScoreMapper
                 {
                     Id = track.Id,
                     Name = track.Name,
+                    Instrument = GpTrackProfileCatalog.InferInstrument(trackMetadata, track.Name),
+                    Transposition = new TrackTransposition
+                    {
+                        IsSpecified = track.Transpose.Chromatic.HasValue || track.Transpose.Octave.HasValue,
+                        Chromatic = track.Transpose.Chromatic ?? 0,
+                        Octave = track.Transpose.Octave ?? 0
+                    },
                     Staves = AttachTrackStaffExtensions(trackMetadata, staves)
                 };
 
@@ -270,6 +277,15 @@ internal sealed class DefaultScoreMapper : IScoreMapper
             Album = source.Score.Album,
             Tracks = tracks,
             TimelineBars = timelineBars,
+            TempoChanges = tempoMap
+                .Where(tempo => tempo.Bpm.HasValue)
+                .Select(tempo => new TempoChange
+                {
+                    BarIndex = tempo.Bar ?? 0,
+                    Position = tempo.Position ?? 0,
+                    BeatsPerMinute = tempo.Bpm!.Value
+                })
+                .ToArray(),
             Anacrusis = source.MasterTrack.Anacrusis
         };
 
@@ -292,10 +308,28 @@ internal sealed class DefaultScoreMapper : IScoreMapper
 
             if (staffIndex < trackMetadata.Staffs.Count)
             {
+                var staffMetadata = CloneStaffMetadata(trackMetadata.Staffs[staffIndex]);
+                staff.Tuning = new StaffTuning
+                {
+                    Pitches = staffMetadata.TuningPitches.ToArray(),
+                    Label = trackMetadata.TuningLabel
+                };
+                staff.CapoFret = staffMetadata.CapoFret;
+
                 staff.SetExtension(new GpStaffExtension
                 {
-                    Metadata = CloneStaffMetadata(trackMetadata.Staffs[staffIndex])
+                    Metadata = staffMetadata
                 });
+                continue;
+            }
+
+            if (trackMetadata.TuningPitches.Length > 0)
+            {
+                staff.Tuning = new StaffTuning
+                {
+                    Pitches = trackMetadata.TuningPitches.ToArray(),
+                    Label = trackMetadata.TuningLabel
+                };
             }
         }
 
@@ -734,9 +768,12 @@ internal sealed class DefaultScoreMapper : IScoreMapper
 
         if (isStringedTrack && stringNumber.HasValue)
         {
-            return adjacentNotes
-                .FirstOrDefault(n => GetStringNumber(n) == stringNumber)
-                ?.Id;
+            var sameStringMatch = adjacentNotes
+                .FirstOrDefault(n => GetStringNumber(n) == stringNumber);
+            if (sameStringMatch is not null)
+            {
+                return sameStringMatch.Id;
+            }
         }
 
         return adjacentNotes

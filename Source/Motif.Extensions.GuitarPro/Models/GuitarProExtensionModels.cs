@@ -112,7 +112,7 @@ public sealed class GpVoiceMetadata
 {
     public string Xml { get; set; } = string.Empty;
 
-    public int SourceVoiceId { get; set; }
+    public int SourceVoiceId { get; set; } = -1;
 
     public IReadOnlyDictionary<string, string> Properties { get; set; } = new Dictionary<string, string>();
 

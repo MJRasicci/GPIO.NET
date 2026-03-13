@@ -23,15 +23,20 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
         var regenerationDiagnostics = hasScoreLevelSourceContext
             ? new RegenerationDiagnostics()
             : null;
-        var scoreExtension = score.GetGuitarPro();
-        var scoreMetadata = scoreExtension?.Metadata ?? new ScoreMetadata();
-        var masterTrackMetadata = scoreExtension?.MasterTrack ?? new MasterTrackMetadata();
         var orderedTracks = score.Tracks
             .OrderBy(t => t.Id)
             .ToArray();
         var orderedTimelineBars = score.TimelineBars
             .OrderBy(timelineBar => timelineBar.Index)
             .ToArray();
+        var scoreMetadata = GpExportDefaultsResolver.ResolveScoreMetadata(score, diagnostics);
+        var masterTrackMetadata = GpExportDefaultsResolver.ResolveMasterTrackMetadata(score, orderedTracks, diagnostics);
+        var resolvedTrackMetadata = orderedTracks.ToDictionary(
+            track => track.Id,
+            track => GpExportDefaultsResolver.ResolveTrackMetadata(track, diagnostics));
+        var resolvedStaffMetadata = orderedTracks.ToDictionary(
+            track => track.Id,
+            track => GpExportDefaultsResolver.ResolveStaffMetadata(track, resolvedTrackMetadata[track.Id], diagnostics));
         var masterTrackIds = masterTrackMetadata.TrackIds.Length > 0
             ? masterTrackMetadata.TrackIds
             : orderedTracks.Select(t => t.Id).ToArray();
@@ -39,8 +44,8 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
         var tracks = orderedTracks
             .Select(t =>
             {
-                var metadata = GetTrackMetadata(t);
-                var currentStaffMetadata = ResolveTrackStaffMetadata(t);
+                var metadata = resolvedTrackMetadata[t.Id];
+                var currentStaffMetadata = resolvedStaffMetadata[t.Id];
                 var stavesXml = ResolveStavesXml(metadata, currentStaffMetadata);
                 if (regenerationDiagnostics is not null
                     && HasSourceStavesXml(metadata)
@@ -560,7 +565,7 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
                         Xml = staffMetadata.BarXml,
                         Id = 0,
                         VoicesReferenceList = ReferenceListFormatter.JoinRefs(voiceSlots),
-                        Clef = staffBar.Clef,
+                        Clef = GpExportDefaultsResolver.ResolveClef(track, staffBar.StaffIndex, staffBar.Clef),
                         SimileMark = staffBar.SimileMark,
                         Properties = staffMetadata.Properties,
                         XProperties = staffMetadata.XProperties,
@@ -1188,7 +1193,7 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
     }
 
     private static TrackMetadata GetTrackMetadata(Track track)
-        => track.GetGuitarPro()?.Metadata ?? new TrackMetadata();
+        => track.GetGuitarPro()?.Metadata ?? GpExportDefaultsResolver.ResolveTrackMetadata(track, new WriteDiagnostics());
 
     private static GpTimelineBarMetadata GetTimelineBarMetadata(TimelineBar timelineBar)
         => timelineBar.GetGuitarPro()?.Metadata ?? new GpTimelineBarMetadata();
@@ -1210,7 +1215,7 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
         var trackMetadata = GetTrackMetadata(track);
         if (track.Staves.Count == 0)
         {
-            return trackMetadata.Staffs;
+            return GpExportDefaultsResolver.ResolveStaffMetadata(track, trackMetadata, new WriteDiagnostics());
         }
 
         var current = new List<StaffMetadata>(track.Staves.Count);
@@ -1233,6 +1238,28 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
             }
         }
 
+        var resolvedFallback = GpExportDefaultsResolver.ResolveStaffMetadata(track, trackMetadata, new WriteDiagnostics());
+        for (var staffIndex = 0; staffIndex < current.Count; staffIndex++)
+        {
+            if (staffIndex < resolvedFallback.Count)
+            {
+                if (current[staffIndex].TuningPitches.Length == 0)
+                {
+                    current[staffIndex].TuningPitches = resolvedFallback[staffIndex].TuningPitches.ToArray();
+                }
+
+                if (!current[staffIndex].CapoFret.HasValue)
+                {
+                    current[staffIndex].CapoFret = resolvedFallback[staffIndex].CapoFret;
+                }
+
+                if (current[staffIndex].Properties.Count == 0 && resolvedFallback[staffIndex].Properties.Count > 0)
+                {
+                    current[staffIndex].Properties = resolvedFallback[staffIndex].Properties.ToDictionary(kv => kv.Key, kv => kv.Value);
+                }
+            }
+        }
+
         return current;
     }
 
@@ -1249,6 +1276,13 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
 
     private static int[] ResolveTuningPitches(Track track, int staffIndex)
     {
+        if (staffIndex >= 0
+            && staffIndex < track.Staves.Count
+            && track.Staves[staffIndex].Tuning.Pitches.Count > 0)
+        {
+            return track.Staves[staffIndex].Tuning.Pitches.ToArray();
+        }
+
         var metadata = GetTrackMetadata(track);
         var currentStaffMetadata = ResolveTrackStaffMetadata(track);
 
@@ -1334,6 +1368,13 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
 
     private static int? ResolveCapoFret(Track track, int staffIndex)
     {
+        if (staffIndex >= 0
+            && staffIndex < track.Staves.Count
+            && track.Staves[staffIndex].CapoFret.HasValue)
+        {
+            return track.Staves[staffIndex].CapoFret;
+        }
+
         var metadata = GetTrackMetadata(track);
         var currentStaffMetadata = ResolveTrackStaffMetadata(track);
 
@@ -1414,8 +1455,15 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
         }
 
         var metadata = GetTrackMetadata(track);
-        var chromatic = metadata.Transpose.Chromatic ?? 0;
-        var octave = metadata.Transpose.Octave ?? 0;
+        var useCoreTransposition = track.Transposition.IsSpecified
+            || track.Transposition.Chromatic != 0
+            || track.Transposition.Octave != 0;
+        var chromatic = useCoreTransposition
+            ? track.Transposition.Chromatic
+            : metadata.Transpose.Chromatic ?? 0;
+        var octave = useCoreTransposition
+            ? track.Transposition.Octave
+            : metadata.Transpose.Octave ?? 0;
         return note.MidiPitch.Value - (octave * 12) + chromatic;
     }
 
@@ -1743,7 +1791,7 @@ internal sealed class DefaultScoreUnmapper : IScoreUnmapper
         {
             Metadata = new GpVoiceMetadata
             {
-                SourceVoiceId = 0,
+                SourceVoiceId = -1,
                 Properties = new Dictionary<string, string>(),
                 DirectionTags = Array.Empty<string>()
             }

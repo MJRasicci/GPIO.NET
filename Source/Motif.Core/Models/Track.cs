@@ -16,6 +16,16 @@ public sealed class Track : ExtensibleModel
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets the semantic instrument identity of the track.
+    /// </summary>
+    public TrackInstrument Instrument { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the transposition applied to the track.
+    /// </summary>
+    public TrackTransposition Transposition { get; set; } = new();
+
+    /// <summary>
     /// Gets or sets the staves belonging to the track.
     /// Structural edits should flow through staff and measure collections rather than a flattened track-measure view.
     /// </summary>

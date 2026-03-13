@@ -31,6 +31,11 @@ public sealed class Score : ExtensibleModel
     public IReadOnlyList<TimelineBar> TimelineBars { get; set; } = Array.Empty<TimelineBar>();
 
     /// <summary>
+    /// Gets or sets score-level tempo change events.
+    /// </summary>
+    public IReadOnlyList<TempoChange> TempoChanges { get; set; } = Array.Empty<TempoChange>();
+
+    /// <summary>
     /// True when playback should treat the score as beginning with a pickup bar.
     /// </summary>
     public bool Anacrusis { get; set; }

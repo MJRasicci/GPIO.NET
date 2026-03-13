@@ -67,6 +67,28 @@ public class MetadataMappingTests
     }
 
     [Fact]
+    public async Task Reader_projects_gp_authoring_semantics_into_core_model()
+    {
+        var fixturePath = GuitarProFixture.PathFor("test.gp");
+        var reader = new Motif.Extensions.GuitarPro.GuitarProReader();
+
+        var score = await reader.ReadAsync(fixturePath, cancellationToken: TestContext.Current.CancellationToken);
+
+        score.TempoChanges.Should().ContainSingle();
+        score.TempoChanges[0].BeatsPerMinute.Should().Be(120m);
+
+        var track = score.Tracks.Should().ContainSingle().Subject;
+        track.Instrument.Family.Should().Be(InstrumentFamilyKind.Guitar);
+        track.Instrument.Kind.Should().Be(InstrumentKind.SteelStringGuitar);
+        track.Instrument.Role.Should().Be(TrackRoleKind.Pitched);
+        track.Transposition.IsSpecified.Should().BeTrue();
+        track.Transposition.Chromatic.Should().Be(0);
+        track.Transposition.Octave.Should().Be(-1);
+        track.Staves.Should().ContainSingle();
+        track.Staves[0].Tuning.Pitches.Should().Equal(40, 45, 50, 55, 59, 64);
+    }
+
+    [Fact]
     public async Task Writer_round_trip_preserves_custom_score_and_track_metadata()
     {
         var beat = new Beat
