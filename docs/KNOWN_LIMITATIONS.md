@@ -32,3 +32,20 @@ Implications:
 
 This limitation is accepted for v1 unless a later serializer change can reduce the drift
 without compromising deterministic output or musical fidelity.
+
+## Standalone Mapped JSON Is Not Self-Contained
+
+Motif's mapped `Score` JSON is intentionally an editing and inspection format, not a
+self-contained carrier for preserved archive state or format-specific fidelity payload.
+
+- Scope: exporting to mapped JSON drops contributor payload, non-score archive resources,
+  and extension graphs that are not part of the core domain model.
+- Accepted v1 workflow: use `.motif` as the portable self-contained document, or keep a
+  prior score available and call `MotifScore.ReattachArchiveStateFrom(...)` or
+  `motif-cli --source-score` before writing `.motif`, `.gp`, or `.gpif`.
+- Implication: source-free `.json -> .motif`, `.json -> .gp`, and `.json -> .gpif`
+  writes are valid, but they regenerate format-specific state and cannot recover
+  contributor payload that the mapped JSON never carried.
+
+This is an intentional v1 boundary. A sidecar or bundle format for source-free mapped JSON
+workflows remains future work only if product requirements justify it.

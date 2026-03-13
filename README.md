@@ -74,9 +74,11 @@ Motif expects those files to be converted forward in Guitar Pro before import.
 When a score is opened from a file path, `.motif` manifests also record the imported
 format and source file name in `manifest.sources`, including extensionless workflows that
 use an explicit format hint.
-If you flatten a score out to mapped JSON and later want to save back to `.motif` or
-`.gp`, reattach archive context with `MotifScore.ReattachArchiveStateFrom(...)` before
-reapplying Guitar Pro fidelity metadata.
+Mapped JSON is intentionally not a self-contained carrier for preserved archive resources,
+provenance, or format-specific fidelity state in v1. Use `.motif` when you need a
+portable document that can later export back with preserved contributor payload, and use
+`MotifScore.ReattachArchiveStateFrom(...)` before writing `.motif`, `.gp`, or `.gpif`
+from standalone JSON when you still have a source score available.
 Use `GuitarProWriter` directly, or resolve it through `MotifScore.CreateWriter("gp")`,
 when you need Guitar Pro-specific write diagnostics or explicit source-archive control
 such as the CLI `--source-gp` workflow.
@@ -107,7 +109,7 @@ dotnet run --project Source/Motif.CLI -- song.gp song.motif
 # Read a native .motif archive back to mapped JSON
 dotnet run --project Source/Motif.CLI -- song.motif song.json
 
-# Write a new .gp archive from mapped JSON
+# Write a new .gp archive from mapped JSON with regenerated GP state
 dotnet run --project Source/Motif.CLI -- song.json output.gp
 
 # Reattach archive context from an existing source score after standalone JSON edits
@@ -140,8 +142,8 @@ Known current fidelity limitations are tracked in [docs/KNOWN_LIMITATIONS.md](do
 | --- | --- | --- | --- |
 | `gp` | Yes | Yes | Guitar Pro GP7+ ZIP archive containing `Content/score.gpif` |
 | `gpif` | Yes | Yes | Raw GPIF XML from the GP7+ format family |
-| `motif` | Yes | Yes | Native ZIP archive with `manifest.json`, `score.json`, and preserved namespaced extension/resource entries; GP-origin archives also preserve Guitar Pro metadata/resources |
-| `json` | Yes | Yes | Mapped `Score` JSON, intended for editing and inspection |
+| `motif` | Yes | Yes | Native ZIP archive with `manifest.json`, `score.json`, and preserved namespaced extension/resource entries; use this when you need a self-contained portable document |
+| `json` | Yes | Yes | Mapped `Score` JSON for editing and inspection; not a self-contained carrier for contributor or fidelity payload |
 | `musicxml` / `mxl` | No | No | Not part of the current CLI or library surface |
 | `midi` | No | No | Not part of the current CLI or library surface |
 

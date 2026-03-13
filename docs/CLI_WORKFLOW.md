@@ -55,13 +55,19 @@ dotnet run --project Source/Motif.CLI -- input.gpif score.motif
 dotnet run --project Source/Motif.CLI -- score.json score.motif
 ```
 
+When the input is standalone mapped JSON, the resulting `.motif` archive only contains
+the mapped score plus whatever archive context is already attached to that score. Use
+`--source-score` if you need preserved contributor payload and provenance from an earlier
+score file.
+
 Read a native `.motif` archive back to mapped JSON:
 
 ```bash
 dotnet run --project Source/Motif.CLI -- score.motif score.json
 ```
 
-Write a GP7+ `.gp` archive from mapped JSON using the built-in default archive template:
+Write a GP7+ `.gp` archive from mapped JSON using regenerated GP state and the built-in
+default archive template:
 
 ```bash
 dotnet run --project Source/Motif.CLI -- score.json output.gp
@@ -132,6 +138,9 @@ supported GP7+ `.gp` / `.gpif` workflow.
 `--source-score` fills the remaining standalone JSON gap by reopening an existing source
 score, reattaching its preserved archive context and Guitar Pro fidelity state onto the
 edited mapped JSON score, and then writing from that enriched score.
+Standalone mapped JSON is intentionally not a self-contained archive-state bundle for v1.
+Use `.motif` when you need a portable document that keeps contributor payload, or keep a
+source score available for `--source-score` before writing `.motif`, `.gp`, or `.gpif`.
 `.motif` manifests also record the imported source format and file name in
 `manifest.sources`, including extensionless routes that rely on `--input-format`.
 That also means you can edit `score.json` inside an existing `.motif` archive and export

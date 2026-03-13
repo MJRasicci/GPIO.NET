@@ -164,7 +164,8 @@ public static class MotifScore
     /// <remarks>
     /// This copies preserved supplemental archive entries and extension keys, and merges any tracked import sources
     /// so workflows such as <c>.motif -&gt; json -&gt; .motif</c> can deliberately restore archive context after a
-    /// flattened mapped-JSON edit.
+    /// flattened mapped-JSON edit. Standalone mapped JSON is not a self-contained carrier for contributor payload,
+    /// so source-free JSON round-trips cannot recover archive state unless that data is reattached from another score.
     /// </remarks>
     public static void ReattachArchiveStateFrom(Score target, Score source)
     {

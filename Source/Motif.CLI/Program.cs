@@ -490,6 +490,7 @@ SINGLE FILE
   motif-cli song.gpif song.motif
   motif-cli song.json song.motif
     Write a native .motif archive containing manifest.json and score.json.
+    Standalone mapped JSON does not add preserved contributor payload unless --source-score is used.
 
   motif-cli song.motif song.json
     Read a native .motif archive and export mapped score JSON.
@@ -505,7 +506,8 @@ SINGLE FILE
 
   motif-cli song.json output.gp
     Read mapped score JSON and write a .gp archive.
-    Uses the built-in default archive payload and replaces Content/score.gpif.
+    Uses regenerated GP state plus the built-in default archive payload unless
+    --source-score or --source-gp is supplied.
 
   motif-cli edited.json restored.motif --source-score original.motif
     Reattach preserved archive context from an existing score file before writing.
@@ -562,6 +564,7 @@ OPTIONS
   --out <path>                  Explicit output file path
   --from-json                   Compatibility alias for --input-format json
   --source-score <path>         Reattach archive/fidelity context from an existing score file
+                                before writing from standalone mapped JSON
   --source-gp <path>            Custom archive template for JSON -> .gp writes
   --batch-input-dir <dir>       Source directory for batch export
   --batch-output-dir <dir>      Destination directory for batch export

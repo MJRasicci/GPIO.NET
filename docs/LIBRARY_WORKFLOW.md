@@ -34,6 +34,10 @@ every original `.gp` archive entry except `Content/score.gpif`. In the current c
 that commonly means `VERSION`, `Content/BinaryStylesheet`, layout/config files,
 `Content/ScoreViews/*`, `Content/Stylesheets/*`, and in some files `Content/Assets/*`
 such as embedded WAV audio.
+Mapped JSON is intentionally not a self-contained archive-state bundle in v1. Use
+`.motif` when you need a portable document that keeps contributor payload and provenance,
+or plan to reattach that state from a prior score before writing back to `.motif`, `.gp`,
+or `.gpif`.
 
 If your source path is extensionless or uses a custom suffix, call
 `MotifScore.OpenAsync("song.data", "gp", cancellationToken: cancellationToken)`.
@@ -155,6 +159,10 @@ var reattachment = editedScore.ReattachGuitarProExtensionsFrom(sourceScore);
 - The returned result reports how much source fidelity was reusable.
 - Partial matches still produce valid output, but the writer may emit
   `GP_EXTENSION_REATTACHMENT_PARTIAL`.
+
+If you no longer have a source score to reattach from, treat that as an intentional v1
+boundary rather than a broken workflow: standalone mapped JSON by itself cannot recover
+preserved contributor payload or raw-format fidelity state.
 
 ## Diagnostics To Watch
 
