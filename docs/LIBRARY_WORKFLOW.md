@@ -29,6 +29,11 @@ preserve namespaced `extensions/` and `resources/` entries so format packages ca
 supplementary archive data through the new contributor hook. Guitar Pro now uses that
 hook to persist its raw metadata plus non-score archive files in
 `extensions/guitarpro.json` and `resources/guitarpro/...`.
+The preserved non-score payload is generic rather than whitelist-based: Motif carries
+every original `.gp` archive entry except `Content/score.gpif`. In the current corpus
+that commonly means `VERSION`, `Content/BinaryStylesheet`, layout/config files,
+`Content/ScoreViews/*`, `Content/Stylesheets/*`, and in some files `Content/Assets/*`
+such as embedded WAV audio.
 
 If your source path is extensionless or uses a custom suffix, call
 `MotifScore.OpenAsync("song.data", "gp", cancellationToken: cancellationToken)`.
@@ -59,6 +64,10 @@ Guitar Pro-specific capabilities instead of the format-agnostic unified API:
   resources are attached.
 - If you need to seed a new output path from a different source archive, use the CLI
   `--source-gp` workflow. That behavior is not exposed as a separate library API today.
+
+That preserved-resource path is what allows optional archive content such as
+`Content/Assets/*` audio to survive `.gp -> .motif -> .gp` workflows without format-
+specific special cases for each file family.
 
 ## Derived Navigation State
 

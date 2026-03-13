@@ -121,6 +121,11 @@ For Guitar Pro sources, those entries now include raw GP metadata plus non-score
 files, so `motif-cli song.motif output.gp` can reconstruct the full `.gp` archive
 without `--source-gp`. `--source-gp` remains the explicit template override for JSON-only
 workflows and other cases where no preserved GP archive payload is attached.
+The preserved payload is generic rather than whitelist-based: Motif carries every
+original `.gp` archive entry other than `Content/score.gpif`. In the current corpus that
+commonly includes `VERSION`, `Content/BinaryStylesheet`, layout/config files,
+`Content/ScoreViews/*`, `Content/Stylesheets/*`, and in some files `Content/Assets/*`
+such as embedded WAV audio.
 Older pre-GP7 Guitar Pro formats, including `.gpx`, are intentionally out of scope; use
 Guitar Pro's own conversion/export features first if you need those files in the
 supported GP7+ `.gp` / `.gpif` workflow.

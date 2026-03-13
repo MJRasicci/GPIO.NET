@@ -64,6 +64,11 @@ extension handlers such as Guitar Pro at runtime. `.motif` archives always conta
 `resources/` entries so format packages can round-trip supplementary data without the
 core archive writer knowing format details. Guitar Pro now uses those locations to carry
 raw GP metadata plus non-score archive files through `.gp -> .motif -> .gp` workflows.
+In the current corpus, those preserved non-score entries commonly include `VERSION`,
+`Content/BinaryStylesheet`, layout/config files, `Content/ScoreViews/*`,
+`Content/Stylesheets/*`, and in some files `Content/Assets/*` such as embedded WAV
+audio. Preservation is generic: every original `.gp` archive entry other than
+`Content/score.gpif` is carried forward.
 Older pre-GP7 Guitar Pro formats such as `.gpx` are intentionally unsupported today;
 Motif expects those files to be converted forward in Guitar Pro before import.
 When a score is opened from a file path, `.motif` manifests also record the imported
